@@ -1,0 +1,35 @@
+"use client";
+import {useMemo} from 'react';
+import {FileDown} from 'lucide-react';
+import {useRentflowStore} from '@/lib/store-context';
+import {useQueryParam} from '@/lib/use-list-filters';
+import {ALL_OWNERS,useRelatedAgreements} from '@/lib/use-related-agreements';
+import {exportReportCsv,reportConfig,reportTypes} from '@/lib/reports';
+import {SectionHeading} from '@/components/shared/section-heading';
+import {Card} from '@/components/ui/card';
+import {Button} from '@/components/ui/button';
+import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/components/ui/select';
+import {FilterSelect} from '@/components/shared/filter-toolbar';
+import {StatementLedger,type StatementColumn} from '@/components/features/accounts/statement-ledger';
+
+export default function ReportsPage(){
+ const rf=useRentflowStore();
+ const {agreements,owners}=useRelatedAgreements();
+ const [type,setType]=useQueryParam('type',reportTypes[0]);
+ const config=useMemo(()=>reportConfig(type),[type]);
+ const columns=useMemo<StatementColumn[]>(()=>config.columns.map((label,i)=>({label,value:(a,s)=>config.values(a,s)[i]})),[config]);
+ return <>
+  <div className="report-header"><Card>
+   <span className="eyebrow">REPORT BUILDER</span><h2>September account summary</h2><p>Select a report and apply the owner filter. Export a scoped CSV with source totals.</p>
+   <div className="report-controls">
+    <Select value={type} onValueChange={setType}><SelectTrigger aria-label="Report type"><SelectValue/></SelectTrigger><SelectContent>{reportTypes.map(r=><SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent></Select>
+    <FilterSelect param="owner" label="Filter report by owner" allValue={ALL_OWNERS} options={owners}/>
+    <Button onClick={()=>exportReportCsv(type,agreements,rf.store.entries)}><FileDown size={16}/> Download CSV</Button>
+   </div>
+  </Card></div>
+  <Card>
+   <SectionHeading title={type} subtitle={`${agreements.length} agreements · generated from current demo entries`}/>
+   <StatementLedger party={config.party} partyHeader={`${config.party} / vehicle`} columns={columns} agreements={agreements} store={rf.store} onSelect={rf.setSelected} signed emptyTitle="No agreements match this report filter."/>
+  </Card>
+ </>;
+}

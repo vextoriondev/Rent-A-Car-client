@@ -1,19 +1,19 @@
 "use client";
-import {useState} from 'react';
 import {useRouter} from 'next/navigation';
 import {ArrowUpRight,ArrowDownLeft,WalletCards,Banknote,ChartNoAxesCombined,Clock3,AlertCircle,Layers3,ReceiptText,FileSignature,Plus,ChevronRight} from 'lucide-react';
-import {statement,totals} from '@/lib/demo';
+import {totals} from '@/lib/demo';
 import {useRentflowStore} from '@/lib/store-context';
-import {Card,SectionHeading,AccountTable,fmtDate} from '@/components/legacy/shared';
+import {SectionHeading} from '@/components/shared/section-heading';
+import {fmtDate} from '@/lib/format';
+import {AccountsLedger} from '@/components/features/accounts/accounts-ledger';
+import {Card} from '@/components/ui/card';
 import {Money} from '@/components/shared/money';
 
 export default function OverviewPage(){
  const router=useRouter();
  const rf=useRentflowStore();
  const {store}=rf;
- const [sort,setSort]=useState<'customer'|'due'>('customer');
  const financial=totals(store);
- const agreements=[...store.agreements].sort((a,b)=>sort==='due'?statement(b,store.entries).customerDue-statement(a,store.entries).customerDue:a.customer.localeCompare(b.customer));
  const metrics=[
   {label:'Customer outstanding',value:financial.customer,icon:ArrowDownLeft,detail:'Billed rent less receipts',color:'blue'},
   {label:'Owners payable',value:financial.owner,icon:ArrowUpRight,detail:'Net of permitted offsets',color:'gold'},
@@ -24,7 +24,7 @@ export default function OverviewPage(){
   <div className="metric-grid">{metrics.map(m=><Card key={m.label} className="metric"><div className="metric-top"><span>{m.label}</span><span className={'metric-icon '+m.color}><m.icon size={19}/></span></div><strong className="nums"><Money value={m.value}/></strong><small>{m.detail}</small></Card>)}</div>
   <div className="overview-layout">
    <div className="overview-main">
-    <Card><SectionHeading title="Monthly account overview" subtitle="Each row connects customer, owner and driver balances." action={<button className="text-button" onClick={()=>router.push('/settlements')}>View settlements <ChevronRight size={16}/></button>}/><AccountTable agreements={agreements} store={store} onSelect={rf.setSelected} sort={sort} setSort={setSort}/></Card>
+    <Card><SectionHeading title="Monthly account overview" subtitle="Each row connects customer, owner and driver balances." action={<button className="text-button" onClick={()=>router.push('/settlements')}>View settlements <ChevronRight size={16}/></button>}/><AccountsLedger agreements={store.agreements} store={store} onSelect={rf.setSelected}/></Card>
     <Card><SectionHeading title="Recent activity" subtitle="Entries link back to their source account." action={<button className="text-button" onClick={()=>router.push('/cashbook')}>Cashbook <ChevronRight size={16}/></button>}/>
      <div className="activity-list">{store.entries.slice(0,5).map(e=>{const a=store.agreements.find(a=>a.id===e.agreementId);return <button className="activity" key={e.id} onClick={()=>rf.setSelected(e.id)}><span className={'activity-icon '+(e.type==='Customer payment'?'incoming':'outgoing')}>{e.type==='Customer payment'?<ArrowDownLeft size={18}/>:<ArrowUpRight size={18}/>}</span><span className="activity-title"><strong>{e.description}</strong><small>{a?.vehicle} · {fmtDate(e.date)} · {e.id}</small></span><b className="nums"><Money value={e.amount}/></b><ChevronRight size={15}/></button>})}</div>
     </Card>
@@ -41,7 +41,7 @@ export default function OverviewPage(){
      <div className="quick-actions">
       <button onClick={()=>rf.openEntry('Expense')}><ReceiptText size={18}/> Record expense <Plus size={16}/></button>
       <button onClick={()=>rf.openEntry('Customer payment')}><ArrowDownLeft size={18}/> Receive payment <Plus size={16}/></button>
-      <button onClick={()=>{rf.setWizardStep(0);rf.setAgreementOpen(true)}}><FileSignature size={18}/> New agreement <Plus size={16}/></button>
+      <button onClick={()=>{rf.setAgreementOpen(true)}}><FileSignature size={18}/> New agreement <Plus size={16}/></button>
      </div>
     </Card>
     <Card className="insight-card"><div className="insight-label"><ChartNoAxesCombined size={17}/> ACCRUAL SNAPSHOT</div><strong className="nums"><Money value={financial.margin} signed/></strong><p>Estimated margin before tax and other unrecorded costs. Cash movement is shown separately.</p></Card>
