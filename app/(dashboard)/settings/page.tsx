@@ -1,5 +1,5 @@
 "use client";
-import {RotateCcw} from 'lucide-react';
+import {LogOut,RotateCcw} from 'lucide-react';
 import {apiMode} from '@/lib/api';
 import {useRentflowStore} from '@/lib/store-context';
 import {SectionHeading} from '@/components/shared/section-heading';
@@ -26,5 +26,10 @@ export default function SettingsPage(){
    <p className="settings-copy">{apiMode?'Reset is available only in demo mode. Manage production data through authorized workflows.':'Reset restores the four sample agreements and worked September entries. This cannot affect real accounts.'}</p>
    <Button variant="outline" disabled={apiMode} onClick={()=>{if(window.confirm('Reset all local demo changes?'))rf.resetDemo()}}><RotateCcw size={16}/> Reset sample data</Button>
   </Card>
+  {apiMode&&<Card>
+   <SectionHeading title="Session" subtitle="Signed in with your Django account."/>
+   <p className="settings-copy">Signing out ends your session on this backend. You will need to sign in again to reach live data.</p>
+   <Button variant="outline" onClick={()=>{if(window.confirm('Sign out of RentFlow?'))rf.signOut()}}><LogOut size={16}/> Sign out</Button>
+  </Card>}
  </div>;
 }

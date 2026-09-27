@@ -58,3 +58,20 @@ export const WIZARD_INCOMPLETE='Complete all parties, vehicle details and positi
 
 /** Which wizard step (0-3) each field lives on, so a failed submit can jump to the first step with an error. */
 export const wizardStepOf:Record<keyof AgreementFormValues,number>={customer:0,owner:0,vehicle:1,registration:1,driver:1,start:1,rent:2,ownerRent:2,salary:2,fuel:3,repair:3,offset:3};
+
+export const loginSchema=z.object({
+ username:required('Enter your username.'),
+ password:required('Enter your password.'),
+});
+export type LoginFormValues=z.infer<typeof loginSchema>;
+export const loginDefaults:LoginFormValues={username:'',password:''};
+
+export const registerSchema=z.object({
+ organizationName:required('Enter your company or workspace name.'),
+ username:required('Choose a username.'),
+ email:z.union([z.literal(''),z.string().email('Enter a valid email address.')]),
+ password:z.string().min(8,'Use at least 8 characters.'),
+ confirmPassword:z.string().min(1,'Confirm your password.'),
+}).refine(v=>v.password===v.confirmPassword,{message:'Passwords do not match.',path:['confirmPassword']});
+export type RegisterFormValues=z.infer<typeof registerSchema>;
+export const registerDefaults:RegisterFormValues={organizationName:'',username:'',email:'',password:'',confirmPassword:''};

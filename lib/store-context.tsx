@@ -1,7 +1,8 @@
 "use client";
 import {createContext,useContext,useEffect,useState,type ReactNode} from 'react';
+import {useRouter} from 'next/navigation';
 import {loadDemo,saveDemo,seed,statement,type Store,type Agreement,type Entry,type EntryType} from './demo';
-import {apiMode,liveSnapshot,livePost} from './api';
+import {apiMode,liveSnapshot,livePost,logout,ApiError} from './api';
 import {useSelected} from './use-list-filters';
 import type {AgreementFormValues,EntryFormValues} from './forms';
 
@@ -24,6 +25,7 @@ interface RentflowContextValue{
  markNoticeRead:(id:string)=>void;
  retryNotice:(id:string)=>void;
  resetDemo:()=>void;
+ signOut:()=>void;
 }
 
 const RentflowContext=createContext<RentflowContextValue|null>(null);
@@ -35,6 +37,7 @@ export function useRentflowStore(){
 }
 
 export function RentflowStoreProvider({children}:{children:ReactNode}){
+ const router=useRouter();
  const [store,setStore]=useState<Store>(apiMode?{agreements:[],entries:[],notices:[],closed:[]}:seed);
  const [ready,setReady]=useState(false);
  const [apiError,setApiError]=useState('');
@@ -49,8 +52,12 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
  const [entryInit,setEntryInit]=useState<{type:EntryType;agreementId:string}>({type:'Expense',agreementId:''});
 
  useEffect(()=>{
-  if(apiMode){liveSnapshot().then(setStore).catch(e=>setApiError(e.message)).finally(()=>setReady(true))}
+  if(apiMode){liveSnapshot().then(setStore).catch(e=>{
+   if(e instanceof ApiError&&e.status===401){router.replace('/login');return}
+   setApiError(e.message)
+  }).finally(()=>setReady(true))}
   else{setStore(loadDemo());setReady(true)}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[]);
  useEffect(()=>{if(ready&&!apiMode)saveDemo(store)},[store,ready]);
  useEffect(()=>{if(!toast)return;const id=setTimeout(()=>setToast(''),4500);return()=>clearTimeout(id)},[toast]);
@@ -151,13 +158,15 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
 
  const resetDemo=()=>{setStore(structuredClone(seed));setToast('Demo workspace restored.')};
 
+ const signOut=()=>{if(apiMode)void logout().finally(()=>router.replace('/login'))};
+
  const value:RentflowContextValue={
   store,ready,apiError,apiBusy,toast,setToast,
   selected,setSelected,
   entryOpen,setEntryOpen,agreementOpen,setAgreementOpen,confirmClose,setConfirmClose,mobileMenu,setMobileMenu,
   entryInit,
   refreshLive,openEntry,submitEntry,approve,reverse,closeSettlement,createAgreement,
-  markNoticeRead,retryNotice,resetDemo,
+  markNoticeRead,retryNotice,resetDemo,signOut,
  };
 
  return <RentflowContext.Provider value={value}>{children}</RentflowContext.Provider>;
