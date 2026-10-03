@@ -23,6 +23,7 @@ interface RentflowContextValue{
  closeSettlement:(id:string)=>void;
  createAgreement:(values:AgreementFormValues)=>Promise<string|null>;
  markNoticeRead:(id:string)=>void;
+ markAllNoticesRead:()=>void;
  retryNotice:(id:string)=>void;
  resetDemo:()=>void;
  signOut:()=>void;
@@ -151,6 +152,8 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
 
  const markNoticeRead=(id:string)=>{setStore(s=>({...s,notices:s.notices.map(x=>x.id===id?{...x,read:true}:x)}))};
 
+ const markAllNoticesRead=()=>{setStore(s=>({...s,notices:s.notices.map(x=>x.read?x:{...x,read:true})}))};
+
  const retryNotice=(id:string)=>{
   if(apiMode&&store.backend){const org=store.backend.orgId;void livePost(org,`/notifications/${id.replace('NT-','')}/retry`,{}).then(refreshLive).then(()=>{setToast('Retry queued in the backend.');setSelected(null)}).catch(e=>setToast(e.message));return}
   setSelected(null);setToast('Retry queued in this demo.');
@@ -166,7 +169,7 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
   entryOpen,setEntryOpen,agreementOpen,setAgreementOpen,confirmClose,setConfirmClose,mobileMenu,setMobileMenu,
   entryInit,
   refreshLive,openEntry,submitEntry,approve,reverse,closeSettlement,createAgreement,
-  markNoticeRead,retryNotice,resetDemo,signOut,
+  markNoticeRead,markAllNoticesRead,retryNotice,resetDemo,signOut,
  };
 
  return <RentflowContext.Provider value={value}>{children}</RentflowContext.Provider>;
