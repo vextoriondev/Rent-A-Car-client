@@ -38,8 +38,9 @@ export function ContactPreferences(){
  useEffect(()=>{
   if(!orgId)return;
   let alive=true;
-  apiRequest(`/orgs/${orgId}/parties`).then((rows:ApiParty[])=>{
+  apiRequest(`/orgs/${orgId}/parties?limit=200`).then((page:{items:ApiParty[]})=>{
    if(!alive)return;
+   const rows=page.items;
    const mapped=rows.map(fromApi).filter((x):x is Pref=>!!x);
    setRestricted(rows.length>0&&mapped.length===0);setParties(mapped);
   }).catch(e=>{if(alive){setParties([]);rf.setToast(e.message)}});
