@@ -7,6 +7,8 @@ import {fmtDate} from '@/lib/format';
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Sheet,SheetContent,SheetDescription,SheetHeader,SheetTitle} from '@/components/ui/sheet';
+import {DocumentList} from '@/components/features/documents/document-list';
+import {AgreementTerms} from '@/components/features/agreements/agreement-terms';
 import {AgreementContext} from '@/components/features/agreements/agreement-context';
 import {SettlementStatement} from '@/components/features/settlements/settlement-statement';
 import {ExpenseResponsibilityMatrix} from '@/components/features/agreements/expense-responsibility-matrix';
@@ -50,6 +52,7 @@ function AgreementBody({agreement}:{agreement:Agreement}){
  const {store}=rf;
  return <div className="sheet-scroll">
   <AgreementContext agreement={agreement}/>
+  <AgreementTerms agreementId={agreement.id}/>
   <SettlementStatement agreement={agreement} entries={store.entries}/>
   <ExpenseResponsibilityMatrix agreement={agreement}/>
   <h3 className="detail-subheading">Source entries</h3>
@@ -76,11 +79,14 @@ function EntryBody({entry}:{entry:Entry}){
   <div className="entry-amount"><Money value={entry.amount}/> <Badge tone={statusTone(entry.status)}>{entry.status}</Badge></div>
   <div className="terms">{[['Agreement',entry.agreementId],['Service date',fmtDate(entry.date)],['Category',entry.category],['Paid by',entry.paidBy],['Responsible',entry.responsible],['Reference',entry.reference],['Receipt',entry.receipt||'None attached'],['Owner offset',entry.offset?'Authorized':'No']].map(([k,v])=><div key={k}><span>{k}</span><b>{v}</b></div>)}</div>
   <p className="entry-description">{entry.description}</p>
-  <p className="note">{entry.status==='Pending approval'?'Pending entries do not change balances.':'This source contributes to the relevant account statement.'}</p>
+  <p className="note">{entry.status==='Draft'?'A draft can still be edited or discarded and does not change any balance. Submit it to post it or send it for approval.':entry.status==='Pending approval'?'Pending entries do not change balances.':'This source contributes to the relevant account statement.'}</p>
+  {apiMode&&rf.store.backend?.expenseIds[entry.id]&&<DocumentList targetType="expense" targetId={rf.store.backend.expenseIds[entry.id]} title="Receipts and files"/>}
   {target&&entry.status==='Posted'&&<AllocationPanel lines={[{label:`Applied to ${target}`,amount:entry.amount}]}/>}
   <div className="sheet-footer">
+   {entry.status==='Draft'&&<Button onClick={()=>rf.submitDraft(entry.id)}><CheckCircle2 size={16}/> Submit for posting</Button>}
+   {entry.status==='Draft'&&<Button variant="outline" onClick={()=>rf.discardDraft(entry.id)}>Discard draft</Button>}
    {entry.status==='Pending approval'&&<Button onClick={()=>rf.approve(entry.id)}><CheckCircle2 size={16}/> Approve</Button>}
-   {entry.status==='Posted'&&<Button variant="outline" onClick={()=>{if(apiMode||confirm('Reverse this posted demo entry?'))rf.reverse(entry.id)}}><RotateCcw size={16}/> Reverse entry</Button>}
+   {entry.status==='Posted'&&<Button variant="outline" onClick={()=>{if(apiMode||confirm('Reverse this posted demo entry?'))rf.reverse(entry.id)}}><RotateCcw size={16}/> Correct by reversing</Button>}
    <Button variant="outline" onClick={()=>rf.setSelected(entry.agreementId)}>View agreement</Button>
   </div>
  </div>;
