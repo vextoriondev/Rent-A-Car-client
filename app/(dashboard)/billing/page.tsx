@@ -8,6 +8,8 @@ import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {Money} from '@/components/shared/money';
 import {AccountsLedger} from '@/components/features/accounts/accounts-ledger';
+import {BillingWorkspace} from '@/components/features/billing/billing-workspace';
+import {apiMode} from '@/lib/api';
 
 export default function BillingPage(){
  const rf=useRentflowStore();
@@ -26,5 +28,6 @@ export default function BillingPage(){
    <SectionHeading title="Customer billing and collections" subtitle="Partial receipts reduce each agreement's open rent balance." action={<Button onClick={()=>rf.openEntry('Customer payment')}><Plus size={16}/> Receive payment</Button>}/>
    <AccountsLedger agreements={agreements} store={rf.store} onSelect={rf.setSelected}/>
   </Card>
+  {apiMode?<BillingWorkspace/>:<Card><SectionHeading title="Charges, invoices and ledger"/><p className="note">API mode only: extra charges, credits, invoices, the period ledger and split payments need the Django backend. This demo keeps the simple collection flow above.</p></Card>}
  </>;
 }

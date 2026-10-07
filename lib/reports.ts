@@ -1,4 +1,5 @@
 import {period,statement,type Agreement,type Entry} from '@/lib/demo';
+import type {DownloadTable} from '@/lib/downloads';
 
 export type PartyKind='Customer'|'Owner'|'Driver';
 type Statement=ReturnType<typeof statement>;
@@ -18,19 +19,25 @@ export function reportConfig(type:string):ReportConfig{
 
 export const partyName=(party:PartyKind,a:Agreement)=>party==='Owner'?a.owner:party==='Driver'?a.driver:a.customer;
 
-export function csv(rows:(string|number)[][],filename:string){
- const content=rows.map(row=>row.map(x=>'"'+String(x).replaceAll('"','""')+'"').join(',')).join('\r\n');
- const blob=new Blob(['\uFEFF'+content],{type:'text/csv;charset=utf-8'});
- const url=URL.createObjectURL(blob);
- const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
+/** Backend report slug for each on-screen report type (GET /reports/{slug}/export). */
+export const reportSlug=(type:string)=>type.toLowerCase().replaceAll(' ','-');
+
+/** Describes the on-screen scope for the file preamble and the PDF heading. */
+export function scopeText(parts:{label:string;value:string;all:string}[]){
+ const used=parts.filter(p=>p.value&&p.value!==p.all).map(p=>`${p.label}: ${p.value}`);
+ return [`Month: September 2026`,...used].join('; ');
 }
 
-/** Same behaviour as the old single-page app: filters by status only, not by the owner/search scope shown on screen. */
-export function exportEntriesCsv(entries:Entry[],statusFilter:string){
- csv([['ID','Agreement','Date','Type','Amount BDT','Paid by','Responsible','Status','Reference'],...entries.filter(e=>statusFilter==='All'||e.status===statusFilter).map(e=>[e.id,e.agreementId,e.date,e.type,e.amount,e.paidBy,e.responsible,e.status,e.reference])],`rentflow-entries-${period}.csv`);
+/** The entries exactly as listed on screen (the owner, search and status filters apply). */
+export function entriesTable(entries:Entry[],scope:string):DownloadTable{
+ return {title:'Cashbook and entries',scope,columns:['ID','Agreement','Date','Type','Amount BDT','Paid by','Responsible','Status','Reference'],rows:entries.map(e=>[e.id,e.agreementId,e.date,e.type,e.amount,e.paidBy,e.responsible,e.status,e.reference])};
 }
 
-export function exportReportCsv(type:string,agreements:Agreement[],entries:Entry[]){
+export function reportTable(type:string,agreements:Agreement[],entries:Entry[],scope:string):DownloadTable{
  const config=reportConfig(type);
- csv([['Agreement','Vehicle',config.party,...config.columns.map(c=>c+' BDT'),'Generated at'],...agreements.map(a=>{const s=statement(a,entries);return[a.id,a.registration,partyName(config.party,a),...config.values(a,s),new Date().toISOString()]})],`rentflow-${type.toLowerCase().replaceAll(' ','-')}-${period}.csv`);
+ const rows=agreements.map(a=>{const s=statement(a,entries);return[a.id,a.registration,partyName(config.party,a),...config.values(a,s)]});
+ const sums=config.columns.map((_c,i)=>rows.reduce((t,r)=>t+Number(r[3+i]),0));
+ return {title:type,scope,columns:['Agreement','Vehicle',config.party,...config.columns.map(c=>c+' BDT')],rows,totals:rows.length?['Total','','',...sums]:undefined};
 }
+
+export const fileStem=(name:string)=>`rentflow-${name.toLowerCase().replaceAll(/[^a-z0-9]+/g,'-')}-${period}`;
