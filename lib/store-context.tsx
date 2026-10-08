@@ -98,7 +98,7 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
    let uploadNote='';
    try{
     if(entryType==='Expense'){
-     const category=expenseCategoryCodes[v.category];
+     const category=expenseCategoryCodes[v.category]??(/^[a-z0-9_]+$/.test(v.category)?v.category:'');
      if(!category)throw new Error('Choose a supported expense category.');
      const saved=await livePost(backend.orgId,'/expenses',{period_id:periodId,category,amount:String(amount),event_date:v.date,paid_by:v.payer.toLowerCase(),responsible:v.liable.toLowerCase(),offset_owner:v.offset&&chosen.rules.offset&&v.payer==='Operator'&&v.liable==='Owner',reference:v.reference,description:v.description,draft:!!opts?.draft||!!opts?.file,receipt_reference:v.receiptRef.trim(),override_reason:v.overrideReason.trim(),allow_duplicate_reason:v.duplicateReason.trim(),late_entry:v.lateEntry,...(opts?.maintenanceCaseId?{maintenance_case_id:opts.maintenanceCaseId}:{})},entryKey);
      if(opts?.file){

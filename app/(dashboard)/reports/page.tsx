@@ -10,9 +10,13 @@ import {SectionHeading} from '@/components/shared/section-heading';
 import {Card} from '@/components/ui/card';
 import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/components/ui/select';
 import {FilterSelect} from '@/components/shared/filter-toolbar';
+import {apiMode} from '@/lib/api';
+import {ApiReports} from '@/components/features/reports/api-reports';
 import {StatementLedger,type StatementColumn} from '@/components/features/accounts/statement-ledger';
 
-export default function ReportsPage(){
+export default function ReportsPage(){return apiMode?<ApiReports/>:<DemoReports/>}
+
+function DemoReports(){
  const rf=useRentflowStore();
  const {agreements,owners}=useRelatedAgreements();
  const [type,setType]=useQueryParam('type',reportTypes[0]);

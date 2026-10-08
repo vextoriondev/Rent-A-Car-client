@@ -98,3 +98,4 @@
 .period-custom{display:grid;grid-template-columns:1fr 1fr;gap:8px}.period-custom label{display:grid;gap:4px;font-size:11px;font-weight:650;color:#415c66}
 .daily-day{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin:6px 0 12px}.daily-day label{display:grid;gap:4px;font-size:11px;font-weight:650;color:#415c66}.daily-day strong{font-size:13px;align-self:center}
 .daily-filters{flex-wrap:wrap}.daily-breakdowns{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:16px}
+.category-list{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:8px}.category-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.category-name{flex:1 1 140px;min-width:0}.category-add{display:flex;gap:8px;flex-wrap:wrap}.category-add input{flex:1 1 180px}

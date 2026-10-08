@@ -5,6 +5,7 @@ import {useRentflowStore} from '@/lib/store-context';
 import {SectionHeading} from '@/components/shared/section-heading';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
+import {CostCategoriesSettings} from '@/components/features/expenses/cost-categories-settings';
 import {SettlementSettings} from '@/components/features/settlements/settlement-settings';
 
 const policies:[string,string][]=[
@@ -28,6 +29,7 @@ export default function SettingsPage(){
    <Button variant="outline" disabled={apiMode} onClick={()=>{if(window.confirm('Reset all local demo changes?'))rf.resetDemo()}}><RotateCcw size={16}/> Reset sample data</Button>
   </Card>
   {apiMode&&<SettlementSettings/>}
+  {apiMode&&<CostCategoriesSettings/>}
   {apiMode&&<Card>
    <SectionHeading title="Session" subtitle="Signed in with your Django account."/>
    <p className="settings-copy">Signing out ends your session on this backend. You will need to sign in again to reach live data.</p>

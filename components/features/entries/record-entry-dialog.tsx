@@ -13,6 +13,7 @@ import {Input} from '@/components/ui/input';
 import {ReceiptAndCase} from '@/components/features/entries/receipt-and-case';
 import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/components/ui/select';
 import {apiMode} from '@/lib/api';
+import {useExpenseCategories} from '@/lib/use-expense-categories';
 import {EntryConsequencePreview} from '@/components/shared/entry-consequence-preview';
 
 const emptyForm=entryDefaults('Expense');
@@ -38,6 +39,15 @@ export function RecordEntryDialog(){
  const chosen=store.agreements.find(a=>a.id===v.agreementId);
  const amount=Math.round(Number(v.amount));
  const isExpense=v.type==='Expense';
+ // API mode: expenses offer the server's active categories (value = code); everything else keeps the fixed labels.
+ const {categories:serverCategories,reload:reloadCategories}=useExpenseCategories();
+ useEffect(()=>{if(entryOpen)void reloadCategories()},[entryOpen,reloadCategories]);
+ const serverExpense=apiMode&&isExpense&&!!serverCategories?.length;
+ const categoryOptions=serverExpense?serverCategories!.filter(c=>c.active).map(c=>({value:c.code,label:c.name})):entryCategories.map(x=>({value:x,label:x}));
+ useEffect(()=>{
+  if(serverExpense&&!categoryOptions.some(o=>o.value===v.category))form.setValue('category',categoryOptions.find(o=>o.value==='repair')?.value??categoryOptions[0]?.value??'');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[serverExpense,v.category,serverCategories]);
 
  const changeType=(next:EntryType)=>{
   form.setValue('type',next);
@@ -72,7 +82,7 @@ export function RecordEntryDialog(){
        <FormField control={form.control} name="agreementId" render={({field})=><FormItem><FormLabel>Agreement</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{store.agreements.map(a=><SelectItem key={a.id} value={a.id}>{a.id} · {a.vehicle}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>}/>
        <FormField control={form.control} name="amount" render={({field})=><FormItem><FormLabel>Amount (BDT)</FormLabel><FormControl><Input {...field} type="number" inputMode="numeric" min="1" step="1" placeholder="e.g. 8,000"/></FormControl><FormMessage/></FormItem>}/>
        <FormField control={form.control} name="date" render={({field})=><FormItem><FormLabel>Event date</FormLabel><FormControl><Input {...field} type="date"/></FormControl><FormMessage/></FormItem>}/>
-       <FormField control={form.control} name="category" render={({field})=><FormItem><FormLabel>Category</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{entryCategories.map(x=><SelectItem value={x} key={x}>{x}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>}/>
+       <FormField control={form.control} name="category" render={({field})=><FormItem><FormLabel>Category</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{categoryOptions.map(o=><SelectItem value={o.value} key={o.value}>{o.label}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>}/>
        <FormField control={form.control} name="reference" render={({field})=><FormItem><FormLabel>Reference</FormLabel><FormControl><Input {...field} placeholder="Receipt / bank reference"/></FormControl><FormMessage/></FormItem>}/>
        {isExpense&&<>
         <FormField control={form.control} name="payer" render={({field})=><FormItem><FormLabel>Paid by</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{parties.map(x=><SelectItem value={x} key={x}>{x}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>}/>
