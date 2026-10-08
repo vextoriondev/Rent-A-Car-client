@@ -5,6 +5,8 @@ import {statement,type Agreement,type Store} from '@/lib/demo';
 import {Badge} from '@/components/ui/badge';
 import {EmptyState} from '@/components/shared/empty-state';
 import {LedgerTable} from '@/components/shared/ledger-table';
+import {BillStateChip} from '@/components/shared/bill-state-chip';
+import {customerBillState} from '@/lib/bill-state';
 import {Money} from '@/components/shared/money';
 import {PartyChip} from '@/components/shared/party-chip';
 import {useSortParam} from '@/lib/use-list-filters';
@@ -22,6 +24,7 @@ export function AccountsLedger({agreements,store,onSelect}:{agreements:Agreement
   {id:'due',header:'Customer due',accessorFn:r=>r.s.customerDue,meta:{align:'right',className:'due'},cell:({row:{original:r}})=><Money value={r.s.customerDue}/>},
   {id:'ownerDue',header:'Owner due',accessorFn:r=>r.s.ownerDue,meta:{align:'right'},cell:({row:{original:r}})=><Money value={r.s.ownerDue}/>},
   {id:'driverDue',header:'Driver due',accessorFn:r=>r.s.driverDue,meta:{align:'right'},cell:({row:{original:r}})=><Money value={r.s.driverDue}/>},
+  {id:'bill',header:'Bill',enableSorting:false,cell:({row:{original:r}})=><BillStateChip state={customerBillState(r.s.customerDue)}/>},
   {id:'status',header:'Status',enableSorting:false,cell:({row:{original:r}})=><Badge tone={r.closed?'good':'blue'}>{r.closed?'Closed':'Open'}</Badge>},
  ],[]);
  return <LedgerTable data={rows} columns={columns} getRowId={r=>r.a.id} sorting={sorting} onSortingChange={onSortingChange} onRowClick={r=>onSelect(r.a.id)} rowActionLabel={r=>'View '+r.a.id} empty={<EmptyState title="No accounts match your search."/>}/>;

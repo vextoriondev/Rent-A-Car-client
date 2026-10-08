@@ -20,6 +20,6 @@ export default function OwnerPayablesPage(){
  const {agreements}=useRelatedAgreements();
  return <Card>
   <SectionHeading title="Owner payables" subtitle="Gross rent less authorized offsets and transfers." action={<Button onClick={()=>rf.openEntry('Owner payout')}><Plus size={16}/> Record payout</Button>}/>
-  <StatementLedger party="Owner" partyHeader="Owner / car" columns={columns} agreements={agreements} store={rf.store} onSelect={rf.setSelected} emptyTitle="No owner payables match your search."/>
+  <StatementLedger billChip party="Owner" partyHeader="Owner / car" columns={columns} agreements={agreements} store={rf.store} onSelect={rf.setSelected} emptyTitle="No owner payables match your search."/>
  </Card>;
 }

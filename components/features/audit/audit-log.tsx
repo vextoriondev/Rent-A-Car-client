@@ -21,8 +21,8 @@ export function AuditLog(){
  const [type,setType]=useQueryParam('target');
  const [targetId,setTargetId]=useQueryParam('id');
  const [actor,setActor]=useQueryParam('actor');
- const [from,setFrom]=useQueryParam('from');
- const [to,setTo]=useQueryParam('to');
+ const [from,setFrom]=useQueryParam('since');
+ const [to,setTo]=useQueryParam('until');
  const [page,setPage]=useQueryParam('page','0');
  const [data,setData]=useState<{count:number;items:AuditEvent[]}|null>(null);
  const [error,setError]=useState('');

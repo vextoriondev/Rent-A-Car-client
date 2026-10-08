@@ -1,9 +1,10 @@
 "use client";
-import {createContext,useContext,useEffect,useState,type ReactNode} from 'react';
+import {createContext,useContext,useEffect,useRef,useState,type ReactNode} from 'react';
 import {useRouter} from 'next/navigation';
 import {loadDemo,saveDemo,seed,statement,type Store,type Agreement,type Entry,type EntryType} from './demo';
 import {apiMode,apiRequest,apiUpload,liveSnapshot,livePost,logout,ApiError} from './api';
 import {useSelected} from './use-list-filters';
+import {usePeriod} from './period';
 import {expenseCategoryCodes,type AgreementFormValues,type EntryFormValues} from './forms';
 
 interface RentflowContextValue{
@@ -48,6 +49,8 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
  const [apiBusy,setApiBusy]=useState(false);
  const [entryKey,setEntryKey]=useState('');
  const [selected,setSelected]=useSelected();
+ const {range,lastMonth}=usePeriod();
+ const liveArgs=useRef({month:lastMonth,range});liveArgs.current={month:lastMonth,range};
  const [entryOpen,setEntryOpen]=useState(false);
  const [agreementOpen,setAgreementOpen]=useState(false);
  const [confirmClose,setConfirmClose]=useState<string|null>(null);
@@ -56,17 +59,21 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
  const [entryInit,setEntryInit]=useState<{type:EntryType;agreementId:string}>({type:'Expense',agreementId:''});
 
  useEffect(()=>{
-  if(apiMode){liveSnapshot().then(setStore).catch(e=>{
-   if(e instanceof ApiError&&e.status===401){router.replace('/login');return}
-   setApiError(e.message)
-  }).finally(()=>setReady(true))}
-  else{setStore(loadDemo());setReady(true)}
+  if(apiMode){
+   let stale=false;
+   liveSnapshot(lastMonth,range).then(next=>{if(!stale){setStore(next);setApiError('')}}).catch(e=>{
+    if(e instanceof ApiError&&e.status===401){router.replace('/login');return}
+    if(!stale)setApiError(e.message)
+   }).finally(()=>{if(!stale)setReady(true)});
+   return()=>{stale=true};
+  }
+  else if(!ready){setStore(loadDemo());setReady(true)}
   // eslint-disable-next-line react-hooks/exhaustive-deps
- },[]);
+ },[lastMonth,range.from,range.to]);
  useEffect(()=>{if(ready&&!apiMode)saveDemo(store)},[store,ready]);
  useEffect(()=>{if(!toast)return;const id=setTimeout(()=>setToast(''),4500);return()=>clearTimeout(id)},[toast]);
 
- const refreshLive=async()=>{const next=await liveSnapshot();setStore(next);setApiError('');return next};
+ const refreshLive=async()=>{const next=await liveSnapshot(liveArgs.current.month,liveArgs.current.range);setStore(next);setApiError('');return next};
 
  const openEntry=(type:EntryType='Expense',id?:string)=>{setEntryInit({type,agreementId:id||store.agreements[0]?.id||''});setEntryKey(crypto.randomUUID());setEntryOpen(true)};
 

@@ -30,6 +30,7 @@ export const actorPreviewHref='/actor-preview';
 
 export function pageTitle(pathname:string):string{
  if(pathname===actorPreviewHref)return 'Actor portal';
+ if(pathname==='/expenses/daily')return 'Expenses';
  const item=navItems.find(n=>n.href===pathname);
  return item?.label||'Overview';
 }

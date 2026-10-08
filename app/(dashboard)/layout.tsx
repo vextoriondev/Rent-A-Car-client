@@ -2,7 +2,7 @@
 import {Suspense,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {usePathname,useRouter} from 'next/navigation';
-import {CarFront,ChevronRight,Menu,X,Search,Bell,Plus,CalendarDays,Info,CheckCircle2,UsersRound} from 'lucide-react';
+import {CarFront,ChevronRight,Menu,X,Search,Bell,Plus,Info,CheckCircle2,UsersRound} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuLabel,DropdownMenuRadioGroup,DropdownMenuRadioItem,DropdownMenuSeparator,DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
@@ -16,6 +16,8 @@ import {SourceDrawer} from '@/components/shared/source-drawer';
 import {RecordEntryDialog} from '@/components/features/entries/record-entry-dialog';
 import {NewAgreementDialog} from '@/components/features/agreements/new-agreement-dialog';
 import {LoadingState} from '@/components/shared/loading-state';
+import {PeriodPicker} from '@/components/shared/period-picker';
+import {usePeriod} from '@/lib/period';
 
 export default function DashboardLayout({children}:{children:React.ReactNode}){
  return <Suspense fallback={<div className="app-shell"><div className="main-shell"><main className="content"><LoadingState/></main></div></div>}><RentflowStoreProvider><DashboardShell>{children}</DashboardShell></RentflowStoreProvider></Suspense>;
@@ -36,6 +38,7 @@ function DashboardShell({children}:{children:React.ReactNode}){
  useEffect(()=>()=>{if(searchTimer.current)clearTimeout(searchTimer.current)},[]);
  const changeSearch=(v:string)=>{setSearchDraft(v);if(searchTimer.current)clearTimeout(searchTimer.current);searchTimer.current=setTimeout(()=>{searchTimer.current=null;setQRef.current(v)},250)};
  const title=pageTitle(pathname);
+ const period=usePeriod();
 
  if(!ready)return <div className="app-shell"><div className="main-shell"><main className="content"><LoadingState/></main></div></div>;
 
@@ -59,9 +62,10 @@ function DashboardShell({children}:{children:React.ReactNode}){
    </header>
    <main className="content">
     <div className="page-intro">
-     <div><div className="eyebrow">RENTFLOW / {title.toUpperCase()}</div><h1>{title==='Overview'?`Good morning, ${apiMode?store.backend?.userName||'there':'Sakib'}`:title}</h1><p>{title==='Overview'?'Here is where your rental accounts stand this month.':title==='Settlements'?'Review every balance before closing the month.':title==='Actor portal'?'See the limited view each party receives.':title==='Reports'?'Explore account totals and export the current scope.':title==='Settings'?'Policies and demo workspace controls.':'September 2026 · Main branch'}</p></div>
-     <div className="intro-actions"><div className="period-chip"><CalendarDays size={16}/> September 2026</div>{title!=='Actor portal'&&<Button onClick={()=>rf.openEntry()} className="primary-action"><Plus size={17}/> Record entry</Button>}</div>
+     <div><div className="eyebrow">RENTFLOW / {title.toUpperCase()}</div><h1>{title==='Overview'?`Good morning, ${apiMode?store.backend?.userName||'there':'Sakib'}`:title}</h1><p>{title==='Overview'?'Here is where your rental accounts stand this month.':title==='Settlements'?'Review every balance before closing the month.':title==='Actor portal'?'See the limited view each party receives.':title==='Reports'?'Explore account totals and export the current scope.':title==='Settings'?'Policies and demo workspace controls.':`${period.label} · Main branch`}</p></div>
+     <div className="intro-actions"><PeriodPicker/>{title!=='Actor portal'&&<Button onClick={()=>rf.openEntry()} className="primary-action"><Plus size={17}/> Record entry</Button>}</div>
     </div>
+    {period.multiMonth&&<p className="note period-note" role="note">Entry lists (expenses, cashbook) use the exact dates {period.range.from} to {period.range.to}. Billing, statements and settlements show whole rent periods, here {new Date((store.backend?.shownMonth??period.lastMonth)+'T12:00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'})}, the latest month in the range with a rent period.</p>}
     <div className="demo-banner"><Info size={17}/><span>{apiMode?<><strong>API mode.</strong> Entries use Django and PostgreSQL. Notifications and the actor preview still need production delivery and identity wiring.</>:<><strong>Interactive demo.</strong> Sample agreements and entries; changes stay in this browser. No live payments, messages, or accounting posts occur.</>}</span></div>
     {apiError&&<ErrorState message={`Backend connection: ${apiError}. Sign in at the Django admin, then reload this page.`} onRetry={()=>location.reload()}/>}
     {children}

@@ -83,3 +83,18 @@
 .audit-detail{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 4px 12px;background:#f8fbfb;min-width:0}.audit-detail pre{white-space:pre-wrap;word-break:break-word;font-size:11px;margin:0}.audit-detail small{grid-column:1/-1;color:#7b8d94}
 .audit-pager{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:12px}.audit-pager span{flex:1}
 @media(max-width:700px){.audit-detail{grid-template-columns:1fr}}
+
+/* F5 colour-coded bills: text/background pairs checked for WCAG AA (4.5:1) */
+:root{--bill-outstanding-bg:#fbe8e6;--bill-outstanding-fg:#9b2a23;--bill-paid-bg:#e2f3ea;--bill-paid-fg:#1b6141;--bill-owed_to_us-bg:#fdf0d3;--bill-owed_to_us-fg:#7d5208}
+.bill-chip{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:700;white-space:nowrap}
+.bill-outstanding{background:var(--bill-outstanding-bg);color:var(--bill-outstanding-fg)}
+.bill-paid{background:var(--bill-paid-bg);color:var(--bill-paid-fg)}
+.bill-owed_to_us{background:var(--bill-owed_to_us-bg);color:var(--bill-owed_to_us-fg)}
+
+/* F2 global period picker */
+.period-picker{display:flex;align-items:center;gap:6px}.period-picker .icon-button{width:32px;height:32px}
+.period-popover{width:min(320px,calc(100vw - 32px));display:grid;gap:12px}
+.period-presets{display:flex;flex-wrap:wrap;gap:6px}
+.period-custom{display:grid;grid-template-columns:1fr 1fr;gap:8px}.period-custom label{display:grid;gap:4px;font-size:11px;font-weight:650;color:#415c66}
+.daily-day{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin:6px 0 12px}.daily-day label{display:grid;gap:4px;font-size:11px;font-weight:650;color:#415c66}.daily-day strong{font-size:13px;align-self:center}
+.daily-filters{flex-wrap:wrap}.daily-breakdowns{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:16px}
