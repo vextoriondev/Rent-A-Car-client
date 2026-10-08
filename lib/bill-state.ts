@@ -1,4 +1,4 @@
-/** Colour-coded bill state (F5). Step 1 derives it from the statement; step 2 (backend M13) reads the server `bill_state` and deletes this derivation. */
+/** Colour-coded bill state (F5). In API mode the server `bill_state` (via `useBillStates`) wins; these derivations are the demo-mode fallback and mirror `statements.py`. */
 export type BillState='outstanding'|'paid'|'owed_to_us';
 
 export const billStateLabel:Record<BillState,string>={outstanding:'Outstanding',paid:'Paid',owed_to_us:'Owed to us'};

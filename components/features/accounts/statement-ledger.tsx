@@ -10,6 +10,7 @@ import {payableBillState} from '@/lib/bill-state';
 import {Money} from '@/components/shared/money';
 import {PartyChip} from '@/components/shared/party-chip';
 import {useSortParam} from '@/lib/use-list-filters';
+import {useBillStates} from '@/lib/use-bill-states';
 
 type Statement=ReturnType<typeof statement>;
 export interface StatementColumn{label:string;value:(a:Agreement,s:Statement)=>number;due?:boolean}
@@ -26,11 +27,12 @@ export function StatementLedger({party,partyHeader,columns:spec,agreements,store
  billChip?:boolean;
 }){
  const [sorting,onSortingChange]=useSortParam('party');
+ const billStates=useBillStates();
  const rows=useMemo<Row[]>(()=>agreements.map(a=>({a,s:statement(a,store.entries)})),[agreements,store.entries]);
  const columns=useMemo<ColumnDef<Row>[]>(()=>[
   {id:'party',header:partyHeader,accessorFn:r=>partyName(party,r.a),sortingFn:(x,y)=>partyName(party,x.original.a).localeCompare(partyName(party,y.original.a)),cell:({row:{original:r}})=><PartyChip name={partyName(party,r.a)} role={party} detail={`${r.a.vehicle} · ${r.a.id}`}/>},
   ...spec.map((c):ColumnDef<Row>=>({id:slug(c.label),header:c.label,accessorFn:r=>c.value(r.a,r.s),meta:{align:'right',className:c.due?'due':undefined},cell:({row:{original:r}})=><Money value={c.value(r.a,r.s)} signed={signed}/>})),
-  ...(billChip?[{id:'bill',header:'Bill',enableSorting:false,cell:({row:{original:r}})=>{const d=spec.find(c=>c.due);return d?<BillStateChip state={payableBillState(d.value(r.a,r.s))}/>:null}} as ColumnDef<Row>]:[]),
- ],[party,partyHeader,spec,signed,billChip]);
+  ...(billChip?[{id:'bill',header:'Bill',enableSorting:false,cell:({row:{original:r}})=>{const d=spec.find(c=>c.due);return d?<BillStateChip state={billStates[r.a.id]?.[party==='Owner'?'owner':'driver']??payableBillState(d.value(r.a,r.s))}/>:null}} as ColumnDef<Row>]:[]),
+ ],[party,partyHeader,spec,signed,billChip,billStates]);
  return <LedgerTable data={rows} columns={columns} getRowId={r=>r.a.id} sorting={sorting} onSortingChange={onSortingChange} onRowClick={r=>onSelect(r.a.id)} rowActionLabel={r=>'View '+r.a.id} empty={<EmptyState title={emptyTitle}/>}/>;
 }
