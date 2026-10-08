@@ -23,7 +23,7 @@ export type DrawerSubject={kind:'agreement';record:Agreement}|{kind:'entry';reco
 export function resolveSubject(store:Store,id:string|null):DrawerSubject|null{
  if(!id)return null;
  const agreement=store.agreements.find(a=>a.id===id);if(agreement)return{kind:'agreement',record:agreement};
- const entry=store.entries.find(e=>e.id===id);if(entry)return{kind:'entry',record:entry};
+ const entry=store.entries.find(e=>e.id===id)??store.rangeEntries?.find(e=>e.id===id);if(entry)return{kind:'entry',record:entry};
  const notice=store.notices.find(n=>n.id===id);if(notice)return{kind:'notice',record:notice};
  return null;
 }

@@ -23,9 +23,9 @@ export const partyName=(party:PartyKind,a:Agreement)=>party==='Owner'?a.owner:pa
 export const reportSlug=(type:string)=>type.toLowerCase().replaceAll(' ','-');
 
 /** Describes the on-screen scope for the file preamble and the PDF heading. */
-export function scopeText(parts:{label:string;value:string;all:string}[]){
+export function scopeText(parts:{label:string;value:string;all:string}[],periodLabel='September 2026'){
  const used=parts.filter(p=>p.value&&p.value!==p.all).map(p=>`${p.label}: ${p.value}`);
- return [`Month: September 2026`,...used].join('; ');
+ return [`Period: ${periodLabel}`,...used].join('; ');
 }
 
 /** The entries exactly as listed on screen (the owner, search and status filters apply). */
@@ -40,4 +40,4 @@ export function reportTable(type:string,agreements:Agreement[],entries:Entry[],s
  return {title:type,scope,columns:['Agreement','Vehicle',config.party,...config.columns.map(c=>c+' BDT')],rows,totals:rows.length?['Total','','',...sums]:undefined};
 }
 
-export const fileStem=(name:string)=>`rentflow-${name.toLowerCase().replaceAll(/[^a-z0-9]+/g,'-')}-${period}`;
+export const fileStem=(name:string,stem:string=period)=>`rentflow-${name.toLowerCase().replaceAll(/[^a-z0-9]+/g,'-')}-${stem}`;
