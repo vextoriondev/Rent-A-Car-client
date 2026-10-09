@@ -1,3 +1,4 @@
+import {withBranch} from './branch';
 /** Downloads that open correctly in Excel and print cleanly to PDF. One table shape feeds both, so a CSV and a PDF of the same screen always agree. */
 export type Cell=string|number;
 export interface DownloadTable{title:string;/** Short sentence on what is included, e.g. "Owner: Farhana Rahman; status: Posted". */scope:string;columns:string[];rows:Cell[][];totals?:Cell[]}
@@ -24,7 +25,7 @@ export function downloadCsv(t:DownloadTable,filename:string){save(new Blob([tabl
 
 /** API mode: the server's own export (all rows, audit-logged), saved under the name the server suggests. */
 export async function downloadServerCsv(path:string,fallbackName:string){
- const res=await fetch('/backend'+path,{credentials:'same-origin'});
+ const res=await fetch('/backend'+withBranch(path),{credentials:'same-origin'});
  if(!res.ok){const e=await res.json().catch(()=>({detail:res.statusText}));throw new Error(e.detail||`Download failed (${res.status})`)}
  const name=/filename="?([^";]+)"?/.exec(res.headers.get('Content-Disposition')||'')?.[1]||fallbackName;
  save(await res.blob(),name);

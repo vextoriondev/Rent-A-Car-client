@@ -17,6 +17,7 @@ import {ChargeDialog} from './charge-dialog';
 import {InvoiceDialog} from './invoice-dialog';
 import {SplitPaymentDialog} from './split-payment-dialog';
 import {invoiceLabel,invoiceTone,type Charge,type Invoice,type Ledger} from './types';
+import {Can} from '@/lib/roles';
 
 const sideLabel:Record<string,string>={customer:'Customer',owner:'Owner',driver:'Driver'};
 const kindLabel:Record<string,string>={charge:'Charge',credit:'Credit',adjustment:'Adjustment',reimbursement:'Reimbursement',opening_balance:'Opening balance'};
@@ -89,10 +90,12 @@ export function BillingWorkspace(){
      </Select>
     </label>
     <div className="settlement-buttons">
+     <Can action="finance">
      <Button disabled={closed} onClick={()=>setDialog('charge')}><Plus size={16}/> Add charge or credit</Button>
      <Button variant="outline" disabled={closed} onClick={()=>setDialog('split')}><Split size={16}/> Split a payment</Button>
      <Button variant="outline" onClick={()=>setDialog('invoice')}><FilePlus2 size={16}/> Invoice</Button>
      <Button variant="outline" disabled={busy||closed} onClick={()=>void carryForward()}><Landmark size={16}/> Bring balance forward</Button>
+     </Can>
     </div>
    </div>
    {closed&&<p className="note">This month is closed. New charges and payments are refused; bring the balance forward into the next month instead.</p>}

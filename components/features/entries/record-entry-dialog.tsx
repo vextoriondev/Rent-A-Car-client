@@ -15,10 +15,13 @@ import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/compo
 import {apiMode} from '@/lib/api';
 import {useExpenseCategories} from '@/lib/use-expense-categories';
 import {EntryConsequencePreview} from '@/components/shared/entry-consequence-preview';
+import {} from '@/lib/roles';
+import {useCan} from '@/lib/roles';
 
 const emptyForm=entryDefaults('Expense');
 
 export function RecordEntryDialog(){
+ const canPay=useCan('payment.post');
  const rf=useRentflowStore();
  const {store}=rf;
  const form=useForm<EntryFormValues>({resolver:zodResolver(entrySchema),defaultValues:emptyForm});
@@ -78,7 +81,7 @@ export function RecordEntryDialog(){
     <form onSubmit={submit} noValidate>
      <div className="entry-form">
       <div className="form-grid">
-       <FormField control={form.control} name="type" render={({field})=><FormItem><FormLabel>Entry type</FormLabel><Select value={field.value} onValueChange={x=>changeType(x as EntryType)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{entryTypes.map(x=><SelectItem value={x} key={x}>{x}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>}/>
+       <FormField control={form.control} name="type" render={({field})=><FormItem><FormLabel>Entry type</FormLabel><Select value={field.value} onValueChange={x=>changeType(x as EntryType)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{entryTypes.filter(x=>x==='Expense'||canPay).map(x=><SelectItem value={x} key={x}>{x}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>}/>
        <FormField control={form.control} name="agreementId" render={({field})=><FormItem><FormLabel>Agreement</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{store.agreements.map(a=><SelectItem key={a.id} value={a.id}>{a.id} · {a.vehicle}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>}/>
        <FormField control={form.control} name="amount" render={({field})=><FormItem><FormLabel>Amount (BDT)</FormLabel><FormControl><Input {...field} type="number" inputMode="numeric" min="1" step="1" placeholder="e.g. 8,000"/></FormControl><FormMessage/></FormItem>}/>
        <FormField control={form.control} name="date" render={({field})=><FormItem><FormLabel>Event date</FormLabel><FormControl><Input {...field} type="date"/></FormControl><FormMessage/></FormItem>}/>

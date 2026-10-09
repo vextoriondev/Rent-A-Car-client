@@ -5,6 +5,7 @@ import {loadDemo,saveDemo,seed,statement,type Store,type Agreement,type Entry,ty
 import {apiMode,apiRequest,apiUpload,liveSnapshot,livePost,logout,ApiError} from './api';
 import {useSelected} from './use-list-filters';
 import {usePeriod} from './period';
+import {useBranch} from './branch';
 import {expenseCategoryCodes,type AgreementFormValues,type EntryFormValues} from './forms';
 
 interface RentflowContextValue{
@@ -50,6 +51,7 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
  const [entryKey,setEntryKey]=useState('');
  const [selected,setSelected]=useSelected();
  const {range,lastMonth}=usePeriod();
+ const branch=useBranch();
  const liveArgs=useRef({month:lastMonth,range});liveArgs.current={month:lastMonth,range};
  const [entryOpen,setEntryOpen]=useState(false);
  const [agreementOpen,setAgreementOpen]=useState(false);
@@ -69,7 +71,7 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
   }
   else if(!ready){setStore(loadDemo());setReady(true)}
   // eslint-disable-next-line react-hooks/exhaustive-deps
- },[lastMonth,range.from,range.to]);
+ },[lastMonth,range.from,range.to,branch]);
  useEffect(()=>{if(ready&&!apiMode)saveDemo(store)},[store,ready]);
  useEffect(()=>{if(!toast)return;const id=setTimeout(()=>setToast(''),4500);return()=>clearTimeout(id)},[toast]);
 

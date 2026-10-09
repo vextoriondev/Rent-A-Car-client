@@ -12,6 +12,7 @@ import {EmptyState} from '@/components/shared/empty-state';
 import {FilterToolbar} from '@/components/shared/filter-toolbar';
 import {NotificationSummary} from '@/components/features/notifications/notification-summary';
 import {ContactPreferences} from '@/components/features/notifications/contact-preferences';
+import {Can} from '@/lib/roles';
 
 export default function NotificationsPage(){
  const rf=useRentflowStore();
@@ -29,7 +30,7 @@ export default function NotificationsPage(){
   <NotificationSummary notices={notices}/>
   <Card>
    <SectionHeading title="Notification activity" subtitle="Delivery status is distinct from posting state." action={<Button variant="outline" disabled={unread===0} onClick={rf.markAllNoticesRead}>Mark all read</Button>}/>
-   <p className="note delivery-note"><Info size={14} aria-hidden/> {apiMode?'Messages are recorded and queued, but no SMS, WhatsApp or email provider is connected yet, so nothing is sent until one is chosen.':'Sample data. In the live app, messages are queued until a delivery provider is connected.'}</p>
+   <p className="note delivery-note"><Info size={14} aria-hidden/> {apiMode?'Messages are recorded and queued, but no SMS or email provider is connected yet, so nothing is sent until one is chosen.':'Sample data. In the live app, messages are queued until a delivery provider is connected.'}</p>
    <FilterToolbar filters={[{param:'status',label:'Filter by delivery status',allValue:'All',options:['Queued','Delivered','Failed']},{param:'read',label:'Filter by read state',allValue:'All',options:['Unread']}]}/>
    <div className="notice-list">{shown.map(n=><div className="notice-row" key={n.id}>
     <button type="button" className={'notice '+(!n.read?'unread':'')} onClick={()=>{rf.markNoticeRead(n.id);rf.setSelected(n.id)}}>
@@ -38,7 +39,7 @@ export default function NotificationsPage(){
      <span className="notice-end"><DeliveryStatus status={n.status}/><small>{fmtDate(n.date)}</small></span>
      <ChevronRight size={17}/>
     </button>
-    {n.status==='Failed'&&<Button variant="outline" size="sm" className="notice-retry" onClick={()=>rf.retryNotice(n.id)}><RotateCcw size={14}/> Retry</Button>}
+    {n.status==='Failed'&&<Can action="finance"><Button variant="outline" size="sm" className="notice-retry" onClick={()=>rf.retryNotice(n.id)}><RotateCcw size={14}/> Retry</Button></Can>}
    </div>)}</div>
    {notices.length===0&&<EmptyState title="No notifications yet."/>}
    {notices.length>0&&shown.length===0&&<EmptyState title="No notifications match these filters."/>}

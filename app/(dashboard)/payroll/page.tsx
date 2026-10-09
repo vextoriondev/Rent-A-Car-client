@@ -6,6 +6,8 @@ import {SectionHeading} from '@/components/shared/section-heading';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {StatementLedger,type StatementColumn} from '@/components/features/accounts/statement-ledger';
+import {BillStateLegend} from '@/components/shared/bill-state-legend';
+import {Can} from '@/lib/roles';
 
 const columns:StatementColumn[]=[
  {label:'Earned',value:(_a,s)=>s.driverEarned},
@@ -18,8 +20,9 @@ export default function PayrollPage(){
  const rf=useRentflowStore();
  const {agreements}=useRelatedAgreements();
  return <Card>
-  <SectionHeading title="Driver pay and advances" subtitle="Only salary, advances and payouts are shown here." action={<Button onClick={()=>rf.openEntry('Driver payout')}><Plus size={16}/> Record payout</Button>}/>
+  <SectionHeading title="Driver pay and advances" subtitle="Only salary, advances and payouts are shown here." action={<Can action="payment.post"><Button onClick={()=>rf.openEntry('Driver payout')}><Plus size={16}/> Record payout</Button></Can>}/>
+  <BillStateLegend/>
   <StatementLedger billChip party="Driver" partyHeader="Driver / car" columns={columns} agreements={agreements} store={rf.store} onSelect={rf.setSelected} emptyTitle="No drivers match your search."/>
-  <div className="under-table"><button type="button" className="text-button" onClick={()=>rf.openEntry('Salary advance')}>Record a salary advance <ArrowUpRight size={15}/></button></div>
+  <Can action="payment.post"><div className="under-table"><button type="button" className="text-button" onClick={()=>rf.openEntry('Salary advance')}>Record a salary advance <ArrowUpRight size={15}/></button></div></Can>
  </Card>;
 }

@@ -6,7 +6,9 @@ import {SectionHeading} from '@/components/shared/section-heading';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {CostCategoriesSettings} from '@/components/features/expenses/cost-categories-settings';
+import {MembersSettings} from '@/components/features/branches/members-settings';
 import {SettlementSettings} from '@/components/features/settlements/settlement-settings';
+import {Can} from '@/lib/roles';
 
 const policies:[string,string][]=[
  ['Currency','BDT · whole taka in demo'],
@@ -28,8 +30,9 @@ export default function SettingsPage(){
    <p className="settings-copy">{apiMode?'Reset is available only in demo mode. Manage production data through authorized workflows.':'Reset restores the four sample agreements and worked September entries. This cannot affect real accounts.'}</p>
    <Button variant="outline" disabled={apiMode} onClick={()=>{if(window.confirm('Reset all local demo changes?'))rf.resetDemo()}}><RotateCcw size={16}/> Reset sample data</Button>
   </Card>
-  {apiMode&&<SettlementSettings/>}
-  {apiMode&&<CostCategoriesSettings/>}
+  {apiMode&&<Can action="admin"><SettlementSettings/></Can>}
+  {apiMode&&<Can action="admin"><MembersSettings/></Can>}
+  {apiMode&&<Can action="admin"><CostCategoriesSettings/></Can>}
   {apiMode&&<Card>
    <SectionHeading title="Session" subtitle="Signed in with your Django account."/>
    <p className="settings-copy">Signing out ends your session on this backend. You will need to sign in again to reach live data.</p>

@@ -14,6 +14,7 @@ import {ErrorState} from '@/components/shared/error-state';
 import {Money} from '@/components/shared/money';
 import {SectionHeading} from '@/components/shared/section-heading';
 import {DocumentList} from '@/components/features/documents/document-list';
+import {Can} from '@/lib/roles';
 
 type Status='requested'|'approved'|'in_progress'|'done'|'cancelled';
 type Case={id:number;vehicle_id:number;issue:string;vendor:string;quote:string|null;downtime_from:string|null;downtime_to:string|null;status:Status;approved_at:string|null};
@@ -43,7 +44,7 @@ export function MaintenanceBoard(){
 
  if(!apiMode)return <Card><SectionHeading title="Maintenance requests"/><EmptyState title="API mode only" description="Maintenance requests, approvals and files need the Django backend."/></Card>;
  return <Card>
-  <SectionHeading title="Maintenance requests" subtitle="Problem, workshop, quote and days off the road. Finance approves before work starts." action={<Button onClick={()=>setOpen(true)}><Plus size={16}/> Request maintenance</Button>}/>
+  <SectionHeading title="Maintenance requests" subtitle="Problem, workshop, quote and days off the road. Finance approves before work starts." action={<Can action="maintenance.request"><Button onClick={()=>setOpen(true)}><Plus size={16}/> Request maintenance</Button></Can>}/>
   {message&&<p role="status" className="note">{message}</p>}
   {error&&<ErrorState message={error} onRetry={()=>void load()}/>}
   {cases&&cases.length===0&&<EmptyState title="No maintenance requests yet"/>}

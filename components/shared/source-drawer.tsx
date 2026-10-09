@@ -16,6 +16,7 @@ import {AllocationPanel} from '@/components/shared/allocation-panel';
 import {AuditTimeline} from '@/components/shared/audit-timeline';
 import {DeliveryStatus} from '@/components/shared/delivery-status';
 import {Money} from '@/components/shared/money';
+import {Can} from '@/lib/roles';
 
 export type DrawerSubject={kind:'agreement';record:Agreement}|{kind:'entry';record:Entry}|{kind:'notice';record:Notice};
 
@@ -58,7 +59,7 @@ function AgreementBody({agreement}:{agreement:Agreement}){
   <h3 className="detail-subheading">Source entries</h3>
   <div className="source-list">{store.entries.filter(e=>e.agreementId===agreement.id).map(e=><button type="button" key={e.id} onClick={()=>rf.setSelected(e.id)}><span><b>{e.description}</b><small>{e.id} · {fmtDate(e.date)} · {e.status}</small></span><b><Money value={e.amount}/></b><ChevronRight size={15}/></button>)}</div>
   <AuditTimeline/>
-  <div className="sheet-footer"><Button variant="outline" onClick={()=>{rf.setSelected(null);rf.openEntry('Customer payment',agreement.id)}}>Receive payment</Button><Button onClick={()=>{rf.setSelected(null);rf.openEntry('Expense',agreement.id)}}>Record expense</Button></div>
+  <div className="sheet-footer"><Can action="payment.post"><Button variant="outline" onClick={()=>{rf.setSelected(null);rf.openEntry('Customer payment',agreement.id)}}>Receive payment</Button></Can><Can action="entry.record"><Button onClick={()=>{rf.setSelected(null);rf.openEntry('Expense',agreement.id)}}>Record expense</Button></Can></div>
  </div>;
 }
 
@@ -83,10 +84,10 @@ function EntryBody({entry}:{entry:Entry}){
   {apiMode&&rf.store.backend?.expenseIds[entry.id]&&<DocumentList targetType="expense" targetId={rf.store.backend.expenseIds[entry.id]} title="Receipts and files"/>}
   {target&&entry.status==='Posted'&&<AllocationPanel lines={[{label:`Applied to ${target}`,amount:entry.amount}]}/>}
   <div className="sheet-footer">
-   {entry.status==='Draft'&&<Button onClick={()=>rf.submitDraft(entry.id)}><CheckCircle2 size={16}/> Submit for posting</Button>}
-   {entry.status==='Draft'&&<Button variant="outline" onClick={()=>rf.discardDraft(entry.id)}>Discard draft</Button>}
-   {entry.status==='Pending approval'&&<Button onClick={()=>rf.approve(entry.id)}><CheckCircle2 size={16}/> Approve</Button>}
-   {entry.status==='Posted'&&<Button variant="outline" onClick={()=>{if(apiMode||confirm('Reverse this posted demo entry?'))rf.reverse(entry.id)}}><RotateCcw size={16}/> Correct by reversing</Button>}
+   {entry.status==='Draft'&&<Can action="entry.record"><Button onClick={()=>rf.submitDraft(entry.id)}><CheckCircle2 size={16}/> Submit for posting</Button></Can>}
+   {entry.status==='Draft'&&<Can action="entry.record"><Button variant="outline" onClick={()=>rf.discardDraft(entry.id)}>Discard draft</Button></Can>}
+   {entry.status==='Pending approval'&&<Can action="finance"><Button onClick={()=>rf.approve(entry.id)}><CheckCircle2 size={16}/> Approve</Button></Can>}
+   {entry.status==='Posted'&&<Can action="finance"><Button variant="outline" onClick={()=>{if(apiMode||confirm('Reverse this posted demo entry?'))rf.reverse(entry.id)}}><RotateCcw size={16}/> Correct by reversing</Button></Can>}
    <Button variant="outline" onClick={()=>rf.setSelected(entry.agreementId)}>View agreement</Button>
   </div>
  </div>;
@@ -97,6 +98,6 @@ function NoticeBody({notice}:{notice:Notice}){
  return <div className="sheet-scroll">
   <div className="terms"><div><span>Recipient</span><b>{notice.recipient}</b></div><div><span>Status</span><DeliveryStatus status={notice.status}/></div><div><span>Date</span><b>{fmtDate(notice.date)}</b></div><div><span>Source</span><b>{notice.detail}</b></div></div>
   <p className="note">Delivery states are simulated for this demo; no message has been sent.</p>
-  {notice.status==='Failed'&&<Button onClick={()=>rf.retryNotice(notice.id)}><RefreshCcw size={16}/> Retry delivery</Button>}
+  {notice.status==='Failed'&&<Can action="finance"><Button onClick={()=>rf.retryNotice(notice.id)}><RefreshCcw size={16}/> Retry delivery</Button></Can>}
  </div>;
 }

@@ -6,10 +6,11 @@ import {Card} from '@/components/ui/card';
 import {SectionHeading} from '@/components/shared/section-heading';
 import {EmptyState} from '@/components/shared/empty-state';
 
-export type Channel='sms'|'whatsapp'|'email';
+/** SMS and email only (decision D2); WhatsApp was dropped. */
+export type Channel='sms'|'email';
 export type Preferred=Channel|'none';
 export interface Pref{id:number|string;name:string;kind:string;consent:Record<Channel,boolean>;preferred:Preferred}
-export const CHANNELS:{key:Channel;label:string}[]=[{key:'sms',label:'SMS'},{key:'whatsapp',label:'WhatsApp'},{key:'email',label:'Email'}];
+export const CHANNELS:{key:Channel;label:string}[]=[{key:'sms',label:'SMS'},{key:'email',label:'Email'}];
 
 /** A channel can only be preferred while consent for it is on; switching consent off clears the preference. Mirrors the backend rule. */
 export function applyConsent(p:Pref,channel:Channel,on:boolean):Pref{
@@ -19,8 +20,8 @@ export function applyPreferred(p:Pref,channel:Preferred):Pref{
  return channel!=='none'&&!p.consent[channel]?p:{...p,preferred:channel};
 }
 
-interface ApiParty{id:number;kind:string;name:string;preferred_channel?:Preferred;consent?:{sms:boolean;whatsapp:boolean;email:boolean}}
-const fromApi=(p:ApiParty):Pref|null=>p.consent?{id:p.id,name:p.name,kind:p.kind,consent:{sms:p.consent.sms,whatsapp:p.consent.whatsapp,email:p.consent.email},preferred:p.preferred_channel??'none'}:null;
+interface ApiParty{id:number;kind:string;name:string;preferred_channel?:Preferred|'whatsapp';consent?:{sms:boolean;whatsapp?:boolean;email:boolean}}
+const fromApi=(p:ApiParty):Pref|null=>p.consent?{id:p.id,name:p.name,kind:p.kind,consent:{sms:p.consent.sms,email:p.consent.email},preferred:p.preferred_channel==='whatsapp'?'none':p.preferred_channel??'none'}:null;
 
 /** Who may be messaged, and on which channel. Backend consent (admin/accountant) in API mode; local sample in demo mode. */
 export function ContactPreferences(){
@@ -28,7 +29,7 @@ export function ContactPreferences(){
  const orgId=rf.store.backend?.orgId;
  const demoParties=useMemo<Pref[]>(()=>{
   const seen=new Map<string,Pref>();
-  for(const a of rf.store.agreements)for(const [kind,name] of [['owner',a.owner],['customer',a.customer],['driver',a.driver]] as const)if(!seen.has(kind+name))seen.set(kind+name,{id:kind+name,name,kind,consent:{sms:true,whatsapp:false,email:false},preferred:'sms'});
+  for(const a of rf.store.agreements)for(const [kind,name] of [['owner',a.owner],['customer',a.customer],['driver',a.driver]] as const)if(!seen.has(kind+name))seen.set(kind+name,{id:kind+name,name,kind,consent:{sms:true,email:false},preferred:'sms'});
   return [...seen.values()];
  },[rf.store.agreements]);
  const [parties,setParties]=useState<Pref[]|null>(orgId?null:demoParties);

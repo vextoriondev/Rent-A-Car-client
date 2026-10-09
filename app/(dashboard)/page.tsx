@@ -8,6 +8,7 @@ import {fmtDate} from '@/lib/format';
 import {AccountsLedger} from '@/components/features/accounts/accounts-ledger';
 import {Card} from '@/components/ui/card';
 import {Money} from '@/components/shared/money';
+import {Can} from '@/lib/roles';
 
 export default function OverviewPage(){
  const router=useRouter();
@@ -39,9 +40,9 @@ export default function OverviewPage(){
     </Card>
     <Card className="quick-card"><SectionHeading title="Quick actions"/>
      <div className="quick-actions">
-      <button onClick={()=>rf.openEntry('Expense')}><ReceiptText size={18}/> Record expense <Plus size={16}/></button>
-      <button onClick={()=>rf.openEntry('Customer payment')}><ArrowDownLeft size={18}/> Receive payment <Plus size={16}/></button>
-      <button onClick={()=>{rf.setAgreementOpen(true)}}><FileSignature size={18}/> New agreement <Plus size={16}/></button>
+      <Can action="entry.record"><button onClick={()=>rf.openEntry('Expense')}><ReceiptText size={18}/> Record expense <Plus size={16}/></button></Can>
+      <Can action="payment.post"><button onClick={()=>rf.openEntry('Customer payment')}><ArrowDownLeft size={18}/> Receive payment <Plus size={16}/></button></Can>
+      <Can action="agreement.write"><button onClick={()=>{rf.setAgreementOpen(true)}}><FileSignature size={18}/> New agreement <Plus size={16}/></button></Can>
      </div>
     </Card>
     <Card className="insight-card"><div className="insight-label"><ChartNoAxesCombined size={17}/> ACCRUAL SNAPSHOT</div><strong className="nums"><Money value={financial.margin} signed/></strong><p>Estimated margin before tax and other unrecorded costs. Cash movement is shown separately.</p></Card>

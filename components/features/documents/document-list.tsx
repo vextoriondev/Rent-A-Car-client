@@ -5,6 +5,7 @@ import {apiRequest,apiUpload} from '@/lib/api';
 import {useRentflowStore} from '@/lib/store-context';
 import {Button} from '@/components/ui/button';
 import {ErrorState} from '@/components/shared/error-state';
+import {Can} from '@/lib/roles';
 
 export type DocumentRow={id:number;name:string;content_type:string;size:number;created_at:string};
 export const ACCEPT='application/pdf,image/png,image/jpeg,image/webp';
@@ -51,7 +52,7 @@ export function DocumentList({targetType,targetId,title='Documents'}:{targetType
 
  return <div className="doc-list">
   <div className="settlement-status"><h3 className="detail-subheading">{title}</h3>
-   <Button size="sm" variant="outline" disabled={busy} onClick={()=>input.current?.click()}><Paperclip size={14}/> Add file</Button>
+   <Can action="document.upload"><Button size="sm" variant="outline" disabled={busy} onClick={()=>input.current?.click()}><Paperclip size={14}/> Add file</Button></Can>
    <input ref={input} type="file" hidden accept={ACCEPT} aria-label={`Upload to ${title}`} onChange={e=>void upload(e.target.files?.[0])}/>
   </div>
   {error&&<ErrorState message={error} onRetry={()=>void load()}/>}
@@ -59,6 +60,6 @@ export function DocumentList({targetType,targetId,title='Documents'}:{targetType
   {docs&&docs.length===0&&<p className="note">No files yet. PDF, PNG, JPEG or WebP, up to 10 MB.</p>}
   {docs&&docs.map(d=><div key={d.id} className="doc-row"><FileText size={16}/><span><b>{d.name}</b><small>{kb(d.size)} · {d.created_at.slice(0,10)}</small></span>
    <Button size="sm" variant="outline" onClick={()=>void open(d)} aria-label={`Open ${d.name}`}>Open</Button>
-   <Button size="sm" variant="outline" onClick={()=>void remove(d)} aria-label={`Remove ${d.name}`}><Trash2 size={14}/></Button></div>)}
+   <Can action="document.delete"><Button size="sm" variant="outline" onClick={()=>void remove(d)} aria-label={`Remove ${d.name}`}><Trash2 size={14}/></Button></Can></div>)}
  </div>;
 }

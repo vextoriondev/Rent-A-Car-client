@@ -6,6 +6,8 @@ import {SectionHeading} from '@/components/shared/section-heading';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {StatementLedger,type StatementColumn} from '@/components/features/accounts/statement-ledger';
+import {BillStateLegend} from '@/components/shared/bill-state-legend';
+import {Can} from '@/lib/roles';
 
 const columns:StatementColumn[]=[
  {label:'Gross',value:(_a,s)=>s.ownerGross},
@@ -19,7 +21,8 @@ export default function OwnerPayablesPage(){
  const rf=useRentflowStore();
  const {agreements}=useRelatedAgreements();
  return <Card>
-  <SectionHeading title="Owner payables" subtitle="Gross rent less authorized offsets and transfers." action={<Button onClick={()=>rf.openEntry('Owner payout')}><Plus size={16}/> Record payout</Button>}/>
+  <SectionHeading title="Owner payables" subtitle="Gross rent less authorized offsets and transfers." action={<Can action="payment.post"><Button onClick={()=>rf.openEntry('Owner payout')}><Plus size={16}/> Record payout</Button></Can>}/>
+  <BillStateLegend/>
   <StatementLedger billChip party="Owner" partyHeader="Owner / car" columns={columns} agreements={agreements} store={rf.store} onSelect={rf.setSelected} emptyTitle="No owner payables match your search."/>
  </Card>;
 }

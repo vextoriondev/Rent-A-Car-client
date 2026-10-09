@@ -9,6 +9,7 @@ import {Money} from '@/components/shared/money';
 import {DocumentList} from '@/components/features/documents/document-list';
 import {AssignDriverDialog,ReviseTermsDialog,TransferOwnerDialog} from './terms-dialogs';
 import type {AgreementDetail} from './terms-types';
+import {Can} from '@/lib/roles';
 
 const role=(v:string)=>v.charAt(0).toUpperCase()+v.slice(1);
 const num=(v:string)=>Number(v||0);
@@ -53,10 +54,10 @@ export function AgreementTerms({agreementId}:{agreementId:string}){
    <div><span>Clauses</span><b>{current.clauses||'None recorded'}</b></div>
   </div>}
   <div className="settlement-buttons">
-   {detail.status==='draft'&&<Button disabled={busy} onClick={()=>void activate()}>Activate agreement</Button>}
-   {detail.status==='active'&&<Button variant="outline" onClick={()=>setDialog('revise')}>Revise terms</Button>}
-   <Button variant="outline" onClick={()=>setDialog('driver')}>Assign driver</Button>
-   <Button variant="outline" onClick={()=>setDialog('owner')}>Transfer ownership</Button>
+   {detail.status==='draft'&&<Can action="agreement.write"><Button disabled={busy} onClick={()=>void activate()}>Activate agreement</Button></Can>}
+   {detail.status==='active'&&<Can action="finance"><Button variant="outline" onClick={()=>setDialog('revise')}>Revise terms</Button></Can>}
+   <Can action="driver.assign"><Button variant="outline" onClick={()=>setDialog('driver')}>Assign driver</Button></Can>
+   <Can action="finance"><Button variant="outline" onClick={()=>setDialog('owner')}>Transfer ownership</Button></Can>
   </div>
 
   <h4 className="detail-subheading">Terms history</h4>

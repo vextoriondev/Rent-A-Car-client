@@ -63,6 +63,8 @@ export function rangeLabel(r:Range){
  if(p==='year')return r.from.slice(0,4);
  return `${fmt(r.from,{day:'numeric',month:'short',year:'numeric'})} to ${fmt(r.to,{day:'numeric',month:'short',year:'numeric'})}`;
 }
+/** First-of-month for every month from `earliest` to `latest` (any dates), newest first. Feeds the picker's month shortcuts. */
+export function monthList(earliest:string,latest:string){const out:string[]=[];for(let m=monthStart(latest);m>=monthStart(earliest);m=addMonths(m,-1))out.push(m);return out}
 /** Used in file names: a single month stays `2026-09`; anything else spells out both dates. */
 export const rangeStem=(r:Range)=>presetOf(r)==='month'?r.from.slice(0,7):`${r.from}_${r.to}`;
 /** First-of-month for every month a range touches (the rent periods it overlaps). */
