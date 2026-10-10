@@ -34,6 +34,7 @@
 @media (max-width:760px){.mini-metrics.notice-metrics{grid-template-columns:repeat(2,1fr)}}
 
 /* Expense responsibility matrix (API mode) */
+.rule-wrap{container-type:inline-size}
 .rule-matrix{display:grid;gap:0;border:1px solid #e7eded;border-radius:9px;overflow:hidden;margin:12px 0}
 .rule-row{display:grid;grid-template-columns:minmax(120px,1.2fr) minmax(110px,1fr) minmax(110px,1fr) minmax(130px,1.2fr) 100px minmax(120px,auto);gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid #edf1f1;font-size:12px}
 .rule-row:last-child{border-bottom:0}
@@ -41,7 +42,7 @@
 .rule-row small{color:#98a5aa;font-size:10px}
 .rule-actions{display:flex;gap:6px;flex-wrap:wrap}
 .rule-row [data-slot=select-trigger]{width:100%}
-@media (max-width:760px){.rule-head{display:none}.rule-row{grid-template-columns:1fr 1fr}.rule-row>span:first-child{grid-column:1/-1}.rule-actions{grid-column:1/-1}}
+@container (max-width:720px){.rule-head{display:none}.rule-row{grid-template-columns:1fr 1fr}.rule-row>span:first-child{grid-column:1/-1}.rule-actions{grid-column:1/-1}.rule-row>span[data-label]{display:grid;gap:4px}.rule-row>span[data-label]::before{content:attr(data-label);color:#5d6e75;font-size:11px;font-weight:700}}
 
 /* Settlement workflow (API mode) */
 .settlement-dialog{max-width:760px!important}
