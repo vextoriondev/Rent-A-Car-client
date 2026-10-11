@@ -2,7 +2,7 @@
 import {useEffect,useState} from 'react';
 import {useForm,type FieldErrors} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
-import {agreementDefaults,agreementSchema,driverRoles,responsibilities,WIZARD_INCOMPLETE,wizardStepOf,type AgreementFormValues} from '@/lib/forms';
+import {agreementDefaults,agreementSchema,driverProviderLabel,driverProviders,driverRoles,responsibilities,WIZARD_INCOMPLETE,wizardStepOf,type AgreementFormValues} from '@/lib/forms';
 import {money} from '@/lib/demo';
 import {useRentflowStore} from '@/lib/store-context';
 import {Button} from '@/components/ui/button';
@@ -30,6 +30,7 @@ export function NewAgreementDialog(){
  },[agreementOpen]);
 
  const v=form.watch();
+ const noDriver=v.driverProvider==='None';
 
  const onInvalid=(errors:FieldErrors<AgreementFormValues>)=>{
   const first=Math.min(...Object.keys(errors).map(k=>wizardStepOf[k as keyof AgreementFormValues]));
@@ -44,7 +45,7 @@ export function NewAgreementDialog(){
 
  const text=(name:'customer'|'owner'|'vehicle'|'registration'|'driver',label:string,placeholder:string)=><FormField control={form.control} name={name} render={({field})=><FormItem><FormLabel>{label}</FormLabel><FormControl><Input {...field} placeholder={placeholder}/></FormControl><FormMessage/></FormItem>}/>;
  const amountField=(name:'rent'|'ownerRent'|'salary',label:string)=><FormField control={form.control} name={name} render={({field})=><FormItem><FormLabel>{label}</FormLabel><FormControl><Input {...field} type="number" min="1"/></FormControl><FormMessage/></FormItem>}/>;
- const role=(name:'driverProvider'|'driverPaidBy',label:string)=><FormField control={form.control} name={name} render={({field})=><FormItem><FormLabel>{label}</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{driverRoles.map(x=><SelectItem value={x} key={x}>{x}</SelectItem>)}</SelectContent></Select></FormItem>}/>;
+ const role=(name:'driverProvider'|'driverPaidBy',label:string)=><FormField control={form.control} name={name} render={({field})=><FormItem><FormLabel>{label}</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{(name==='driverProvider'?driverProviders:driverRoles).map(x=><SelectItem value={x} key={x}>{driverProviderLabel(x)}</SelectItem>)}</SelectContent></Select></FormItem>}/>;
  const responsibility=(name:'fuel'|'repair',label:string)=><FormField control={form.control} name={name} render={({field})=><FormItem><FormLabel>{label}</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{responsibilities.map(x=><SelectItem value={x} key={x}>{x}</SelectItem>)}</SelectContent></Select></FormItem>}/>;
 
  return <Dialog open={agreementOpen} onOpenChange={rf.setAgreementOpen}>
@@ -55,13 +56,13 @@ export function NewAgreementDialog(){
     <form onSubmit={submit} noValidate>
      <div className="wizard-body">
       {step===0&&<div className="form-grid">{text('customer','Customer / billing party','Organization or person')}{text('owner','Car owner',"Owner's full name")}</div>}
-      {step===1&&<div className="form-grid">{text('vehicle','Vehicle name','e.g. Toyota Axio')}{text('registration','Registration','DHA-METRO-...')}{text('driver','Assigned driver','Driver name')}<FormField control={form.control} name="start" render={({field})=><FormItem><FormLabel>Effective from</FormLabel><FormControl><Input {...field} type="date"/></FormControl></FormItem>}/>{role('driverProvider','Who supplies the driver')}{role('driverPaidBy','Who pays the driver')}</div>}
-      {step===2&&<><div className="form-grid">{amountField('rent','Customer rent / month (BDT)')}{amountField('ownerRent','Owner rent / month (BDT)')}{v.driverPaidBy==='Operator'&&amountField('salary','Driver salary / month (BDT)')}</div>{v.driverPaidBy!=='Operator'&&<p className="note">The {v.driverPaidBy.toLowerCase()} pays the driver directly, so there is no salary payable and none appears on the statement.</p>}</>}
+      {step===1&&<div className="form-grid">{text('vehicle','Vehicle name','e.g. Toyota Axio')}{text('registration','Registration','DHA-METRO-...')}{!noDriver&&text('driver','Assigned driver','Driver name')}<FormField control={form.control} name="start" render={({field})=><FormItem><FormLabel>Effective from</FormLabel><FormControl><Input {...field} type="date"/></FormControl></FormItem>}/>{role('driverProvider','Who supplies the driver')}{!noDriver&&role('driverPaidBy','Who pays the driver')}{noDriver&&<p className="note">Vehicle only: no driver and no salary on this agreement. If you hire a driver yourself, record them separately as a driver agreement on the Drivers page.</p>}</div>}
+      {step===2&&<><div className="form-grid">{amountField('rent','Customer rent / month (BDT)')}{amountField('ownerRent','Owner rent / month (BDT)')}{!noDriver&&v.driverPaidBy==='Operator'&&amountField('salary','Driver salary / month (BDT)')}</div>{noDriver&&<p className="note">No driver on this agreement, so no salary appears on the statement.</p>}{!noDriver&&v.driverPaidBy!=='Operator'&&<p className="note">The {v.driverPaidBy.toLowerCase()} pays the driver directly, so there is no salary payable and none appears on the statement.</p>}</>}
       {step===3&&<>
        <div className="form-grid">{responsibility('fuel','Fuel responsibility')}{responsibility('repair','Repair responsibility')}</div>
        <FormField control={form.control} name="offset" render={({field})=><FormItem><label className="check-label"><Checkbox checked={field.value} onCheckedChange={c=>field.onChange(c===true)}/> Permit owner cost offsets from owner rent</label></FormItem>}/>
        <FormField control={form.control} name="clauses" render={({field})=><FormItem><FormLabel>Clauses (optional)</FormLabel><FormControl><Textarea {...field} rows={3} placeholder="Anything the written agreement says about the driver, costs or payments"/></FormControl></FormItem>}/>
-       <div className="consequence"><strong>Sample monthly statement</strong><p>Customer rent {money(Number(v.rent)||0)} · owner gross {money(Number(v.ownerRent)||0)} · driver salary {v.driverPaidBy==='Operator'?money(Number(v.salary)||0):'none (paid by '+v.driverPaidBy.toLowerCase()+')'}. Expenses and payments will be recorded separately.</p></div>
+       <div className="consequence"><strong>Sample monthly statement</strong><p>Customer rent {money(Number(v.rent)||0)} · owner gross {money(Number(v.ownerRent)||0)} · driver salary {noDriver?'none (no driver)':v.driverPaidBy==='Operator'?money(Number(v.salary)||0):'none (paid by '+v.driverPaidBy.toLowerCase()+')'}. Expenses and payments will be recorded separately.</p></div>
       </>}
       {formError&&<p role="alert" className="form-error">{formError}</p>}
      </div>

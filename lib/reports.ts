@@ -17,7 +17,7 @@ export function reportConfig(type:string):ReportConfig{
  }
 }
 
-export const partyName=(party:PartyKind,a:Agreement)=>party==='Owner'?a.owner:party==='Driver'?a.driver:a.customer;
+export const partyName=(party:PartyKind,a:Agreement)=>party==='Owner'?a.owner:party==='Driver'?(a.noDriver?'No driver':a.driver):a.customer;
 
 /** Backend report slug for each on-screen report type (GET /reports/{slug}/export). */
 export const reportSlug=(type:string)=>type.toLowerCase().replaceAll(' ','-');

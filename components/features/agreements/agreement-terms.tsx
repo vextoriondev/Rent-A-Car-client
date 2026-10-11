@@ -6,6 +6,7 @@ import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {ErrorState} from '@/components/shared/error-state';
 import {Money} from '@/components/shared/money';
+import {money} from '@/lib/demo';
 import {DocumentList} from '@/components/features/documents/document-list';
 import {AssignDriverDialog,ReviseTermsDialog,TransferOwnerDialog} from './terms-dialogs';
 import type {AgreementDetail} from './terms-types';
@@ -49,8 +50,10 @@ export function AgreementTerms({agreementId}:{agreementId:string}){
   <div className="settlement-status"><h3 className="detail-subheading">Agreement terms</h3><Badge tone={detail.status==='active'?'good':'warn'}>{role(detail.status)}</Badge></div>
   {message&&<p role="status" className="note">{message}</p>}
   {current&&<div className="terms">
-   <div><span>Driver supplied by</span><b>{role(current.driver_provider)}</b></div>
-   <div><span>Driver paid by</span><b>{role(current.driver_paid_by)}</b></div>
+   {current.driver_provider==='none'
+    ?<div><span>Driver</span><b>No driver (vehicle only)</b></div>
+    :<><div><span>Driver supplied by</span><b>{role(current.driver_provider)}</b></div><div><span>Driver paid by</span><b>{role(current.driver_paid_by)}</b></div></>}
+   {current.overtime_rate&&<div><span>Overtime rate</span><b>{money(num(current.overtime_rate))} per {current.overtime_unit||'unit'}</b></div>}
    <div><span>Clauses</span><b>{current.clauses||'None recorded'}</b></div>
   </div>}
   <div className="settlement-buttons">
@@ -69,7 +72,8 @@ export function AgreementTerms({agreementId}:{agreementId:string}){
   <h4 className="detail-subheading">Driver history</h4>
   <div className="billing-table terms-table" role="table" aria-label="Driver history">
    <div role="row" className="head"><span>Driver</span><span>From</span><span>To</span><span>Salary override</span></div>
-   {detail.driver_assignments.length===0&&<div role="row"><span>{detail.driver.name}</span><span>{detail.start_date}</span><span>Current</span><span>-</span></div>}
+   {!detail.driver&&detail.driver_assignments.length===0&&<p className="note">This agreement has no driver. Any driver works under a separate driver agreement (Drivers page), outside this agreement.</p>}
+   {detail.driver&&detail.driver_assignments.length===0&&<div role="row"><span>{detail.driver.name}</span><span>{detail.start_date}</span><span>Current</span><span>-</span></div>}
    {detail.driver_assignments.map((d,i)=><div role="row" key={i}><span><b>{d.driver}</b></span><span>{d.effective_from}</span><span>{d.effective_to||'Current'}</span><span>{d.salary_override?<Money value={num(d.salary_override)}/>:'-'}</span></div>)}
   </div>
 
@@ -82,7 +86,7 @@ export function AgreementTerms({agreementId}:{agreementId:string}){
   <DocumentList targetType="vehicle" targetId={detail.vehicle.id} title={`Vehicle files (${detail.vehicle.registration})`}/>
 
   {current&&<ReviseTermsDialog open={dialog==='revise'} agreementPk={pk} current={current} onClose={()=>setDialog('')} onDone={done}/>}
-  <AssignDriverDialog open={dialog==='driver'} agreementPk={pk} currentDriverId={detail.driver.id} onClose={()=>setDialog('')} onDone={done}/>
+  <AssignDriverDialog open={dialog==='driver'} agreementPk={pk} currentDriverId={detail.driver?.id??0} onClose={()=>setDialog('')} onDone={done}/>
   <TransferOwnerDialog open={dialog==='owner'} vehicleId={detail.vehicle.id} currentOwnerId={detail.owner.id} onClose={()=>setDialog('')} onDone={done}/>
  </div>;
 }

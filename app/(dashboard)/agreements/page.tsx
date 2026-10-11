@@ -2,7 +2,7 @@
 import {useMemo} from 'react';
 import {Plus} from 'lucide-react';
 import type {ColumnDef} from '@tanstack/react-table';
-import {money,type Agreement} from '@/lib/demo';
+import {driverLabel,money,type Agreement} from '@/lib/demo';
 import {useRentflowStore} from '@/lib/store-context';
 import {useSortParam} from '@/lib/use-list-filters';
 import {ALL_OWNERS,useRelatedAgreements} from '@/lib/use-related-agreements';
@@ -22,7 +22,7 @@ export default function AgreementsPage(){
  const columns=useMemo<ColumnDef<Agreement>[]>(()=>[
   {id:'agreement',header:'Agreement / car',enableSorting:false,cell:({row:{original:a}})=><><b>{a.id}</b><small>{a.vehicle} · {a.registration}</small></>},
   {id:'customer',header:'Customer',accessorFn:a=>a.customer,sortingFn:(x,y)=>x.original.customer.localeCompare(y.original.customer),cell:({row:{original:a}})=><PartyChip name={a.customer} role="Customer"/>},
-  {id:'owner',header:'Owner · driver',enableSorting:false,cell:({row:{original:a}})=><PartyChip name={a.owner} role="Owner" detail={a.driver}/>},
+  {id:'owner',header:'Owner · driver',enableSorting:false,cell:({row:{original:a}})=><PartyChip name={a.owner} role="Owner" detail={driverLabel(a)}/>},
   {id:'rent',header:'Customer rent',accessorFn:a=>a.rent,meta:{align:'right'},cell:({row:{original:a}})=>money(a.rent)},
   {id:'status',header:'Status',enableSorting:false,cell:({row:{original:a}})=><Badge tone="good">{a.status}</Badge>},
  ],[]);
