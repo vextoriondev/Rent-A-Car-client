@@ -48,7 +48,7 @@ export const agreementSchema=z.object({
  owner:required("Enter the car owner's name."),
  vehicle:required('Enter the vehicle name.'),
  registration:required('Enter the registration.'),
- driver:required('Enter the assigned driver.'),
+ driver:z.string(),
  start:z.string(),
  rent:wholeTaka('Enter a positive whole BDT amount.'),
  ownerRent:wholeTaka('Enter a positive whole BDT amount.'),
@@ -60,7 +60,8 @@ export const agreementSchema=z.object({
  driverPaidBy:z.string(),
  clauses:z.string(),
 }).superRefine((v,ctx)=>{
- if(v.driverPaidBy==='Operator'&&!(v.salary.trim()!==''&&Number.isSafeInteger(Number(v.salary))&&Number(v.salary)>0))ctx.addIssue({code:'custom',path:['salary'],message:'Enter a positive whole BDT amount.'});
+ if(v.driverProvider!=='None'&&!v.driver.trim())ctx.addIssue({code:'custom',path:['driver'],message:'Enter the assigned driver.'});
+ if(v.driverProvider!=='None'&&v.driverPaidBy==='Operator'&&!(v.salary.trim()!==''&&Number.isSafeInteger(Number(v.salary))&&Number(v.salary)>0))ctx.addIssue({code:'custom',path:['salary'],message:'Enter a positive whole BDT amount.'});
 });
 export type AgreementFormValues=z.infer<typeof agreementSchema>;
 
@@ -68,6 +69,9 @@ export const agreementDefaults:AgreementFormValues={customer:'',vehicle:'',regis
 
 /** Who may supply or pay the driver (the backend accepts these three). */
 export const driverRoles=['Operator','Owner','Customer'];
+/** Who supplies the driver in the wizard; 'None' makes a vehicle-only agreement. */
+export const driverProviders=[...driverRoles,'None'];
+export const driverProviderLabel=(v:string)=>v==='None'?'No driver (vehicle only)':v;
 
 export const WIZARD_INCOMPLETE='Complete all parties, vehicle details and positive whole BDT amounts.';
 

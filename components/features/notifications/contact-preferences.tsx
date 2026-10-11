@@ -29,7 +29,7 @@ export function ContactPreferences(){
  const orgId=rf.store.backend?.orgId;
  const demoParties=useMemo<Pref[]>(()=>{
   const seen=new Map<string,Pref>();
-  for(const a of rf.store.agreements)for(const [kind,name] of [['owner',a.owner],['customer',a.customer],['driver',a.driver]] as const)if(!seen.has(kind+name))seen.set(kind+name,{id:kind+name,name,kind,consent:{sms:true,email:false},preferred:'sms'});
+  for(const a of rf.store.agreements)for(const [kind,name] of [['owner',a.owner],['customer',a.customer],['driver',a.driver]] as const)if(name&&!seen.has(kind+name))seen.set(kind+name,{id:kind+name,name,kind,consent:{sms:true,email:false},preferred:'sms'});
   return [...seen.values()];
  },[rf.store.agreements]);
  const [parties,setParties]=useState<Pref[]|null>(orgId?null:demoParties);

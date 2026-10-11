@@ -12,6 +12,7 @@ import type {PartyOption,Version} from './terms-types';
 
 const NEXT_MONTH='2026-10-01';
 const roles=['operator','owner','customer'];
+const providers=[...roles.map(v=>({value:v,label:title(v)})),{value:'none',label:'No driver (vehicle only)'}];
 const responsible=['owner','operator','customer','driver'];
 const title=(v:string)=>v.charAt(0).toUpperCase()+v.slice(1);
 
@@ -24,12 +25,13 @@ const plain=(list:string[])=>list.map(v=>({value:v,label:title(v)}));
 export function ReviseTermsDialog({open,agreementPk,current,onClose,onDone}:{open:boolean;agreementPk:number;current:Version;onClose:()=>void;onDone:(m:string)=>Promise<void>}){
  const rf=useRentflowStore();
  const orgId=rf.store.backend?.orgId;
- const [f,setF]=useState({customer_rent:'',owner_rent:'',driver_salary:'',fuel_responsible:'',repair_responsible:'',driver_provider:'',driver_paid_by:'',clauses:'',effective_from:NEXT_MONTH,reason:''});
+ const [f,setF]=useState({customer_rent:'',owner_rent:'',driver_salary:'',fuel_responsible:'',repair_responsible:'',driver_provider:'',driver_paid_by:'',clauses:'',overtime_rate:'',overtime_unit:'',effective_from:NEXT_MONTH,reason:''});
  const [error,setError]=useState('');
  const [busy,setBusy]=useState(false);
- useEffect(()=>{if(open){setF({customer_rent:String(Number(current.customer_rent)),owner_rent:String(Number(current.owner_rent)),driver_salary:String(Number(current.driver_salary)),fuel_responsible:current.fuel_responsible,repair_responsible:current.repair_responsible,driver_provider:current.driver_provider,driver_paid_by:current.driver_paid_by,clauses:current.clauses,effective_from:NEXT_MONTH,reason:''});setError('')}},[open,current]);
+ useEffect(()=>{if(open){setF({customer_rent:String(Number(current.customer_rent)),owner_rent:String(Number(current.owner_rent)),driver_salary:String(Number(current.driver_salary)),fuel_responsible:current.fuel_responsible,repair_responsible:current.repair_responsible,driver_provider:current.driver_provider,driver_paid_by:current.driver_paid_by,clauses:current.clauses,overtime_rate:current.overtime_rate?String(Number(current.overtime_rate)):'',overtime_unit:current.overtime_unit||'',effective_from:NEXT_MONTH,reason:''});setError('')}},[open,current]);
  const set=(k:keyof typeof f)=>(v:string)=>setF(x=>({...x,[k]:v}));
- const operatorPays=f.driver_paid_by==='operator';
+ const noDriver=f.driver_provider==='none';
+ const operatorPays=f.driver_paid_by==='operator'&&!noDriver;
  const day=Number(f.effective_from.slice(8,10));
 
  const submit=async()=>{
@@ -37,8 +39,12 @@ export function ReviseTermsDialog({open,agreementPk,current,onClose,onDone}:{ope
   const changes:Record<string,string>={};
   (['customer_rent','owner_rent'] as const).forEach(k=>{if(Number(f[k])!==Number(current[k]))changes[k]=String(Number(f[k]))});
   const salary=operatorPays?Number(f.driver_salary):0;
+  const rate=f.overtime_rate.trim()?Number(f.overtime_rate):null;
+  if(rate!==null&&rate!==Number(current.overtime_rate??0))changes.overtime_rate=String(rate);
+  if(f.overtime_unit.trim()!==(current.overtime_unit||'')&&f.overtime_unit.trim())changes.overtime_unit=f.overtime_unit.trim();
   if(salary!==Number(current.driver_salary))changes.driver_salary=String(salary);
   (['fuel_responsible','repair_responsible','driver_provider','driver_paid_by','clauses'] as const).forEach(k=>{if(f[k]!==current[k])changes[k]=f[k]});
+  if(noDriver&&Number(current.driver_salary)!==0)changes.driver_salary='0';
   if(Object.keys(changes).length===0){setError('Change at least one term before saving.');return}
   setBusy(true);setError('');
   try{
@@ -55,11 +61,17 @@ export function ReviseTermsDialog({open,agreementPk,current,onClose,onDone}:{ope
     {day>1&&<p className="note">Terms change at a month boundary: a mid-month date applies from the next period.</p>}
     <label>Customer rent / month (৳)<Input inputMode="numeric" value={f.customer_rent} onChange={e=>set('customer_rent')(e.target.value)}/></label>
     <label>Owner rent / month (৳)<Input inputMode="numeric" value={f.owner_rent} onChange={e=>set('owner_rent')(e.target.value)}/></label>
-    <Pick label="Who supplies the driver" value={f.driver_provider} onChange={set('driver_provider')} options={plain(roles)}/>
-    <Pick label="Who pays the driver" value={f.driver_paid_by} onChange={set('driver_paid_by')} options={plain(roles)}/>
-    {operatorPays
-     ?<label>Driver salary / month (৳)<Input inputMode="numeric" value={f.driver_salary} onChange={e=>set('driver_salary')(e.target.value)}/></label>
-     :<p className="note">The {f.driver_paid_by} pays the driver, so salary is 0 and no salary is payable on the statement.</p>}
+    <Pick label="Who supplies the driver" value={f.driver_provider} onChange={set('driver_provider')} options={providers}/>
+    {noDriver
+     ?<p className="note">Vehicle only: no driver and no salary on this agreement from this date. A driver can still work for you under a separate driver agreement (Drivers page).</p>
+     :<>
+      <Pick label="Who pays the driver" value={f.driver_paid_by} onChange={set('driver_paid_by')} options={plain(roles)}/>
+      {operatorPays
+       ?<label>Driver salary / month (৳)<Input inputMode="numeric" value={f.driver_salary} onChange={e=>set('driver_salary')(e.target.value)}/></label>
+       :<p className="note">The {f.driver_paid_by} pays the driver, so salary is 0 and no salary is payable on the statement.</p>}
+     </>}
+    <label>Overtime rate (optional, ৳ per unit)<Input inputMode="decimal" value={f.overtime_rate} onChange={e=>set('overtime_rate')(e.target.value)} placeholder="Suggested when you add an overtime charge"/></label>
+    <label>Overtime unit (optional)<Input value={f.overtime_unit} onChange={e=>set('overtime_unit')(e.target.value)} placeholder="hour, day, km"/></label>
     <Pick label="Fuel responsibility" value={f.fuel_responsible} onChange={set('fuel_responsible')} options={plain(responsible)}/>
     <Pick label="Repair responsibility" value={f.repair_responsible} onChange={set('repair_responsible')} options={plain(responsible)}/>
     <label>Clauses<Textarea rows={3} value={f.clauses} onChange={e=>set('clauses')(e.target.value)}/></label>

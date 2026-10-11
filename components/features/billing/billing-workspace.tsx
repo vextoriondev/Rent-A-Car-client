@@ -20,7 +20,7 @@ import {invoiceLabel,invoiceTone,type Charge,type Invoice,type Ledger} from './t
 import {Can} from '@/lib/roles';
 
 const sideLabel:Record<string,string>={customer:'Customer',owner:'Owner',driver:'Driver'};
-const kindLabel:Record<string,string>={charge:'Charge',credit:'Credit',adjustment:'Adjustment',reimbursement:'Reimbursement',opening_balance:'Opening balance'};
+const kindLabel:Record<string,string>={charge:'Charge',credit:'Credit',adjustment:'Adjustment',reimbursement:'Reimbursement',opening_balance:'Opening balance',overtime:'Overtime',absence_deduction:'Absence deduction',fine:'Fine'};
 
 /** API mode: charges, credits, adjustments, the period ledger, carry-forward, invoices and split payments for one agreement's month. */
 export function BillingWorkspace(){
@@ -114,11 +114,13 @@ export function BillingWorkspace(){
       <p><span>Offsets</span><b><Money value={num(stmt.owner.offsets)}/></b></p>
       <p><span>Paid</span><b><Money value={num(stmt.owner.paid)}/></b></p>
       <p className="total"><span>Due</span><b><Money value={num(stmt.owner.due)} signed/></b></p></div>
-     <div><h3 className="detail-subheading">Driver</h3>
+     {current.noDriver
+      ?<div><h3 className="detail-subheading">Driver</h3><p className="note">No driver on this agreement. A driver, if any, works under a separate driver agreement.</p></div>
+      :<div><h3 className="detail-subheading">Driver</h3>
       <p><span>Salary earned</span><b><Money value={num(stmt.driver.earned)}/></b></p>
       <p><span>Advance</span><b><Money value={num(stmt.driver.advance)}/></b></p>
       <p><span>Salary paid (excl. advance)</span><b><Money value={num(stmt.driver.paid)-num(stmt.driver.advance)}/></b></p>
-      <p className="total"><span>Due</span><b><Money value={num(stmt.driver.due)} signed/></b></p></div>
+      <p className="total"><span>Due</span><b><Money value={num(stmt.driver.due)} signed/></b></p></div>}
     </div>
     <p className={'reconcile '+(ledger.reconciles?'ok':'bad')} role="status">{ledger.reconciles?<><CheckCircle2 size={14}/> The ledger agrees with the obligations for this month.</>:<><CircleAlert size={14}/> The ledger and the obligations disagree for this month. Do not close it; contact support.</>}</p>
     <button type="button" className="text-button" aria-expanded={showLines} onClick={()=>setShowLines(v=>!v)}>{showLines?'Hide':'Show'} ledger lines ({ledger.lines.length})</button>
@@ -143,11 +145,11 @@ export function BillingWorkspace(){
    <SectionHeading title="Charges, credits and adjustments" subtitle="Each one is a permanent ledger entry; correct a mistake with an opposite entry, never an edit."/>
    {charges.length===0?<EmptyState title="No extra charges this month"/>:<div className="billing-table charges" role="table" aria-label="Charges">
     <div role="row" className="head"><span>Kind</span><span>For</span><span>Effect</span><span>Amount</span><span>Note</span></div>
-    {charges.map(c=><div role="row" key={c.id}><span>{kindLabel[c.kind]||c.kind}</span><span>{sideLabel[c.side]}</span><span>{c.direction==='increase'?'Increases balance':'Reduces balance'}</span><b className="nums"><Money value={Number(c.amount)}/></b><span>{c.description||c.reference||'-'}</span></div>)}
+    {charges.map(c=><div role="row" key={c.id}><span>{kindLabel[c.kind]||c.kind}</span><span>{sideLabel[c.side]}</span><span>{c.direction==='increase'?'Increases balance':'Reduces balance'}</span><b className="nums"><Money value={Number(c.amount)}/></b><span>{c.description||c.reference||'-'}{c.quantity&&c.unit_rate?` (${Number(c.quantity)} x ${Number(c.unit_rate).toLocaleString('en-BD')})`:''}</span></div>)}
    </div>}
   </Card>
 
-  <ChargeDialog open={dialog==='charge'} periodId={periodId!} onClose={()=>setDialog('')} onDone={m=>{setDialog('');void changed(m)}}/>
+  <ChargeDialog open={dialog==='charge'} periodId={periodId!} hasDriver={!current.noDriver} onClose={()=>setDialog('')} onDone={m=>{setDialog('');void changed(m)}}/>
   <InvoiceDialog open={dialog==='invoice'} periodId={periodId!} onClose={()=>setDialog('')} onDone={m=>{setDialog('');void changed(m)}}/>
   <SplitPaymentDialog open={dialog==='split'} periodId={periodId!} onClose={()=>setDialog('')} onDone={m=>{setDialog('');void changed(m)}}/>
  </>;
