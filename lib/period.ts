@@ -1,13 +1,15 @@
 "use client";
 import {useCallback,useMemo} from 'react';
 import {usePathname,useRouter,useSearchParams} from 'next/navigation';
+import {apiMode} from './api';
+import {currentMonthRange} from './clock';
 
 /** Global period (F2): day / week / month / year / custom, kept in the URL as ?from=&to= (inclusive ISO dates). ?month=YYYY-MM-01 from old links still works. */
 export type Preset='day'|'week'|'month'|'year'|'custom';
 export interface Range{from:string;to:string}
 
-/** The month the sample data lives in; used when the URL names no period. */
-export const DEFAULT_RANGE:Range={from:'2026-09-01',to:'2026-09-30'};
+/** The month shown when the URL names no period: this month for real data, the sample month (September 2026) in the demo. */
+export const defaultRange=():Range=>apiMode?currentMonthRange():{from:'2026-09-01',to:'2026-09-30'};
 const MAX_DAYS=5*366;
 
 const iso=(d:Date)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -78,12 +80,13 @@ export function usePeriod(){
  const range=useMemo<Range>(()=>{
   if(valid(from)&&valid(to)&&!rangeProblem({from,to}))return{from,to};
   if(valid(month))return rangeFor('month',month);
-  return DEFAULT_RANGE;
+  return defaultRange();
  },[from,to,month]);
  const setRange=useCallback((next:Range)=>{
   if(rangeProblem(next))return;
   const params=new URLSearchParams(sp.toString());params.delete('month');
-  if(next.from===DEFAULT_RANGE.from&&next.to===DEFAULT_RANGE.to){params.delete('from');params.delete('to')}else{params.set('from',next.from);params.set('to',next.to)}
+  const standard=defaultRange();
+  if(next.from===standard.from&&next.to===standard.to){params.delete('from');params.delete('to')}else{params.set('from',next.from);params.set('to',next.to)}
   const qs=params.toString();router.replace(qs?`${pathname}?${qs}`:pathname,{scroll:false});
  },[sp,router,pathname]);
  const months=useMemo(()=>monthsOf(range),[range]);

@@ -2,12 +2,13 @@
 import {Fragment,Suspense,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {usePathname,useRouter} from 'next/navigation';
-import {CarFront,ChevronRight,Menu,X,Search,Bell,Plus,Info,CheckCircle2,UsersRound} from 'lucide-react';
+import {CarFront,ChevronRight,Menu,X,Search,Bell,Plus,Info,CheckCircle2} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuLabel,DropdownMenuRadioGroup,DropdownMenuRadioItem,DropdownMenuSeparator,DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
 import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription,DialogFooter} from '@/components/ui/dialog';
-import {navItems,actorPreviewHref,pageTitle,routeAllowed} from '@/lib/nav';
+import {navItems,pageTitle,routeAllowed} from '@/lib/nav';
+import {greeting,initials,monthLabel} from '@/lib/clock';
 import {apiMode} from '@/lib/api';
 import {RentflowStoreProvider,useRentflowStore} from '@/lib/store-context';
 import {useQueryParam} from '@/lib/use-list-filters';
@@ -21,6 +22,9 @@ import {usePeriod} from '@/lib/period';
 import {useBranch} from '@/lib/branch';
 import {BranchSwitcher} from '@/components/features/branches/branch-switcher';
 import {Can} from '@/lib/roles';
+
+const ROLE_LABEL:Record<string,string>={admin:'Administrator',accountant:'Accountant',operations:'Operations',viewer:'Viewer',mechanic:'Mechanic'};
+const roleLabel=(r?:string)=>ROLE_LABEL[r||'']||'Staff';
 
 export default function DashboardLayout({children}:{children:React.ReactNode}){
  return <Suspense fallback={<div className="app-shell"><div className="main-shell"><main className="content"><LoadingState/></main></div></div>}><RentflowStoreProvider><DashboardShell>{children}</DashboardShell></RentflowStoreProvider></Suspense>;
@@ -56,7 +60,7 @@ function DashboardShell({children}:{children:React.ReactNode}){
    <div className="brand"><div className="brand-mark"><CarFront size={23}/></div><div><strong>RentFlow</strong><span>OPERATIONS</span></div><button aria-label="Close menu" className="mobile-close" onClick={()=>setMobileMenu(false)}><X size={20}/></button></div>
    {apiMode?<BranchSwitcher/>:<DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="workspace" aria-label="Switch workspace"><div className="workspace-icon">R</div><div><strong>RentFlow HQ</strong><small>Dhaka · Main branch</small></div><ChevronRight size={16}/></button></DropdownMenuTrigger><DropdownMenuContent align="start" className="w-56"><DropdownMenuLabel>Workspaces</DropdownMenuLabel><DropdownMenuRadioGroup value="hq"><DropdownMenuRadioItem value="hq">RentFlow HQ · Dhaka</DropdownMenuRadioItem></DropdownMenuRadioGroup><DropdownMenuSeparator/><DropdownMenuItem disabled>Add workspace (not available yet)</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
    <nav aria-label="Main navigation">{navVisible.map(({heading,label,href,icon:Icon})=><div key={label}>{heading&&<div className="nav-group">{heading}</div>}<Link href={href} className={'nav-link '+(pathname===href?'active':'')} aria-current={pathname===href?'page':undefined} onClick={()=>setMobileMenu(false)}><Icon size={18}/><span>{label}</span>{label==='Notifications'&&store.notices.some(n=>!n.read)&&<i className="nav-dot"/>}</Link></div>)}</nav>
-   <div className="sidebar-foot">{role!=='mechanic'&&<Link href={actorPreviewHref} onClick={()=>setMobileMenu(false)}><UsersRound size={17}/> Actor portal preview <ChevronRight size={15}/></Link>}<div className="demo-sidebar">{apiMode?'API WORKSPACE':'DEMO WORKSPACE'}<br/><span>{apiMode?'Django backend · September 2026':'Sample data · saved in this browser'}</span></div></div>
+   <div className="sidebar-foot"><div className="demo-sidebar">{apiMode?'API WORKSPACE':'DEMO WORKSPACE'}<br/><span>{apiMode?'Live data':'Sample data · saved in this browser'}</span></div></div>
   </aside>
   <div className="main-shell">
    <header className="topbar">
@@ -66,16 +70,16 @@ function DashboardShell({children}:{children:React.ReactNode}){
      <div className="global-search"><Search size={17}/><Input aria-label="Search agreements, people or vehicles" placeholder="Search agreement, car, person..." value={searchDraft} onChange={e=>changeSearch(e.target.value)}/><kbd>⌕</kbd></div>
      <button className="icon-button" aria-label="View notifications" onClick={()=>router.push('/notifications')}><Bell size={19}/>{store.notices.some(n=>!n.read)&&<i/>}</button>
      <span className="top-divider"/>
-     <button className="profile" onClick={()=>router.push('/settings')} aria-label="Open settings"><span>SH</span><div><strong>{apiMode?store.backend?.userName||'Accountant':'Sakib Haider'}</strong><small>{apiMode?'Django session':'Administrator'}</small></div></button>
+     <button className="profile" onClick={()=>router.push('/settings')} aria-label="Open settings"><span>{apiMode?initials(store.backend?.userName):'SH'}</span><div><strong>{apiMode?store.backend?.userName||'Signed in':'Sakib Haider'}</strong><small>{apiMode?roleLabel(store.backend?.role):'Administrator'}</small></div></button>
     </div>
    </header>
    <main className="content">
     <div className="page-intro">
-     <div><div className="eyebrow">RENTFLOW / {title.toUpperCase()}</div><h1>{title==='Overview'?`Good morning, ${apiMode?store.backend?.userName||'there':'Sakib'}`:title}</h1><p>{title==='Overview'?'Here is where your rental accounts stand this month.':title==='Settlements'?'Review every balance before closing the month.':title==='Actor portal'?'See the limited view each party receives.':title==='Reports'?'Explore account totals and export the current scope.':title==='Settings'?'Policies and demo workspace controls.':`${period.label} · Main branch`}</p></div>
+     <div><div className="eyebrow">RENTFLOW / {title.toUpperCase()}</div><h1>{title==='Overview'?`${greeting()}, ${apiMode?store.backend?.userName||'there':'Sakib'}`:title}</h1><p>{title==='Overview'?'Here is where your rental accounts stand this month.':title==='Settlements'?'Review every balance before closing the month.':title==='Actor portal'?'See the limited view each party receives.':title==='Reports'?'Explore account totals and export the current scope.':title==='Settings'?'Policies and demo workspace controls.':`${period.label}${apiMode?'':' · Main branch'}`}</p></div>
      <div className="intro-actions"><PeriodPicker/>{title!=='Actor portal'&&<Can action="entry.record"><Button onClick={()=>rf.openEntry()} className="primary-action"><Plus size={17}/> Record entry</Button></Can>}</div>
     </div>
-    {period.multiMonth&&<p className="note period-note" role="note">Entry lists (expenses, cashbook) use the exact dates {period.range.from} to {period.range.to}. Billing, statements and settlements show whole rent periods, here {new Date((store.backend?.shownMonth??period.lastMonth)+'T12:00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'})}, the latest month in the range with a rent period.</p>}
-    <div className="demo-banner"><Info size={17}/><span>{apiMode?<><strong>API mode.</strong> Entries use Django and PostgreSQL. Notifications and the actor preview still need production delivery and identity wiring.</>:<><strong>Interactive demo.</strong> Sample agreements and entries; changes stay in this browser. No live payments, messages, or accounting posts occur.</>}</span></div>
+    {period.multiMonth&&<p className="note period-note" role="note">Reports, the agreement statement and the entry lists (expenses, cashbook) use exactly {period.range.from} to {period.range.to}. The account tables and settlements show whole rent months, here {new Date((store.backend?.shownMonth??period.lastMonth)+'T12:00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'})}, the latest month in the range with a rent period.</p>}
+    <div className="demo-banner"><Info size={17}/><span>{apiMode?<><strong>API mode.</strong> Entries use Django and PostgreSQL. Message sending is not connected yet.</>:<><strong>Interactive demo.</strong> Sample agreements and entries; changes stay in this browser. No live payments, messages, or accounting posts occur.</>}</span></div>
     {apiError&&<ErrorState message={`Could not load your workspace: ${apiError}`} onRetry={()=>location.reload()}/>}
     <Fragment key={branch??'all'}>{allowed&&!apiError?children:null}</Fragment>
    </main>
@@ -87,7 +91,7 @@ function DashboardShell({children}:{children:React.ReactNode}){
 
   <NewAgreementDialog/>
 
-  <Dialog open={!!rf.confirmClose} onOpenChange={o=>!o&&rf.setConfirmClose(null)}><DialogContent><DialogHeader><DialogTitle>Close September settlement?</DialogTitle><DialogDescription>{rf.confirmClose} · {apiMode?'This prepares, approves and closes the month on the server; no new entries are accepted afterwards. Review all four statements and source entries first.':'This marks the sample month as closed in your browser. Review all four statements and source entries first.'}</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={()=>rf.setConfirmClose(null)}>Keep open</Button><Button onClick={()=>rf.confirmClose&&rf.closeSettlement(rf.confirmClose)}>Confirm close</Button></DialogFooter></DialogContent></Dialog>
+  <Dialog open={!!rf.confirmClose} onOpenChange={o=>!o&&rf.setConfirmClose(null)}><DialogContent><DialogHeader><DialogTitle>Close {apiMode?monthLabel(store.backend?.shownMonth??period.lastMonth):'September 2026'} settlement?</DialogTitle><DialogDescription>{rf.confirmClose} · {apiMode?'This prepares, approves and closes the month on the server; no new entries are accepted afterwards. Review all four statements and source entries first.':'This marks the sample month as closed in your browser. Review all four statements and source entries first.'}</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={()=>rf.setConfirmClose(null)}>Keep open</Button><Button onClick={()=>rf.confirmClose&&rf.closeSettlement(rf.confirmClose)}>Confirm close</Button></DialogFooter></DialogContent></Dialog>
 
   {toast&&<div className="toast" role="status"><CheckCircle2 size={18}/>{toast}<button onClick={()=>setToast('')} aria-label="Dismiss"><X size={16}/></button></div>}
  </div>;

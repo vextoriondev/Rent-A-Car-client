@@ -8,6 +8,7 @@ import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Sheet,SheetContent,SheetDescription,SheetHeader,SheetTitle} from '@/components/ui/sheet';
 import {DocumentList} from '@/components/features/documents/document-list';
+import {monthLabel} from '@/lib/clock';
 import {AgreementTerms} from '@/components/features/agreements/agreement-terms';
 import {AgreementContext} from '@/components/features/agreements/agreement-context';
 import {SettlementStatement} from '@/components/features/settlements/settlement-statement';
@@ -64,10 +65,11 @@ function AgreementBody({agreement}:{agreement:Agreement}){
 }
 
 function allocationTarget(entry:Entry){
+ const m=monthLabel(entry.date).split(' ')[0];   // the month of the entry, not a fixed one
  switch(entry.type){
-  case 'Customer payment':return 'September customer rent';
-  case 'Owner payout':return 'September owner payable';
-  case 'Driver payout':return 'September driver salary';
+  case 'Customer payment':return `${m} customer rent`;
+  case 'Owner payout':return `${m} owner payable`;
+  case 'Driver payout':return `${m} driver salary`;
   case 'Salary advance':return 'Driver salary (advance)';
   default:return null;
  }

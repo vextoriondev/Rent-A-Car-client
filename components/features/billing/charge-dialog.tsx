@@ -121,7 +121,7 @@ export function ChargeDialog({open,periodId,hasDriver=true,driverOnly=false,onCl
     <label>Reference (optional)<Input value={reference} onChange={e=>setReference(e.target.value)}/></label>
     {isExtra&&<label>Proof (optional)<Input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={e=>setProof(e.target.files?.[0]??null)}/><small className="hint">A ticket, notice or photo. PDF, PNG, JPEG or WebP, up to 10 MB.</small></label>}
     <p className="note" aria-live="polite">{valid?consequence:needsReason?'A reason is required for this kind.':'Enter an amount to see the effect.'}</p>
-    {total>=5000&&isExtra&&<p className="note">Charges of ৳5,000 or more need an administrator to post them.</p>}
+    {isExtra&&<p className="note">Large charges need an administrator; the agreement sets the limit.</p>}
     {error&&<ErrorState message={error}/>}
     <div className="sheet-footer"><Button disabled={busy||!valid} onClick={()=>void submit()}>Post {kindInfo[1].toLowerCase()}</Button><Button variant="outline" onClick={onClose}>Cancel</Button></div>
    </div>

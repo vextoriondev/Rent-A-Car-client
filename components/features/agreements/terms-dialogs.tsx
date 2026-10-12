@@ -9,12 +9,15 @@ import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/compo
 import {Textarea} from '@/components/ui/textarea';
 import {ErrorState} from '@/components/shared/error-state';
 import type {PartyOption,Version} from './terms-types';
+import {firstOfNextMonth} from '@/lib/clock';
+import {BASES,basisUnit,buildSchedule,defaultSchedule,fromApiSpec,sameSchedule,type ScheduleValue} from '@/lib/schedule';
+import {ScheduleEditor} from './schedule-editor';
 
-const NEXT_MONTH='2026-10-01';
+const NEXT_MONTH=firstOfNextMonth();
 const roles=['operator','owner','customer'];
-const providers=[...roles.map(v=>({value:v,label:title(v)})),{value:'none',label:'No driver (vehicle only)'}];
 const responsible=['owner','operator','customer','driver'];
 const title=(v:string)=>v.charAt(0).toUpperCase()+v.slice(1);
+const providers=[...roles.map(v=>({value:v,label:title(v)})),{value:'none',label:'No driver (vehicle only)'}];
 
 function Pick({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:{value:string;label:string}[]}){
  return <label>{label}<Select value={value} onValueChange={onChange}><SelectTrigger aria-label={label}><SelectValue/></SelectTrigger><SelectContent>{options.map(o=><SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></label>;
@@ -25,10 +28,11 @@ const plain=(list:string[])=>list.map(v=>({value:v,label:title(v)}));
 export function ReviseTermsDialog({open,agreementPk,current,onClose,onDone}:{open:boolean;agreementPk:number;current:Version;onClose:()=>void;onDone:(m:string)=>Promise<void>}){
  const rf=useRentflowStore();
  const orgId=rf.store.backend?.orgId;
- const [f,setF]=useState({customer_rent:'',owner_rent:'',driver_salary:'',fuel_responsible:'',repair_responsible:'',driver_provider:'',driver_paid_by:'',clauses:'',overtime_rate:'',overtime_unit:'',effective_from:NEXT_MONTH,reason:''});
+ const [f,setF]=useState({customer_rent:'',owner_rent:'',driver_salary:'',fuel_responsible:'',repair_responsible:'',driver_provider:'',driver_paid_by:'',clauses:'',overtime_rate:'',overtime_unit:'',customer_rent_basis:'per_month',owner_rent_basis:'per_month',driver_salary_basis:'per_month',effective_from:NEXT_MONTH,reason:''});
+ const [sched,setSched]=useState<Record<'customer'|'owner'|'driver',ScheduleValue>>({customer:{...defaultSchedule},owner:{...defaultSchedule},driver:{...defaultSchedule}});
  const [error,setError]=useState('');
  const [busy,setBusy]=useState(false);
- useEffect(()=>{if(open){setF({customer_rent:String(Number(current.customer_rent)),owner_rent:String(Number(current.owner_rent)),driver_salary:String(Number(current.driver_salary)),fuel_responsible:current.fuel_responsible,repair_responsible:current.repair_responsible,driver_provider:current.driver_provider,driver_paid_by:current.driver_paid_by,clauses:current.clauses,overtime_rate:current.overtime_rate?String(Number(current.overtime_rate)):'',overtime_unit:current.overtime_unit||'',effective_from:NEXT_MONTH,reason:''});setError('')}},[open,current]);
+ useEffect(()=>{if(open){setF({customer_rent:String(Number(current.customer_rent)),owner_rent:String(Number(current.owner_rent)),driver_salary:String(Number(current.driver_salary)),fuel_responsible:current.fuel_responsible,repair_responsible:current.repair_responsible,driver_provider:current.driver_provider,driver_paid_by:current.driver_paid_by,clauses:current.clauses,overtime_rate:current.overtime_rate?String(Number(current.overtime_rate)):'',overtime_unit:current.overtime_unit||'',customer_rent_basis:current.customer_rent_basis||'per_month',owner_rent_basis:current.owner_rent_basis||'per_month',driver_salary_basis:current.driver_salary_basis||'per_month',effective_from:NEXT_MONTH,reason:''});setSched({customer:fromApiSpec(current.payment_schedule?.customer),owner:fromApiSpec(current.payment_schedule?.owner),driver:fromApiSpec(current.payment_schedule?.driver)});setError('')}},[open,current]);
  const set=(k:keyof typeof f)=>(v:string)=>setF(x=>({...x,[k]:v}));
  const noDriver=f.driver_provider==='none';
  const operatorPays=f.driver_paid_by==='operator'&&!noDriver;
@@ -36,7 +40,7 @@ export function ReviseTermsDialog({open,agreementPk,current,onClose,onDone}:{ope
 
  const submit=async()=>{
   if(!orgId)return;
-  const changes:Record<string,string>={};
+  const changes:Record<string,unknown>={};
   (['customer_rent','owner_rent'] as const).forEach(k=>{if(Number(f[k])!==Number(current[k]))changes[k]=String(Number(f[k]))});
   const salary=operatorPays?Number(f.driver_salary):0;
   const rate=f.overtime_rate.trim()?Number(f.overtime_rate):null;
@@ -45,6 +49,9 @@ export function ReviseTermsDialog({open,agreementPk,current,onClose,onDone}:{ope
   if(salary!==Number(current.driver_salary))changes.driver_salary=String(salary);
   (['fuel_responsible','repair_responsible','driver_provider','driver_paid_by','clauses'] as const).forEach(k=>{if(f[k]!==current[k])changes[k]=f[k]});
   if(noDriver&&Number(current.driver_salary)!==0)changes.driver_salary='0';
+  (['customer_rent_basis','owner_rent_basis','driver_salary_basis'] as const).forEach(k=>{if(f[k]!==(current[k]||'per_month'))changes[k]=f[k]});
+  const sides=['customer','owner','driver'] as const;
+  if(sides.some(s=>!sameSchedule(sched[s],fromApiSpec(current.payment_schedule?.[s]))))(changes as Record<string,unknown>).payment_schedule=buildSchedule(sched);
   if(Object.keys(changes).length===0){setError('Change at least one term before saving.');return}
   setBusy(true);setError('');
   try{
@@ -58,20 +65,23 @@ export function ReviseTermsDialog({open,agreementPk,current,onClose,onDone}:{ope
    <DialogHeader><DialogTitle>Revise terms</DialogTitle><DialogDescription>The old terms stay in the history. Months already issued are never changed.</DialogDescription></DialogHeader>
    <div className="entry-form">
     <label>Effective from<Input type="date" value={f.effective_from} onChange={e=>set('effective_from')(e.target.value)}/></label>
-    {day>1&&<p className="note">Terms change at a month boundary: a mid-month date applies from the next period.</p>}
-    <label>Customer rent / month (৳)<Input inputMode="numeric" value={f.customer_rent} onChange={e=>set('customer_rent')(e.target.value)}/></label>
-    <label>Owner rent / month (৳)<Input inputMode="numeric" value={f.owner_rent} onChange={e=>set('owner_rent')(e.target.value)}/></label>
+    {day>1&&<p className="note">A mid-month date splits that month: each part is billed at its own terms, and the months already issued are never changed.</p>}
+    <div className="amount-with-basis"><label>Customer rent (৳ {basisUnit(f.customer_rent_basis)})<Input inputMode="numeric" value={f.customer_rent} onChange={e=>set('customer_rent')(e.target.value)}/></label><Pick label="Customer rent counts" value={f.customer_rent_basis} onChange={set('customer_rent_basis')} options={BASES.map(([value,label])=>({value,label}))}/></div>
+    <div className="amount-with-basis"><label>Owner rent (৳ {basisUnit(f.owner_rent_basis)})<Input inputMode="numeric" value={f.owner_rent} onChange={e=>set('owner_rent')(e.target.value)}/></label><Pick label="Owner rent counts" value={f.owner_rent_basis} onChange={set('owner_rent_basis')} options={BASES.map(([value,label])=>({value,label}))}/></div>
     <Pick label="Who supplies the driver" value={f.driver_provider} onChange={set('driver_provider')} options={providers}/>
     {noDriver
      ?<p className="note">Vehicle only: no driver and no salary on this agreement from this date. A driver can still work for you under a separate driver agreement (Drivers page).</p>
      :<>
       <Pick label="Who pays the driver" value={f.driver_paid_by} onChange={set('driver_paid_by')} options={plain(roles)}/>
       {operatorPays
-       ?<label>Driver salary / month (৳)<Input inputMode="numeric" value={f.driver_salary} onChange={e=>set('driver_salary')(e.target.value)}/></label>
+       ?<div className="amount-with-basis"><label>Driver salary (৳ {basisUnit(f.driver_salary_basis)})<Input inputMode="numeric" value={f.driver_salary} onChange={e=>set('driver_salary')(e.target.value)}/></label><Pick label="Driver salary counts" value={f.driver_salary_basis} onChange={set('driver_salary_basis')} options={BASES.map(([value,label])=>({value,label}))}/></div>
        :<p className="note">The {f.driver_paid_by} pays the driver, so salary is 0 and no salary is payable on the statement.</p>}
      </>}
     <label>Overtime rate (optional, ৳ per unit)<Input inputMode="decimal" value={f.overtime_rate} onChange={e=>set('overtime_rate')(e.target.value)} placeholder="Suggested when you add an overtime charge"/></label>
     <label>Overtime unit (optional)<Input value={f.overtime_unit} onChange={e=>set('overtime_unit')(e.target.value)} placeholder="hour, day, km"/></label>
+    <ScheduleEditor label="Customer pays us" value={sched.customer} onChange={x=>setSched(s=>({...s,customer:x}))}/>
+    <ScheduleEditor label="We pay the owner" value={sched.owner} onChange={x=>setSched(s=>({...s,owner:x}))}/>
+    {!noDriver&&operatorPays&&<ScheduleEditor label="We pay the driver" value={sched.driver} onChange={x=>setSched(s=>({...s,driver:x}))}/>}
     <Pick label="Fuel responsibility" value={f.fuel_responsible} onChange={set('fuel_responsible')} options={plain(responsible)}/>
     <Pick label="Repair responsibility" value={f.repair_responsible} onChange={set('repair_responsible')} options={plain(responsible)}/>
     <label>Clauses<Textarea rows={3} value={f.clauses} onChange={e=>set('clauses')(e.target.value)}/></label>
@@ -155,6 +165,31 @@ export function TransferOwnerDialog({open,vehicleId,currentOwnerId,onClose,onDon
     <label>Effective from<Input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label>
     {(loadError||error)&&<ErrorState message={loadError||error}/>}
     <div className="sheet-footer"><Button disabled={busy||!owner||!from} onClick={()=>void submit()}>Transfer ownership</Button><Button variant="outline" onClick={onClose}>Cancel</Button></div>
+   </div>
+  </DialogContent>
+ </Dialog>;
+}
+
+/** Extends, shortens or removes the end date (PATCH /agreements/{id}/dates). The server refuses a change that would reprice a month already issued. */
+export function EndDateDialog({open,agreementPk,startDate,endDate,onClose,onDone}:{open:boolean;agreementPk:number;startDate:string;endDate:string|null;onClose:()=>void;onDone:(m:string)=>Promise<void>}){
+ const orgId=useRentflowStore().store.backend?.orgId;
+ const [end,setEnd]=useState('');
+ const [error,setError]=useState('');
+ const [busy,setBusy]=useState(false);
+ useEffect(()=>{if(open){setEnd(endDate||'');setError('')}},[open,endDate]);
+ const submit=async()=>{
+  if(!orgId)return;
+  setBusy(true);setError('');
+  try{const r=await apiRequest(`/orgs/${orgId}/agreements/${agreementPk}/dates`,{method:'PATCH',body:JSON.stringify({end_date:end||null})});await onDone(r.end_date?`The agreement now ends on ${r.end_date}.`:'The agreement is now open-ended.')}
+  catch(e){setError((e as Error).message)}finally{setBusy(false)}
+ };
+ return <Dialog open={open} onOpenChange={o=>{if(!o)onClose()}}>
+  <DialogContent className="entry-dialog">
+   <DialogHeader><DialogTitle>Change the end date</DialogTitle><DialogDescription>Extend, shorten or remove the end date. Months already issued are never repriced; the server refuses a change that would.</DialogDescription></DialogHeader>
+   <div className="entry-form">
+    <label>Ends (leave empty for open-ended)<Input type="date" min={startDate} value={end} onChange={e=>setEnd(e.target.value)}/></label>
+    {error&&<ErrorState message={error}/>}
+    <div className="sheet-footer"><Button disabled={busy||(!!end&&end<startDate)} onClick={()=>void submit()}>Save end date</Button><Button variant="outline" onClick={onClose}>Cancel</Button></div>
    </div>
   </DialogContent>
  </Dialog>;

@@ -2,6 +2,8 @@
 import {useCallback,useEffect,useState} from 'react';
 import {ChevronRight} from 'lucide-react';
 import {apiMode,apiRequest} from '@/lib/api';
+import {monthLabel} from '@/lib/clock';
+import {usePeriod} from '@/lib/period';
 import {statement} from '@/lib/demo';
 import {useRentflowStore} from '@/lib/store-context';
 import {useRelatedAgreements} from '@/lib/use-related-agreements';
@@ -21,13 +23,15 @@ export default function SettlementsPage(){
  const [workflowFor,setWorkflowFor]=useState<string|null>(null);
  const [rows,setRows]=useState<Record<number,SettlementRow>>({});
  const orgId=store.backend?.orgId;
+ const period=usePeriod();
+ const shown=store.backend?.shownMonth??period.lastMonth;   // the month the account screens show
  const loadRows=useCallback(async()=>{
   if(!apiMode||!orgId)return;
-  try{const list=await apiRequest(`/orgs/${orgId}/settlements?month=2026-09-01&limit=200`);setRows(Object.fromEntries(list.items.map((x:SettlementRow)=>[x.agreement_id,x])))}catch{/* the cards still work from the snapshot */}
- },[orgId]);
+  try{const list=await apiRequest(`/orgs/${orgId}/settlements?month=${shown}&limit=200`);setRows(Object.fromEntries(list.items.map((x:SettlementRow)=>[x.agreement_id,x])))}catch{/* the cards still work from the snapshot */}
+ },[orgId,shown]);
  useEffect(()=>{void loadRows()},[loadRows,store.closed.length]);
  return <>
-  <div className="settlement-banner"><div><span className="eyebrow">SEPTEMBER 2026 · CLOSE PERIOD</span><h2>Month-end settlement</h2><p>Review customer, owner, driver and operator positions for each agreement.</p></div><div className="settlement-count"><strong>{store.closed.length}/{store.agreements.length}</strong><span>closed</span></div></div>
+  <div className="settlement-banner"><div><span className="eyebrow">{(apiMode?monthLabel(shown):'September 2026').toUpperCase()} · CLOSE PERIOD</span><h2>Month-end settlement</h2><p>Review customer, owner, driver and operator positions for each agreement.</p></div><div className="settlement-count"><strong>{store.closed.length}/{store.agreements.length}</strong><span>closed</span></div></div>
   <div className="settlement-grid">{agreements.map(a=>{
    const s=statement(a,store.entries);
    const pending=store.entries.some(e=>e.agreementId===a.id&&e.status==='Pending approval');

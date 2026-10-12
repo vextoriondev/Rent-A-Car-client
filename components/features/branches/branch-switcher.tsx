@@ -33,7 +33,7 @@ export function BranchSwitcher(){
  useEffect(()=>{if(chosen&&branches.length&&!branches.some(b=>b.id===chosen))setBranch(null)},[chosen,branches]);
  if(!apiMode)return null;
  const label=locked?own!.name:chosen?branches.find(b=>b.id===chosen)?.name??'Branch':'All branches';
- const body=<><div className="workspace-icon">R</div><div><strong>RentFlow HQ</strong><small>{label}</small></div>{!locked&&<ChevronRight size={16}/>}</>;
+ const body=<><div className="workspace-icon">R</div><div><strong>{store.backend?.orgName||'Your workspace'}</strong><small>{label}</small></div>{!locked&&<ChevronRight size={16}/>}</>;
  if(locked)return <div className="workspace" aria-label={`Branch ${own!.name}`}>{body}</div>;
  return <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="workspace" aria-label="Switch branch">{body}</button></DropdownMenuTrigger>
   <DropdownMenuContent align="start" className="w-56"><DropdownMenuLabel>Branch</DropdownMenuLabel>

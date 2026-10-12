@@ -27,19 +27,14 @@ export const navItems:NavItem[]=[
  {group:'',label:'Settings',href:'/settings',icon:Settings2,roles:['admin','accountant','operations','viewer','mechanic']},
 ];
 
-/** Non-nav preview route, reached only from the sidebar-foot link, not one of the 16 nav items. */
-export const actorPreviewHref='/actor-preview';
-
 export function pageTitle(pathname:string):string{
- if(pathname===actorPreviewHref)return 'Actor portal';
  if(pathname==='/expenses/daily'||pathname.startsWith('/expenses/categories/'))return 'Expenses';
- const item=navItems.find(n=>n.href===pathname);
- return item?.label||'Overview';
+ return navItemFor(pathname)?.label||'Overview';   // sub-routes such as /owners/12 carry their list's title
 }
 
 const ALL_BUT_MECHANIC:Role[]=['admin','accountant','operations','viewer'];
 /** The nav item a route belongs to (sub-routes such as /expenses/daily belong to /expenses). */
 export function navItemFor(pathname:string){return navItems.find(n=>n.href===pathname)||navItems.find(n=>n.href!=='/'&&pathname.startsWith(n.href+'/'))}
 export const rolesFor=(item:NavItem|undefined)=>item?.roles??ALL_BUT_MECHANIC;
-/** In API mode: may this role open this route? The actor preview is not a nav item and stays open to everyone but a mechanic. */
+/** In API mode: may this role open this route? Sub-routes (such as a party profile) follow their list's roles. */
 export const routeAllowed=(pathname:string,role:string|undefined)=>!role||(rolesFor(navItemFor(pathname)) as readonly string[]).includes(role);

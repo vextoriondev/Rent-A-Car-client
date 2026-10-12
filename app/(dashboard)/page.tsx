@@ -2,6 +2,9 @@
 import {useRouter} from 'next/navigation';
 import {ArrowUpRight,ArrowDownLeft,WalletCards,Banknote,ChartNoAxesCombined,Clock3,AlertCircle,Layers3,ReceiptText,FileSignature,Plus,ChevronRight} from 'lucide-react';
 import {totals} from '@/lib/demo';
+import {apiMode} from '@/lib/api';
+import {monthLabel} from '@/lib/clock';
+import {usePeriod} from '@/lib/period';
 import {useRentflowStore} from '@/lib/store-context';
 import {SectionHeading} from '@/components/shared/section-heading';
 import {fmtDate} from '@/lib/format';
@@ -14,6 +17,7 @@ export default function OverviewPage(){
  const router=useRouter();
  const rf=useRentflowStore();
  const {store}=rf;
+ const period=usePeriod();
  const financial=totals(store);
  const metrics=[
   {label:'Customer outstanding',value:financial.customer,icon:ArrowDownLeft,detail:'Billed rent less receipts',color:'blue'},
@@ -35,7 +39,7 @@ export default function OverviewPage(){
      <div className="attention-list">
       <button onClick={()=>router.push('/expenses')}><span className="attention-symbol amber"><Clock3 size={18}/></span><span><strong>{store.entries.filter(e=>e.status==='Pending approval').length} pending expense</strong><small>Review responsibility and proof</small></span><ChevronRight size={16}/></button>
       <button onClick={()=>router.push('/notifications')}><span className="attention-symbol red"><AlertCircle size={18}/></span><span><strong>{store.notices.filter(n=>n.status==='Failed').length} failed message</strong><small>Check recipient and retry</small></span><ChevronRight size={16}/></button>
-      <button onClick={()=>router.push('/settlements')}><span className="attention-symbol teal"><Layers3 size={18}/></span><span><strong>{store.agreements.length-store.closed.length} open settlements</strong><small>September 2026</small></span><ChevronRight size={16}/></button>
+      <button onClick={()=>router.push('/settlements')}><span className="attention-symbol teal"><Layers3 size={18}/></span><span><strong>{store.agreements.length-store.closed.length} open settlements</strong><small>{apiMode?monthLabel(store.backend?.shownMonth??period.lastMonth):'September 2026'}</small></span><ChevronRight size={16}/></button>
      </div>
     </Card>
     <Card className="quick-card"><SectionHeading title="Quick actions"/>

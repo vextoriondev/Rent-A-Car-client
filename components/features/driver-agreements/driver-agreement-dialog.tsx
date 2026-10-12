@@ -77,7 +77,7 @@ export function DriverAgreementDialog({agreementId,onClose,onChanged}:{agreement
     <p className="note">Pick the first day of a month (for example {firstOfNextMonth()}). Each month is a full month of salary.</p>
     {detail.periods.length===0?<p className="note">No month has been issued yet.</p>:<div className="billing-table terms-table" role="table" aria-label="Issued months">
      <div role="row" className="head"><span>Month</span><span>Earned</span><span>Paid</span><span>Due</span><span>Bill</span><span/></div>
-     {detail.periods.map(p=><div role="row" key={p.id}><span><b>{p.month.slice(0,7)}</b></span><b className="nums"><Money value={Number(p.earned)}/></b><b className="nums"><Money value={Number(p.paid)}/></b><b className="nums"><Money value={Number(p.due)} signed/></b><span><BillStateChip state={p.bill_state}/></span>
+     {detail.periods.map(p=><div role="row" key={p.id}><span><b>{p.month.slice(0,7)}</b></span><b className="nums"><Money value={Number(p.earned)}/></b><b className="nums"><Money value={Number(p.paid)}/></b><b className="nums"><Money value={Number(p.due)} signed state={p.bill_state}/></b><span><BillStateChip state={p.bill_state}/></span>
       <span className="row-actions"><Can action="payment.post"><Button size="sm" variant="outline" onClick={()=>setPaying(p)}>Pay</Button><Button size="sm" variant="outline" onClick={()=>setCharging(p)}>Deduct</Button></Can></span></div>)}
     </div>}
 

@@ -51,7 +51,7 @@ export function ApiReports(){
  const billed=!!data?.bill_states;
  return <>
   <div className="report-header"><Card>
-   <span className="eyebrow">REPORT BUILDER</span><h2>{label} reports</h2><p>Reports follow the period picker. Download the CSV (opens in Excel) or print to PDF.</p>
+   <span className="eyebrow">REPORT BUILDER</span><h2>{label} reports</h2><p>Reports use exactly the dates in the period picker. Balance reports add an Opening column (the balance before the first day); Outstanding or Due is the balance on the last day. Download the CSV (opens in Excel) or print to PDF.</p>
    <div className="report-controls">
     <Select value={type} onValueChange={setType}><SelectTrigger aria-label="Report type"><SelectValue/></SelectTrigger><SelectContent>{types.map(r=><SelectItem key={r.type} value={r.type}>{r.title}</SelectItem>)}</SelectContent></Select>
     <Select value={agreement} onValueChange={setAgreement}><SelectTrigger aria-label="Filter report by agreement"><SelectValue/></SelectTrigger><SelectContent><SelectItem value={ALL}>All agreements</SelectItem>{rf.store.agreements.map(a=><SelectItem key={a.id} value={a.id}>{a.registration} · {a.id}</SelectItem>)}</SelectContent></Select>

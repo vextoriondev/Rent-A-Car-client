@@ -1,7 +1,9 @@
 "use client";
 import {useCallback,useEffect,useState} from 'react';
 import {AlertTriangle,CheckCircle2,Circle,OctagonAlert} from 'lucide-react';
-import {apiRequest} from '@/lib/api';
+import {apiMode,apiRequest} from '@/lib/api';
+import {monthLabel} from '@/lib/clock';
+import {usePeriod} from '@/lib/period';
 import {useRentflowStore} from '@/lib/store-context';
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
@@ -24,6 +26,7 @@ const sectionTitle:Record<string,string>={customer:'Customer',owner:'Owner',driv
 /** API mode: prepare, request approval, approve, close and reopen one agreement's month, with the readiness checks the server reports. */
 export function SettlementWorkflow({agreementId,onClose,onChanged}:{agreementId:string|null;onClose:()=>void;onChanged:()=>void}){
  const rf=useRentflowStore();
+ const period=usePeriod();
  const backend=rf.store.backend;
  const agreementPk=agreementId?Number(agreementId.replace('AGR-','')):0;
  const periodId=agreementId?backend?.periodIds[agreementId]:undefined;
@@ -38,7 +41,7 @@ export function SettlementWorkflow({agreementId,onClose,onChanged}:{agreementId:
   if(!backend||!periodId)return;
   try{
    const pv:Preview=await apiRequest(`/orgs/${backend.orgId}/periods/${periodId}/settlement-preview`);
-   const list=await apiRequest(`/orgs/${backend.orgId}/settlements?month=2026-09-01&limit=200`);
+   const list=await apiRequest(`/orgs/${backend.orgId}/settlements?month=${rf.store.backend?.shownMonth??period.lastMonth}&limit=200`);
    const row:SettlementRow|undefined=list.items.find((x:SettlementRow)=>x.agreement_id===agreementPk);
    const full=row?await apiRequest(`/orgs/${backend.orgId}/settlements/${row.id}`):null;
    setPreview(pv);setSettlement(full);setError('');
@@ -64,7 +67,7 @@ export function SettlementWorkflow({agreementId,onClose,onChanged}:{agreementId:
  return <Dialog open={!!agreementId} onOpenChange={o=>{if(!o)onClose()}}>
   <DialogContent className="entry-dialog settlement-dialog">
    <DialogHeader>
-    <DialogTitle>Settlement for {agreementId}, September 2026</DialogTitle>
+    <DialogTitle>Settlement for {agreementId}, {apiMode?monthLabel(rf.store.backend?.shownMonth??period.lastMonth):'September 2026'}</DialogTitle>
     <DialogDescription>Check readiness, then move it through approval to close. Anything posted after approval needs a fresh approval.</DialogDescription>
    </DialogHeader>
    {error&&<ErrorState message={error} onRetry={()=>void load()}/>}

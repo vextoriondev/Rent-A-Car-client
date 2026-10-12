@@ -1,5 +1,6 @@
 "use client";
 import {useCallback,useEffect,useState} from 'react';
+import Link from 'next/link';
 import {Plus} from 'lucide-react';
 import {apiMode,apiRequest} from '@/lib/api';
 import {useRentflowStore} from '@/lib/store-context';
@@ -42,7 +43,7 @@ export function DriverAgreements(){
   {rows&&rows.length>0&&<div className="billing-table driver-agreements" role="table" aria-label="Driver agreements">
    <div role="row" className="head"><span>Agreement</span><span>Driver</span><span>Vehicle</span><span>From</span><span>To</span><span>Salary / month</span><span/></div>
    {rows.map(r=><div role="row" key={r.id} className="clickable" tabIndex={0} onClick={()=>setOpenId(r.id)} onKeyDown={e=>{if(e.key==='Enter')setOpenId(r.id)}}>
-    <span><b>{r.ref}</b> <Badge tone={r.status==='active'?'good':'neutral'}>{r.status==='active'?'Active':'Ended'}</Badge></span><span>{r.driver.name}</span><span>{r.vehicle?r.vehicle.registration:'-'}</span><span>{r.start_date}</span><span>{r.end_date||'Open'}</span><b className="nums"><Money value={Number(r.salary)}/></b>
+    <span><b>{r.ref}</b> <Badge tone={r.status==='active'?'good':'neutral'}>{r.status==='active'?'Active':'Ended'}</Badge></span><span><Link href={`/drivers/${r.driver.id}`} className="text-button">{r.driver.name}</Link></span><span>{r.vehicle?r.vehicle.registration:'-'}</span><span>{r.start_date}</span><span>{r.end_date||'Open'}</span><b className="nums"><Money value={Number(r.salary)}/></b>
     <span className="row-actions"><Button size="sm" variant="outline" onClick={e=>{e.stopPropagation();setOpenId(r.id)}} aria-label={`Open ${r.ref}`}>Open</Button></span></div>)}
   </div>}
   <NewDriverAgreementDialog open={creating} onClose={()=>setCreating(false)} onDone={async(m,id)=>{setCreating(false);await load();setMessage(m);setOpenId(id)}}/>

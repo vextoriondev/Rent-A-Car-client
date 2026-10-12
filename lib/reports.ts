@@ -23,7 +23,7 @@ export const partyName=(party:PartyKind,a:Agreement)=>party==='Owner'?a.owner:pa
 export const reportSlug=(type:string)=>type.toLowerCase().replaceAll(' ','-');
 
 /** Describes the on-screen scope for the file preamble and the PDF heading. */
-export function scopeText(parts:{label:string;value:string;all:string}[],periodLabel='September 2026'){
+export function scopeText(parts:{label:string;value:string;all:string}[],periodLabel:string){
  const used=parts.filter(p=>p.value&&p.value!==p.all).map(p=>`${p.label}: ${p.value}`);
  return [`Period: ${periodLabel}`,...used].join('; ');
 }

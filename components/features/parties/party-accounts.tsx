@@ -10,6 +10,7 @@ import {Card} from '@/components/ui/card';
 import {EmptyState} from '@/components/shared/empty-state';
 import {LedgerTable} from '@/components/shared/ledger-table';
 import {Money} from '@/components/shared/money';
+import {partyHref} from '@/lib/party-link';
 import {PartyChip} from '@/components/shared/party-chip';
 
 type Role='Customer'|'Owner'|'Driver';
@@ -30,7 +31,7 @@ export function PartyAccounts({role}:{role:Role}){
  const c=config[role];
  const rows=useMemo<Row[]>(()=>agreements.filter(a=>role!=='Driver'||!a.noDriver).map(a=>({a,s:statement(a,store.entries)})),[agreements,store.entries,role]);
  const columns=useMemo<ColumnDef<Row>[]>(()=>[
-  {id:'party',header:role,accessorFn:r=>c.name(r.a),sortingFn:(x,y)=>c.name(x.original.a).localeCompare(c.name(y.original.a)),cell:({row:{original:r}})=><PartyChip name={c.name(r.a)} role={role}/>},
+  {id:'party',header:role,accessorFn:r=>c.name(r.a),sortingFn:(x,y)=>c.name(x.original.a).localeCompare(c.name(y.original.a)),cell:({row:{original:r}})=><PartyChip name={c.name(r.a)} role={role} href={partyHref(role,r.a)}/>},
   {id:'vehicle',header:'Vehicle / agreement',enableSorting:false,cell:({row:{original:r}})=><>{r.a.vehicle}<small>{r.a.id}</small></>},
   {id:'gross',header:c.grossLabel,accessorFn:r=>c.gross(r.a),meta:{align:'right'},cell:({row:{original:r}})=><Money value={c.gross(r.a)}/>},
   {id:'due',header:c.dueLabel,accessorFn:r=>c.due(r.s),meta:{align:'right',className:'due'},cell:({row:{original:r}})=><Money value={c.due(r.s)}/>},

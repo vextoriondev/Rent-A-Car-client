@@ -6,6 +6,8 @@ import {apiMode,apiRequest,apiUpload,liveSnapshot,livePost,logout,ApiError} from
 import {useSelected} from './use-list-filters';
 import {usePeriod} from './period';
 import {useBranch} from './branch';
+import {buildSchedule} from './schedule';
+import {monthLabel} from './clock';
 import {expenseCategoryCodes,type AgreementFormValues,type EntryFormValues} from './forms';
 
 interface RentflowContextValue{
@@ -95,7 +97,7 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
    const backend=store.backend;
    if(!backend)return 'The backend is not connected. Sign in and reload.';
    const periodId=backend.periodIds[chosen.id];const ob=backend.obligationIds[chosen.id];
-   if(!periodId||!ob)return 'Issue the September period before recording an entry.';
+   if(!periodId||!ob)return 'Issue the month for this agreement before recording an entry.';
    setApiBusy(true);
    let uploadNote='';
    try{
@@ -159,17 +161,17 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
  const createAgreement=async(n:AgreementFormValues):Promise<string|null>=>{
   if(store.agreements.some(a=>a.registration.toLowerCase()===n.registration.toLowerCase()&&a.status==='Active'))return 'This registration already has an active agreement.';
   if(apiMode){
-   if(n.start>'2026-09-30')return 'This prototype displays September 2026. Choose an effective date in or before September.';
    const backend=store.backend;
    if(!backend)return 'Backend session is unavailable.';
    setApiBusy(true);
    try{
-    const a=await livePost(backend.orgId,'/agreements/quick',{customer:n.customer,owner:n.owner,driver:n.driverProvider==='None'?'':n.driver,vehicle:n.vehicle,registration:n.registration,start:n.start,rent:n.rent,owner_rent:n.ownerRent,salary:n.driverProvider!=='None'&&n.driverPaidBy==='Operator'?n.salary:'0',fuel:n.fuel,repair:n.repair,offset:n.offset,driver_provider:n.driverProvider.toLowerCase(),driver_paid_by:(n.driverProvider==='None'?'Operator':n.driverPaidBy).toLowerCase(),clauses:n.clauses.trim()});
-    await livePost(backend.orgId,`/agreements/${a.id}/periods?month=2026-09-01`,{});
+    const a=await livePost(backend.orgId,'/agreements/quick',{customer:n.customer,owner:n.owner,driver:n.driverProvider==='None'?'':n.driver,vehicle:n.vehicle,registration:n.registration,start:n.start,end:n.end||null,rent:n.rent,rent_basis:n.rentBasis,owner_rent_basis:n.ownerRentBasis,salary_basis:n.salaryBasis,payment_schedule:buildSchedule({customer:n.customerSchedule,owner:n.ownerSchedule,driver:n.driverProvider!=='None'&&n.driverPaidBy==='Operator'?n.driverSchedule:undefined}),owner_rent:n.ownerRent,salary:n.driverProvider!=='None'&&n.driverPaidBy==='Operator'?n.salary:'0',fuel:n.fuel,repair:n.repair,offset:n.offset,driver_provider:n.driverProvider.toLowerCase(),driver_paid_by:(n.driverProvider==='None'?'Operator':n.driverPaidBy).toLowerCase(),clauses:n.clauses.trim()});
+    const firstMonth=n.start.slice(0,7)+'-01';   // issue the month the agreement starts in
+    await livePost(backend.orgId,`/agreements/${a.id}/periods?month=${firstMonth}`,{});
     await refreshLive();
     setAgreementOpen(false);setSelected(`AGR-${a.id}`);
     const warnings:string[]=a.warnings||[];
-    setToast('Agreement and September obligations created in the backend.'+(warnings.length?' Warnings: '+warnings.join(' '):''));
+    setToast(`Agreement created, with ${monthLabel(firstMonth)} issued.`+(warnings.length?' Warnings: '+warnings.join(' '):''));
     return null;
    }catch(e){return (e as Error).message}
    finally{setApiBusy(false)}

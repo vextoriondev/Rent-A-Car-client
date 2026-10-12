@@ -14,10 +14,12 @@ import {Money} from '@/components/shared/money';
 import {SectionHeading} from '@/components/shared/section-heading';
 import {printPdf,type DownloadTable} from '@/lib/downloads';
 import {ChargeDialog} from './charge-dialog';
+import {RangeStatement} from './range-statement';
 import {InvoiceDialog} from './invoice-dialog';
 import {SplitPaymentDialog} from './split-payment-dialog';
 import {invoiceLabel,invoiceTone,type Charge,type Invoice,type Ledger} from './types';
 import {Can} from '@/lib/roles';
+import type {BillState} from '@/lib/bill-state';
 
 const sideLabel:Record<string,string>={customer:'Customer',owner:'Owner',driver:'Driver'};
 const kindLabel:Record<string,string>={charge:'Charge',credit:'Credit',adjustment:'Adjustment',reimbursement:'Reimbursement',opening_balance:'Opening balance',overtime:'Overtime',absence_deduction:'Absence deduction',fine:'Fine'};
@@ -75,10 +77,11 @@ export function BillingWorkspace(){
   printPdf(t,`rentflow-${inv.number}`);
  };
 
- if(!current||!backend)return <Card><SectionHeading title="Charges, invoices and ledger" subtitle="Issue the September period for an agreement to use these tools."/><EmptyState title="No issued period yet"/></Card>;
+ if(!current||!backend)return <Card><SectionHeading title="Charges, invoices and ledger" subtitle="Issue the month for an agreement to use these tools."/><EmptyState title="No issued period yet"/></Card>;
 
  const stmt=ledger?.statement;
  const num=(v?:string)=>Number(v||0);
+ const stateOf=(side:{bill_state?:BillState}|undefined)=>side?.bill_state;
  return <>
   <Card>
    <SectionHeading title="Charges, invoices and ledger" subtitle="Extra charges, credits and adjustments, the period ledger, invoices and split payments, for one agreement at a time."/>
@@ -108,19 +111,19 @@ export function BillingWorkspace(){
       <p><span>Billed</span><b><Money value={num(stmt.customer.billed)}/></b></p>
       <p><span>Received</span><b><Money value={num(stmt.customer.received)}/></b></p>
       <p><span>Carried forward</span><b><Money value={num(stmt.customer.carried_forward)}/></b></p>
-      <p className="total"><span>Due</span><b><Money value={num(stmt.customer.due)} signed/></b></p></div>
+      <p className="total"><span>Due</span><b><Money value={num(stmt.customer.due)} signed state={stateOf(stmt.customer)}/></b></p></div>
      <div><h3 className="detail-subheading">Owner</h3>
       <p><span>Gross rent</span><b><Money value={num(stmt.owner.gross)}/></b></p>
       <p><span>Offsets</span><b><Money value={num(stmt.owner.offsets)}/></b></p>
       <p><span>Paid</span><b><Money value={num(stmt.owner.paid)}/></b></p>
-      <p className="total"><span>Due</span><b><Money value={num(stmt.owner.due)} signed/></b></p></div>
+      <p className="total"><span>Due</span><b><Money value={num(stmt.owner.due)} signed state={stateOf(stmt.owner)}/></b></p></div>
      {current.noDriver
       ?<div><h3 className="detail-subheading">Driver</h3><p className="note">No driver on this agreement. A driver, if any, works under a separate driver agreement.</p></div>
       :<div><h3 className="detail-subheading">Driver</h3>
       <p><span>Salary earned</span><b><Money value={num(stmt.driver.earned)}/></b></p>
       <p><span>Advance</span><b><Money value={num(stmt.driver.advance)}/></b></p>
       <p><span>Salary paid (excl. advance)</span><b><Money value={num(stmt.driver.paid)-num(stmt.driver.advance)}/></b></p>
-      <p className="total"><span>Due</span><b><Money value={num(stmt.driver.due)} signed/></b></p></div>}
+      <p className="total"><span>Due</span><b><Money value={num(stmt.driver.due)} signed state={stateOf(stmt.driver)}/></b></p></div>}
     </div>
     <p className={'reconcile '+(ledger.reconciles?'ok':'bad')} role="status">{ledger.reconciles?<><CheckCircle2 size={14}/> The ledger agrees with the obligations for this month.</>:<><CircleAlert size={14}/> The ledger and the obligations disagree for this month. Do not close it; contact support.</>}</p>
     <button type="button" className="text-button" aria-expanded={showLines} onClick={()=>setShowLines(v=>!v)}>{showLines?'Hide':'Show'} ledger lines ({ledger.lines.length})</button>
@@ -131,11 +134,13 @@ export function BillingWorkspace(){
    </>}
   </Card>
 
+  <RangeStatement agreementPk={Number(current.id.replace('AGR-',''))} agreementLabel={current.id} hasDriver={!current.noDriver}/>
+
   <Card>
    <SectionHeading title="Invoices" subtitle="Status is worked out from payments applied: issued, partly paid, paid, overdue or void."/>
    {invoices.length===0?<EmptyState title="No invoices for this month yet" description="Use Invoice to preview and issue one."/>:<div className="billing-table" role="table" aria-label="Invoices">
     <div role="row" className="head"><span>Number</span><span>Due date</span><span>Amount</span><span>Paid</span><span>Outstanding</span><span>Status</span><span/></div>
-    {invoices.map(inv=><div role="row" key={inv.id}><span><b>{inv.number}</b></span><span>{inv.due_date}</span><b className="nums"><Money value={num(inv.amount)}/></b><b className="nums"><Money value={num(inv.paid)}/></b><b className="nums"><Money value={num(inv.outstanding)}/></b>
+    {invoices.map(inv=><div role="row" key={inv.id}><span><b>{inv.number}</b></span><span>{inv.due_date}</span><b className="nums"><Money value={num(inv.amount)}/></b><b className="nums"><Money value={num(inv.paid)}/></b><b className="nums"><Money value={num(inv.outstanding)} state={inv.bill_state}/></b>
      <span><Badge tone={invoiceTone[inv.status]}>{invoiceLabel[inv.status]}</Badge></span>
      <span className="row-actions"><Button size="sm" variant="outline" onClick={()=>invoicePdf(inv)} aria-label={`PDF for ${inv.number}`}>PDF</Button>{inv.status!=='void'&&num(inv.paid)===0&&<Button size="sm" variant="outline" disabled={busy} onClick={()=>void voidInvoice(inv)} aria-label={`Void ${inv.number}`}>Void</Button>}</span></div>)}
    </div>}

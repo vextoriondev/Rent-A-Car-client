@@ -1,5 +1,7 @@
 import {z} from 'zod';
-import {today,type Agreement,type EntryType} from '@/lib/demo';
+import {type Agreement,type EntryType} from '@/lib/demo';
+import {todayIso} from '@/lib/clock';
+import {defaultSchedule} from '@/lib/schedule';
 
 export const entryTypes:EntryType[]=['Expense','Customer payment','Owner payout','Driver payout','Salary advance'];
 export const entryCategories=['Repair','Fuel','Toll / parking','Maintenance','Cleaning','Damage','Driver allowance','Driver salary (paid directly)','Rent','Owner rent','Salary','Advance','Other'];
@@ -34,7 +36,7 @@ export type EntryFormValues=z.infer<typeof entrySchema>;
 
 export function entryDefaults(type:EntryType,agreement?:Agreement):EntryFormValues{
  return{
-  type,agreementId:agreement?.id||'',amount:'',date:today,
+  type,agreementId:agreement?.id||'',amount:'',date:todayIso(),
   category:type==='Expense'?'Repair':type==='Salary advance'?'Advance':'Rent',
   reference:'',description:'',
   payer:type==='Customer payment'?agreement?.customer||'Customer':'Operator',
@@ -43,6 +45,7 @@ export function entryDefaults(type:EntryType,agreement?:Agreement):EntryFormValu
  };
 }
 
+const scheduleSchema=z.object({kind:z.enum(['default','monthly','weekly','dates']),day:z.string(),weekday:z.string(),dates:z.array(z.string())});
 export const agreementSchema=z.object({
  customer:required('Enter the customer or billing party.'),
  owner:required("Enter the car owner's name."),
@@ -50,6 +53,13 @@ export const agreementSchema=z.object({
  registration:required('Enter the registration.'),
  driver:z.string(),
  start:z.string(),
+ end:z.string(),
+ rentBasis:z.string(),
+ ownerRentBasis:z.string(),
+ salaryBasis:z.string(),
+ customerSchedule:scheduleSchema,
+ ownerSchedule:scheduleSchema,
+ driverSchedule:scheduleSchema,
  rent:wholeTaka('Enter a positive whole BDT amount.'),
  ownerRent:wholeTaka('Enter a positive whole BDT amount.'),
  salary:z.string(),
@@ -60,12 +70,15 @@ export const agreementSchema=z.object({
  driverPaidBy:z.string(),
  clauses:z.string(),
 }).superRefine((v,ctx)=>{
+ if(!v.end)ctx.addIssue({code:'custom',path:['end'],message:'Enter the end date. You can extend it later by revising.'});
+ else if(v.end<v.start)ctx.addIssue({code:'custom',path:['end'],message:'The end date is before the start date.'});
+ for(const k of ['customerSchedule','ownerSchedule','driverSchedule'] as const)if(v[k].kind==='dates'&&v[k].dates.length===0)ctx.addIssue({code:'custom',path:[k],message:'Add at least one payment date.'});
  if(v.driverProvider!=='None'&&!v.driver.trim())ctx.addIssue({code:'custom',path:['driver'],message:'Enter the assigned driver.'});
  if(v.driverProvider!=='None'&&v.driverPaidBy==='Operator'&&!(v.salary.trim()!==''&&Number.isSafeInteger(Number(v.salary))&&Number(v.salary)>0))ctx.addIssue({code:'custom',path:['salary'],message:'Enter a positive whole BDT amount.'});
 });
 export type AgreementFormValues=z.infer<typeof agreementSchema>;
 
-export const agreementDefaults:AgreementFormValues={customer:'',vehicle:'',registration:'',owner:'',driver:'',rent:'',ownerRent:'',salary:'',start:today,fuel:'Owner',repair:'Owner',offset:true,driverProvider:'Operator',driverPaidBy:'Operator',clauses:''};
+export const agreementDefaults:AgreementFormValues={customer:'',vehicle:'',registration:'',owner:'',driver:'',rent:'',ownerRent:'',salary:'',start:todayIso(),end:'',rentBasis:'per_month',ownerRentBasis:'per_month',salaryBasis:'per_month',customerSchedule:{...defaultSchedule,dates:[]},ownerSchedule:{...defaultSchedule,dates:[]},driverSchedule:{...defaultSchedule,dates:[]},fuel:'Owner',repair:'Owner',offset:true,driverProvider:'Operator',driverPaidBy:'Operator',clauses:''};
 
 /** Who may supply or pay the driver (the backend accepts these three). */
 export const driverRoles=['Operator','Owner','Customer'];
@@ -76,7 +89,7 @@ export const driverProviderLabel=(v:string)=>v==='None'?'No driver (vehicle only
 export const WIZARD_INCOMPLETE='Complete all parties, vehicle details and positive whole BDT amounts.';
 
 /** Which wizard step (0-3) each field lives on, so a failed submit can jump to the first step with an error. */
-export const wizardStepOf:Record<keyof AgreementFormValues,number>={customer:0,owner:0,vehicle:1,registration:1,driver:1,start:1,rent:2,ownerRent:2,salary:2,fuel:3,repair:3,offset:3,driverProvider:1,driverPaidBy:1,clauses:3};
+export const wizardStepOf:Record<keyof AgreementFormValues,number>={customer:0,owner:0,vehicle:1,registration:1,driver:1,start:1,end:1,rent:2,ownerRent:2,salary:2,rentBasis:2,ownerRentBasis:2,salaryBasis:2,customerSchedule:3,ownerSchedule:3,driverSchedule:3,fuel:4,repair:4,offset:4,driverProvider:1,driverPaidBy:1,clauses:4};
 
 export const loginSchema=z.object({
  username:required('Enter your username.'),
