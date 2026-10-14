@@ -52,6 +52,7 @@ export const agreementSchema=z.object({
  vehicle:required('Enter the vehicle name.'),
  registration:required('Enter the registration.'),
  driver:z.string(),
+ driverId:z.string(),
  start:z.string(),
  end:z.string(),
  rentBasis:z.string(),
@@ -78,7 +79,7 @@ export const agreementSchema=z.object({
 });
 export type AgreementFormValues=z.infer<typeof agreementSchema>;
 
-export const agreementDefaults:AgreementFormValues={customer:'',vehicle:'',registration:'',owner:'',driver:'',rent:'',ownerRent:'',salary:'',start:todayIso(),end:'',rentBasis:'per_month',ownerRentBasis:'per_month',salaryBasis:'per_month',customerSchedule:{...defaultSchedule,dates:[]},ownerSchedule:{...defaultSchedule,dates:[]},driverSchedule:{...defaultSchedule,dates:[]},fuel:'Owner',repair:'Owner',offset:true,driverProvider:'Operator',driverPaidBy:'Operator',clauses:''};
+export const agreementDefaults:AgreementFormValues={customer:'',vehicle:'',registration:'',owner:'',driver:'',driverId:'',rent:'',ownerRent:'',salary:'',start:todayIso(),end:'',rentBasis:'per_month',ownerRentBasis:'per_month',salaryBasis:'per_month',customerSchedule:{...defaultSchedule,dates:[]},ownerSchedule:{...defaultSchedule,dates:[]},driverSchedule:{...defaultSchedule,dates:[]},fuel:'Owner',repair:'Owner',offset:true,driverProvider:'Operator',driverPaidBy:'Operator',clauses:''};
 
 /** Who may supply or pay the driver (the backend accepts these three). */
 export const driverRoles=['Operator','Owner','Customer'];
@@ -89,7 +90,7 @@ export const driverProviderLabel=(v:string)=>v==='None'?'No driver (vehicle only
 export const WIZARD_INCOMPLETE='Complete all parties, vehicle details and positive whole BDT amounts.';
 
 /** Which wizard step (0-3) each field lives on, so a failed submit can jump to the first step with an error. */
-export const wizardStepOf:Record<keyof AgreementFormValues,number>={customer:0,owner:0,vehicle:1,registration:1,driver:1,start:1,end:1,rent:2,ownerRent:2,salary:2,rentBasis:2,ownerRentBasis:2,salaryBasis:2,customerSchedule:3,ownerSchedule:3,driverSchedule:3,fuel:4,repair:4,offset:4,driverProvider:1,driverPaidBy:1,clauses:4};
+export const wizardStepOf:Record<keyof AgreementFormValues,number>={customer:0,owner:0,vehicle:1,registration:1,driver:1,driverId:1,start:1,end:1,rent:2,ownerRent:2,salary:2,rentBasis:2,ownerRentBasis:2,salaryBasis:2,customerSchedule:3,ownerSchedule:3,driverSchedule:3,fuel:4,repair:4,offset:4,driverProvider:1,driverPaidBy:1,clauses:4};
 
 export const loginSchema=z.object({
  username:required('Enter your username.'),

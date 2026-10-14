@@ -19,6 +19,7 @@ export function EntriesLedger({entries,store,onSelect}:{entries:Entry[];store:St
   {id:'entry',header:'Entry / vehicle',enableSorting:false,cell:({row:{original:e}})=><><b>{e.type}</b><small>{store.agreements.find(a=>a.id===e.agreementId)?.vehicle} · {e.id}</small></>},
   {id:'paidBy',header:'Paid by',accessorFn:e=>e.paidBy,enableSorting:false,cell:({row:{original:e}})=>e.paidBy},
   {id:'responsible',header:'Responsible',accessorFn:e=>e.responsible,enableSorting:false,cell:({row:{original:e}})=>e.responsible},
+  {id:'recordedBy',header:'Recorded by',accessorFn:e=>e.recordedBy||'',enableSorting:false,cell:({row:{original:e}})=>e.recordedBy||'-'},
   {id:'amount',header:'Amount',accessorFn:e=>e.amount,meta:{align:'right'},cell:({row:{original:e}})=><Money value={e.amount}/>},
   {id:'status',header:'Status',enableSorting:false,cell:({row:{original:e}})=><Badge tone={statusTone(e.status)}>{e.status}</Badge>},
  ],[store.agreements]);

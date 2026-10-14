@@ -92,7 +92,7 @@ export function RecordEntryDialog(){
         <FormField control={form.control} name="liable" render={({field})=><FormItem><FormLabel>Ultimately responsible</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{parties.map(x=><SelectItem value={x} key={x}>{x}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>}/>
        </>}
       </div>
-      <FormField control={form.control} name="description" render={({field})=><FormItem><FormLabel>Description</FormLabel><FormControl><Input {...field} placeholder="What happened?"/></FormControl><FormMessage/></FormItem>}/>
+      <FormField control={form.control} name="description" render={({field})=><FormItem><FormLabel>Note (why this money moved)</FormLabel><FormControl><Input {...field} placeholder="e.g. September rent to the owner"/></FormControl><FormMessage/></FormItem>}/>
       {isExpense&&<>
        <FormField control={form.control} name="offset" render={({field})=><FormItem><label className="check-label"><Checkbox checked={field.value} onCheckedChange={c=>field.onChange(c===true)} disabled={v.liable!=='Owner'||v.payer!=='Operator'||!chosen?.rules.offset}/> Deduct an operator funded owner cost from owner rent (if authorized)</label></FormItem>}/>
        {apiMode&&<ReceiptAndCase agreementId={v.agreementId} file={file} onFile={setFile} caseId={caseId} onCase={setCaseId}/>}

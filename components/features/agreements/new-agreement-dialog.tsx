@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState} from 'react';
-import {apiMode,livePost} from '@/lib/api';
+import {apiMode,apiRequest,livePost} from '@/lib/api';
 import {BASES,basisUnit,buildSchedule} from '@/lib/schedule';
 import {ScheduleEditor} from './schedule-editor';
 import {useForm,type FieldErrors} from 'react-hook-form';
@@ -36,6 +36,14 @@ export function NewAgreementDialog(){
  const noDriver=v.driverProvider==='None';
  const operatorPaysDriver=!noDriver&&v.driverPaidBy==='Operator';
  const orgId=rf.store.backend?.orgId;
+ const [drivers,setDrivers]=useState<{id:number;name:string}[]>([]);
+ // drivers already created, offered as suggestions so the same person is never entered twice
+ useEffect(()=>{
+  if(!agreementOpen)return;
+  if(apiMode&&orgId){apiRequest(`/orgs/${orgId}/parties?kind=driver&limit=200`).then((r:{items:{id:number;name:string}[]})=>setDrivers(r.items.map(d=>({id:d.id,name:d.name})))).catch(()=>setDrivers([]));return}
+  setDrivers([...new Set(rf.store.agreements.map(a=>a.driver).filter(Boolean))].map((name,i)=>({id:i,name})));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[agreementOpen,orgId]);
  const [preview,setPreview]=useState<Preview|null>(null);
  const [previewError,setPreviewError]=useState('');
  // the server works out the summary (it owns the date maths); shown on the payment-days step
@@ -62,6 +70,7 @@ export function NewAgreementDialog(){
  },onInvalid);
 
  const text=(name:'customer'|'owner'|'vehicle'|'registration'|'driver',label:string,placeholder:string)=><FormField control={form.control} name={name} render={({field})=><FormItem><FormLabel>{label}</FormLabel><FormControl><Input {...field} placeholder={placeholder}/></FormControl><FormMessage/></FormItem>}/>;
+ const driverField=()=><FormField control={form.control} name="driver" render={({field})=>{const match=drivers.find(d=>d.name.toLowerCase()===field.value.trim().toLowerCase());return <FormItem><FormLabel>Assigned driver</FormLabel><FormControl><Input {...field} list="driver-options" autoComplete="off" placeholder="Pick a driver or type a new name" onChange={e=>{field.onChange(e);const m=drivers.find(d=>d.name.toLowerCase()===e.target.value.trim().toLowerCase());form.setValue('driverId',m&&apiMode?String(m.id):'')}}/></FormControl><datalist id="driver-options">{drivers.map(d=><option key={d.id} value={d.name}/>)}</datalist>{field.value.trim()&&<p className="note">{match?'Existing driver selected.':'No driver with this name yet: a new driver will be created.'}</p>}<FormMessage/></FormItem>}}/>;
  const basisField=(name:'rentBasis'|'ownerRentBasis'|'salaryBasis',label:string)=><FormField control={form.control} name={name} render={({field})=><FormItem><FormLabel>{label}</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger aria-label={label}><SelectValue/></SelectTrigger></FormControl><SelectContent>{BASES.map(([b,l])=><SelectItem key={b} value={b}>{l}</SelectItem>)}</SelectContent></Select></FormItem>}/>;
  const amountField=(name:'rent'|'ownerRent'|'salary',basis:'rentBasis'|'ownerRentBasis'|'salaryBasis',label:string)=><div className="amount-with-basis"><FormField control={form.control} name={name} render={({field})=><FormItem><FormLabel>{label} (BDT {basisUnit(v[basis])})</FormLabel><FormControl><Input {...field} type="number" min="1"/></FormControl><FormMessage/></FormItem>}/>{basisField(basis,'How the amount counts')}</div>;
  const role=(name:'driverProvider'|'driverPaidBy',label:string)=><FormField control={form.control} name={name} render={({field})=><FormItem><FormLabel>{label}</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{(name==='driverProvider'?driverProviders:driverRoles).map(x=><SelectItem value={x} key={x}>{driverProviderLabel(x)}</SelectItem>)}</SelectContent></Select></FormItem>}/>;
@@ -75,7 +84,7 @@ export function NewAgreementDialog(){
     <form onSubmit={submit} noValidate>
      <div className="wizard-body">
       {step===0&&<div className="form-grid">{text('customer','Customer / billing party','Organization or person')}{text('owner','Car owner',"Owner's full name")}</div>}
-      {step===1&&<div className="form-grid">{text('vehicle','Vehicle name','e.g. Toyota Axio')}{text('registration','Registration','DHA-METRO-...')}{!noDriver&&text('driver','Assigned driver','Driver name')}<FormField control={form.control} name="start" render={({field})=><FormItem><FormLabel>Starts</FormLabel><FormControl><Input {...field} type="date"/></FormControl></FormItem>}/><FormField control={form.control} name="end" render={({field})=><FormItem><FormLabel>Ends</FormLabel><FormControl><Input {...field} type="date"/></FormControl><FormMessage/></FormItem>}/>{role('driverProvider','Who supplies the driver')}{!noDriver&&role('driverPaidBy','Who pays the driver')}{noDriver&&<p className="note">Vehicle only: no driver and no salary on this agreement. If you hire a driver yourself, record them separately as a driver agreement on the Drivers page.</p>}</div>}
+      {step===1&&<div className="form-grid">{text('vehicle','Vehicle name','e.g. Toyota Axio')}{text('registration','Registration','DHA-METRO-...')}{!noDriver&&driverField()}<FormField control={form.control} name="start" render={({field})=><FormItem><FormLabel>Starts</FormLabel><FormControl><Input {...field} type="date"/></FormControl></FormItem>}/><FormField control={form.control} name="end" render={({field})=><FormItem><FormLabel>Ends</FormLabel><FormControl><Input {...field} type="date"/></FormControl><FormMessage/></FormItem>}/>{role('driverProvider','Who supplies the driver')}{!noDriver&&role('driverPaidBy','Who pays the driver')}{noDriver&&<p className="note">Vehicle only: no driver and no salary on this agreement. If you hire a driver yourself, record them separately as a driver agreement on the Drivers page.</p>}</div>}
       {step===2&&<><div className="form-grid">{amountField('rent','rentBasis','Customer rent')}{amountField('ownerRent','ownerRentBasis','Owner rent')}{operatorPaysDriver&&amountField('salary','salaryBasis','Driver salary')}</div><p className="note">Per month bills a full month exactly and a part month by its days. Per day bills every day. Fixed total is spread evenly over the agreement&apos;s days.</p>{noDriver&&<p className="note">No driver on this agreement, so no salary appears on the statement.</p>}{!noDriver&&v.driverPaidBy!=='Operator'&&<p className="note">The {v.driverPaidBy.toLowerCase()} pays the driver directly, so there is no salary payable and none appears on the statement.</p>}</>}
       {step===3&&<>
        <ScheduleEditor label="Customer pays us" value={v.customerSchedule} onChange={x=>form.setValue('customerSchedule',x,{shouldValidate:true})}/>

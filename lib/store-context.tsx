@@ -115,7 +115,7 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
      const kinds:{[key:string]:string}={'Customer payment':'customer_payment','Owner payout':'owner_payout','Driver payout':'driver_payout','Salary advance':'salary_advance'};
      const kind=kinds[entryType];
      const obligationId=entryType==='Customer payment'?ob.customer:entryType==='Owner payout'?ob.owner:ob.driver;
-     await livePost(backend.orgId,'/payments',{kind,amount:String(amount),reference:v.reference,method:'bank',event_date:v.date,allocations:[{obligation_id:obligationId,amount:String(amount)}]},entryKey);
+     await livePost(backend.orgId,'/payments',{kind,amount:String(amount),reference:v.reference,method:'bank',note:v.description.trim(),event_date:v.date,allocations:[{obligation_id:obligationId,amount:String(amount)}]},entryKey);
     }
     const next=await refreshLive();
     setEntryOpen(false);
@@ -165,7 +165,7 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
    if(!backend)return 'Backend session is unavailable.';
    setApiBusy(true);
    try{
-    const a=await livePost(backend.orgId,'/agreements/quick',{customer:n.customer,owner:n.owner,driver:n.driverProvider==='None'?'':n.driver,vehicle:n.vehicle,registration:n.registration,start:n.start,end:n.end||null,rent:n.rent,rent_basis:n.rentBasis,owner_rent_basis:n.ownerRentBasis,salary_basis:n.salaryBasis,payment_schedule:buildSchedule({customer:n.customerSchedule,owner:n.ownerSchedule,driver:n.driverProvider!=='None'&&n.driverPaidBy==='Operator'?n.driverSchedule:undefined}),owner_rent:n.ownerRent,salary:n.driverProvider!=='None'&&n.driverPaidBy==='Operator'?n.salary:'0',fuel:n.fuel,repair:n.repair,offset:n.offset,driver_provider:n.driverProvider.toLowerCase(),driver_paid_by:(n.driverProvider==='None'?'Operator':n.driverPaidBy).toLowerCase(),clauses:n.clauses.trim()});
+    const a=await livePost(backend.orgId,'/agreements/quick',{customer:n.customer,owner:n.owner,driver:n.driverProvider==='None'?'':n.driver,driver_id:n.driverProvider==='None'||!n.driverId?null:Number(n.driverId),vehicle:n.vehicle,registration:n.registration,start:n.start,end:n.end||null,rent:n.rent,rent_basis:n.rentBasis,owner_rent_basis:n.ownerRentBasis,salary_basis:n.salaryBasis,payment_schedule:buildSchedule({customer:n.customerSchedule,owner:n.ownerSchedule,driver:n.driverProvider!=='None'&&n.driverPaidBy==='Operator'?n.driverSchedule:undefined}),owner_rent:n.ownerRent,salary:n.driverProvider!=='None'&&n.driverPaidBy==='Operator'?n.salary:'0',fuel:n.fuel,repair:n.repair,offset:n.offset,driver_provider:n.driverProvider.toLowerCase(),driver_paid_by:(n.driverProvider==='None'?'Operator':n.driverPaidBy).toLowerCase(),clauses:n.clauses.trim()});
     const firstMonth=n.start.slice(0,7)+'-01';   // issue the month the agreement starts in
     await livePost(backend.orgId,`/agreements/${a.id}/periods?month=${firstMonth}`,{});
     await refreshLive();
@@ -176,7 +176,7 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
    }catch(e){return (e as Error).message}
    finally{setApiBusy(false)}
   }
-  const a:Agreement={id:'AGR-'+(1042+store.agreements.length),vehicle:n.vehicle,registration:n.registration,owner:n.owner,customer:n.customer,driver:n.driverProvider==='None'?'':n.driver,noDriver:n.driverProvider==='None',rent:Number(n.rent),ownerRent:Number(n.ownerRent),salary:n.driverProvider!=='None'&&n.driverPaidBy==='Operator'?Number(n.salary):0,start:n.start,status:'Active',rules:{fuel:n.fuel,repair:n.repair,offset:n.offset}};
+  const a:Agreement={id:'AGR-'+(1042+store.agreements.length),vehicle:n.vehicle,registration:n.registration,owner:n.owner,customer:n.customer,driver:n.driverProvider==='None'?'':n.driver,noDriver:n.driverProvider==='None',rent:Number(n.rent),ownerRent:Number(n.ownerRent),salary:n.driverProvider!=='None'&&n.driverPaidBy==='Operator'?Number(n.salary):0,start:n.start,end:n.end||null,status:'Active',rules:{fuel:n.fuel,repair:n.repair,offset:n.offset}};
   setStore(s=>({...s,agreements:[...s.agreements,a]}));
   setAgreementOpen(false);setSelected(a.id);
   setToast(a.id+' added to this demo.');
