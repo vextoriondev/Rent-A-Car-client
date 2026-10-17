@@ -4,6 +4,7 @@ import {apiMode} from '@/lib/api';
 import {downloadCsv,downloadServerCsv,printPdf,type DownloadTable} from '@/lib/downloads';
 import {useRentflowStore} from '@/lib/store-context';
 import {Button} from '@/components/ui/button';
+import {t} from '@/lib/copy';
 
 /** Excel-safe CSV and print-to-PDF for what is on screen. In API mode a full, unfiltered report uses the server export (all rows, audit-logged) via `serverPath`. */
 export function DownloadButtons({table,stem,serverPath}:{table:DownloadTable;stem:string;serverPath?:string}){
@@ -15,7 +16,7 @@ export function DownloadButtons({table,stem,serverPath}:{table:DownloadTable;ste
   }catch(e){rf.setToast((e as Error).message)}
  };
  return <div className="download-buttons">
-  <Button variant="outline" onClick={()=>void csv()} title="Opens correctly in Excel, including Bangla text"><FileDown size={16}/> Download CSV</Button>
-  <Button variant="outline" onClick={()=>printPdf(table,stem)} title="Opens the print dialog; choose Save as PDF"><Printer size={16}/> Download PDF</Button>
+  <Button variant="outline" onClick={()=>void csv()} title={t('shared.downloadButtons.opensCorrectlyInExcel')}><FileDown size={16}/> {t('shared.downloadButtons.downloadCsv')}</Button>
+  <Button variant="outline" onClick={()=>printPdf(table,stem)} title={t('shared.downloadButtons.opensThePrintDialog')}><Printer size={16}/> {t('shared.downloadButtons.downloadPdf')}</Button>
  </div>;
 }

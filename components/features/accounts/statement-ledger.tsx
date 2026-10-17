@@ -12,12 +12,12 @@ import {partyHref} from '@/lib/party-link';
 import {PartyChip} from '@/components/shared/party-chip';
 import {useSortParam} from '@/lib/use-list-filters';
 import {useBillStates} from '@/lib/use-bill-states';
+import {t} from '@/lib/copy';
 
 type Statement=ReturnType<typeof statement>;
 export interface StatementColumn{label:string;value:(a:Agreement,s:Statement)=>number;due?:boolean}
 type Row={a:Agreement;s:Statement};
 
-const slug=(label:string)=>label.toLowerCase().replace(/[^a-z0-9]+/g,'-');
 
 /** One party column plus numeric statement columns per agreement (Owner payables, Payroll, and every report type). */
 export function StatementLedger({party,partyHeader,columns:spec,agreements,store,onSelect,signed=false,emptyTitle,billChip}:{
@@ -32,8 +32,8 @@ export function StatementLedger({party,partyHeader,columns:spec,agreements,store
  const rows=useMemo<Row[]>(()=>agreements.filter(a=>party!=='Driver'||!a.noDriver).map(a=>({a,s:statement(a,store.entries)})),[agreements,store.entries,party]);
  const columns=useMemo<ColumnDef<Row>[]>(()=>[
   {id:'party',header:partyHeader,accessorFn:r=>partyName(party,r.a),sortingFn:(x,y)=>partyName(party,x.original.a).localeCompare(partyName(party,y.original.a)),cell:({row:{original:r}})=><PartyChip name={partyName(party,r.a)} role={party} href={party==='Owner'||party==='Driver'||party==='Customer'?partyHref(party,r.a):undefined} detail={`${r.a.vehicle} · ${r.a.id}`}/>},
-  ...spec.map((c):ColumnDef<Row>=>({id:slug(c.label),header:c.label,accessorFn:r=>c.value(r.a,r.s),meta:{align:'right',className:c.due?'due':undefined},cell:({row:{original:r}})=><Money value={c.value(r.a,r.s)} signed={signed} state={billChip&&c.due?(billStates[r.a.id]?.[party==='Owner'?'owner':'driver']??payableBillState(c.value(r.a,r.s))):undefined}/>})),
-  ...(billChip?[{id:'bill',header:'Bill',enableSorting:false,cell:({row:{original:r}})=>{const d=spec.find(c=>c.due);return d?<BillStateChip state={billStates[r.a.id]?.[party==='Owner'?'owner':'driver']??payableBillState(d.value(r.a,r.s))}/>:null}} as ColumnDef<Row>]:[]),
+  ...spec.map((c,i):ColumnDef<Row>=>({id:'c'+i,header:c.label,accessorFn:r=>c.value(r.a,r.s),meta:{align:'right',className:c.due?'due':undefined},cell:({row:{original:r}})=><Money value={c.value(r.a,r.s)} signed={signed} state={billChip&&c.due?(billStates[r.a.id]?.[party==='Owner'?'owner':'driver']??payableBillState(c.value(r.a,r.s))):undefined}/>})),
+  ...(billChip?[{id:'bill',header:t('ledger.bill'),enableSorting:false,cell:({row:{original:r}})=>{const d=spec.find(c=>c.due);return d?<BillStateChip state={billStates[r.a.id]?.[party==='Owner'?'owner':'driver']??payableBillState(d.value(r.a,r.s))}/>:null}} as ColumnDef<Row>]:[]),
  ],[party,partyHeader,spec,signed,billChip,billStates]);
- return <LedgerTable data={rows} columns={columns} getRowId={r=>r.a.id} sorting={sorting} onSortingChange={onSortingChange} onRowClick={r=>onSelect(r.a.id)} rowActionLabel={r=>'View '+r.a.id} empty={<EmptyState title={emptyTitle}/>}/>;
+ return <LedgerTable data={rows} columns={columns} getRowId={r=>r.a.id} sorting={sorting} onSortingChange={onSortingChange} onRowClick={r=>onSelect(r.a.id)} rowActionLabel={r=>t('table.viewRow',{id: r.a.id})} empty={<EmptyState title={emptyTitle}/>}/>;
 }

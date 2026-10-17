@@ -18,6 +18,8 @@ import {AuditTimeline} from '@/components/shared/audit-timeline';
 import {DeliveryStatus} from '@/components/shared/delivery-status';
 import {Money} from '@/components/shared/money';
 import {Can} from '@/lib/roles';
+import {t} from '@/lib/copy';
+import {categoryLabel,entryStatusLabel,entryTypeLabel,partyLabel} from '@/lib/copy/labels';
 
 export type DrawerSubject={kind:'agreement';record:Agreement}|{kind:'entry';record:Entry}|{kind:'notice';record:Notice};
 
@@ -37,8 +39,8 @@ export function SourceDrawer(){
  const rf=useRentflowStore();
  const {store,selected}=rf;
  const subject=resolveSubject(store,selected);
- const title=!subject?'Detail':subject.kind==='agreement'?subject.record.vehicle:subject.kind==='entry'?subject.record.id:'Message detail';
- const description=!subject?undefined:subject.kind==='agreement'?subject.record.id+' · '+subject.record.registration:subject.kind==='entry'?subject.record.type+' · '+fmtDate(subject.record.date):subject.record.recipient;
+ const title=!subject?t('drawer.detail'):subject.kind==='agreement'?subject.record.vehicle:subject.kind==='entry'?subject.record.id:t('shared.sourceDrawer.messageDetail');
+ const description=!subject?undefined:subject.kind==='agreement'?subject.record.id+' · '+subject.record.registration:subject.kind==='entry'?entryTypeLabel(subject.record.type)+' · '+fmtDate(subject.record.date):subject.record.recipient;
  return <Sheet open={!!subject} onOpenChange={o=>!o&&rf.setSelected(null)}>
   <SheetContent className="detail-sheet">
    <SheetHeader><SheetTitle>{title}</SheetTitle><SheetDescription>{description}</SheetDescription></SheetHeader>
@@ -57,20 +59,20 @@ function AgreementBody({agreement}:{agreement:Agreement}){
   <AgreementTerms agreementId={agreement.id}/>
   <SettlementStatement agreement={agreement} entries={store.entries}/>
   <ExpenseResponsibilityMatrix agreement={agreement}/>
-  <h3 className="detail-subheading">Source entries</h3>
-  <div className="source-list">{store.entries.filter(e=>e.agreementId===agreement.id).map(e=><button type="button" key={e.id} onClick={()=>rf.setSelected(e.id)}><span><b>{e.description}</b><small>{e.id} · {fmtDate(e.date)} · {e.status}</small></span><b><Money value={e.amount}/></b><ChevronRight size={15}/></button>)}</div>
+  <h3 className="detail-subheading">{t('shared.sourceDrawer.sourceEntries')}</h3>
+  <div className="source-list">{store.entries.filter(e=>e.agreementId===agreement.id).map(e=><button type="button" key={e.id} onClick={()=>rf.setSelected(e.id)}><span><b>{e.description}</b><small>{e.id} · {fmtDate(e.date)} · {entryStatusLabel(e.status)}</small></span><b><Money value={e.amount}/></b><ChevronRight size={15}/></button>)}</div>
   <AuditTimeline/>
-  <div className="sheet-footer"><Can action="payment.post"><Button variant="outline" onClick={()=>{rf.setSelected(null);rf.openEntry('Customer payment',agreement.id)}}>Receive payment</Button></Can><Can action="entry.record"><Button onClick={()=>{rf.setSelected(null);rf.openEntry('Expense',agreement.id)}}>Record expense</Button></Can></div>
+  <div className="sheet-footer"><Can action="payment.post"><Button variant="outline" onClick={()=>{rf.setSelected(null);rf.openEntry('Customer payment',agreement.id)}}>{t('common.receivePayment')}</Button></Can><Can action="entry.record"><Button onClick={()=>{rf.setSelected(null);rf.openEntry('Expense',agreement.id)}}>{t('common.recordExpense')}</Button></Can></div>
  </div>;
 }
 
 function allocationTarget(entry:Entry){
  const m=monthLabel(entry.date).split(' ')[0];   // the month of the entry, not a fixed one
  switch(entry.type){
-  case 'Customer payment':return `${m} customer rent`;
-  case 'Owner payout':return `${m} owner payable`;
-  case 'Driver payout':return `${m} driver salary`;
-  case 'Salary advance':return 'Driver salary (advance)';
+  case 'Customer payment':return t('drawer.rentOf',{month: m});
+  case 'Owner payout':return t('drawer.ownerOf',{month: m});
+  case 'Driver payout':return t('drawer.salaryOf',{month: m});
+  case 'Salary advance':return t('shared.sourceDrawer.driverSalaryAdvance');
   default:return null;
  }
 }
@@ -79,18 +81,18 @@ function EntryBody({entry}:{entry:Entry}){
  const rf=useRentflowStore();
  const target=allocationTarget(entry);
  return <div className="sheet-scroll">
-  <div className="entry-amount"><Money value={entry.amount}/> <Badge tone={statusTone(entry.status)}>{entry.status}</Badge></div>
-  <div className="terms">{[['Agreement',entry.agreementId],['Service date',fmtDate(entry.date)],['Category',entry.category],['Paid by',entry.paidBy],['Responsible',entry.responsible],['Reference',entry.reference],['Recorded by',entry.recordedBy||'Not recorded'],['Receipt',entry.receipt||'None attached'],['Owner offset',entry.offset?'Authorized':'No']].map(([k,v])=><div key={k}><span>{k}</span><b>{v}</b></div>)}</div>
+  <div className="entry-amount"><Money value={entry.amount}/> <Badge tone={statusTone(entry.status)}>{entryStatusLabel(entry.status)}</Badge></div>
+  <div className="terms">{[[t('drawer.fAgreement'),entry.agreementId],[t('drawer.fServiceDate'),fmtDate(entry.date)],[t('drawer.fCategory'),categoryLabel(entry.category)],[t('drawer.fPaidBy'),partyLabel(entry.paidBy)],[t('drawer.fResponsible'),partyLabel(entry.responsible)],[t('drawer.fReference'),entry.reference],[t('drawer.fRecordedBy'),entry.recordedBy||t('common.notRecorded')],[t('drawer.fReceipt'),entry.receipt||t('shared.sourceDrawer.noneAttached')],[t('drawer.fOwnerOffset'),entry.offset?t('drawer.offsetYes'):t('drawer.offsetNo')]].map(([k,v])=><div key={k}><span>{k}</span><b>{v}</b></div>)}</div>
   <p className="entry-description">{entry.description}</p>
-  <p className="note">{entry.status==='Draft'?'A draft can still be edited or discarded and does not change any balance. Submit it to post it or send it for approval.':entry.status==='Pending approval'?'Pending entries do not change balances.':'This source contributes to the relevant account statement.'}</p>
-  {apiMode&&rf.store.backend?.expenseIds[entry.id]&&<DocumentList targetType="expense" targetId={rf.store.backend.expenseIds[entry.id]} title="Receipts and files"/>}
-  {target&&entry.status==='Posted'&&<AllocationPanel lines={[{label:`Applied to ${target}`,amount:entry.amount}]}/>}
+  <p className="note">{entry.status==='Draft'?t('shared.sourceDrawer.aDraftCanStill'):entry.status==='Pending approval'?t('shared.sourceDrawer.pendingEntriesDoNot'):t('shared.sourceDrawer.thisSourceContributesTo')}</p>
+  {apiMode&&rf.store.backend?.expenseIds[entry.id]&&<DocumentList targetType="expense" targetId={rf.store.backend.expenseIds[entry.id]} title={t('shared.sourceDrawer.receiptsAndFiles')}/>}
+  {target&&entry.status==='Posted'&&<AllocationPanel lines={[{label: t('shared.sourceDrawer.appliedTo', {target}),amount:entry.amount}]}/>}
   <div className="sheet-footer">
-   {entry.status==='Draft'&&<Can action="entry.record"><Button onClick={()=>rf.submitDraft(entry.id)}><CheckCircle2 size={16}/> Submit for posting</Button></Can>}
-   {entry.status==='Draft'&&<Can action="entry.record"><Button variant="outline" onClick={()=>rf.discardDraft(entry.id)}>Discard draft</Button></Can>}
-   {entry.status==='Pending approval'&&<Can action="finance"><Button onClick={()=>rf.approve(entry.id)}><CheckCircle2 size={16}/> Approve</Button></Can>}
-   {entry.status==='Posted'&&<Can action="finance"><Button variant="outline" onClick={()=>{if(apiMode||confirm('Reverse this posted demo entry?'))rf.reverse(entry.id)}}><RotateCcw size={16}/> Correct by reversing</Button></Can>}
-   <Button variant="outline" onClick={()=>rf.setSelected(entry.agreementId)}>View agreement</Button>
+   {entry.status==='Draft'&&<Can action="entry.record"><Button onClick={()=>rf.submitDraft(entry.id)}><CheckCircle2 size={16}/> {t('shared.sourceDrawer.submitForPosting')}</Button></Can>}
+   {entry.status==='Draft'&&<Can action="entry.record"><Button variant="outline" onClick={()=>rf.discardDraft(entry.id)}>{t('shared.sourceDrawer.discardDraft')}</Button></Can>}
+   {entry.status==='Pending approval'&&<Can action="finance"><Button onClick={()=>rf.approve(entry.id)}><CheckCircle2 size={16}/> {t('common.approve')}</Button></Can>}
+   {entry.status==='Posted'&&<Can action="finance"><Button variant="outline" onClick={()=>{if(apiMode||confirm(t('drawer.confirmReverse')))rf.reverse(entry.id)}}><RotateCcw size={16}/> {t('shared.sourceDrawer.correctByReversing')}</Button></Can>}
+   <Button variant="outline" onClick={()=>rf.setSelected(entry.agreementId)}>{t('shared.sourceDrawer.viewAgreement')}</Button>
   </div>
  </div>;
 }
@@ -98,8 +100,8 @@ function EntryBody({entry}:{entry:Entry}){
 function NoticeBody({notice}:{notice:Notice}){
  const rf=useRentflowStore();
  return <div className="sheet-scroll">
-  <div className="terms"><div><span>Recipient</span><b>{notice.recipient}</b></div><div><span>Status</span><DeliveryStatus status={notice.status}/></div><div><span>Date</span><b>{fmtDate(notice.date)}</b></div><div><span>Source</span><b>{notice.detail}</b></div></div>
-  <p className="note">Delivery states are simulated for this demo; no message has been sent.</p>
-  {notice.status==='Failed'&&<Can action="finance"><Button onClick={()=>rf.retryNotice(notice.id)}><RefreshCcw size={16}/> Retry delivery</Button></Can>}
+  <div className="terms"><div><span>{t('shared.sourceDrawer.recipient')}</span><b>{notice.recipient}</b></div><div><span>{t('common.status')}</span><DeliveryStatus status={notice.status}/></div><div><span>{t('common.date')}</span><b>{fmtDate(notice.date)}</b></div><div><span>{t('common.source')}</span><b>{notice.detail}</b></div></div>
+  <p className="note">{t('drawer.simulated')}</p>
+  {notice.status==='Failed'&&<Can action="finance"><Button onClick={()=>rf.retryNotice(notice.id)}><RefreshCcw size={16}/> {t('shared.sourceDrawer.retryDelivery')}</Button></Can>}
  </div>;
 }

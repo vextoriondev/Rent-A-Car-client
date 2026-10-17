@@ -11,6 +11,7 @@ import {AccountsLedger} from '@/components/features/accounts/accounts-ledger';
 import {BillStateLegend} from '@/components/shared/bill-state-legend';
 import {BillingWorkspace} from '@/components/features/billing/billing-workspace';
 import {apiMode} from '@/lib/api';
+import {t} from '@/lib/copy';
 
 export default function BillingPage(){
  const rf=useRentflowStore();
@@ -21,15 +22,15 @@ export default function BillingPage(){
  const outstanding=statements.reduce((t,s)=>t+s.customerDue,0);
  return <>
   <div className="mini-metrics">
-   <Card><span>Total billed</span><strong><Money value={billed}/></strong></Card>
-   <Card><span>Received</span><strong><Money value={received}/></strong></Card>
-   <Card><span>Outstanding</span><strong><Money value={outstanding}/></strong></Card>
+   <Card><span>{t('billing.totalBilled')}</span><strong><Money value={billed}/></strong></Card>
+   <Card><span>{t('common.received')}</span><strong><Money value={received}/></strong></Card>
+   <Card><span>{t('common.outstanding')}</span><strong><Money value={outstanding}/></strong></Card>
   </div>
   <Card>
-   <SectionHeading title="Customer billing and collections" subtitle="Partial receipts reduce each agreement's open rent balance." action={<Button onClick={()=>rf.openEntry('Customer payment')}><Plus size={16}/> Receive payment</Button>}/>
+   <SectionHeading title={t('billing.customerBillingAndCollections')} subtitle={t('billing.partialReceiptsReduceEach')} action={<Button onClick={()=>rf.openEntry('Customer payment')}><Plus size={16}/> {t('common.receivePayment')}</Button>}/>
    <BillStateLegend/>
    <AccountsLedger agreements={agreements} store={rf.store} onSelect={rf.setSelected}/>
   </Card>
-  {apiMode?<BillingWorkspace/>:<Card><SectionHeading title="Charges, invoices and ledger"/><p className="note">API mode only: extra charges, credits, invoices, the period ledger and split payments need the Django backend. This demo keeps the simple collection flow above.</p></Card>}
+  {apiMode?<BillingWorkspace/>:<Card><SectionHeading title={t('common.chargesInvoicesAndLedger')}/><p className="note">{t('billing.apiModeOnlyExtra')}</p></Card>}
  </>;
 }

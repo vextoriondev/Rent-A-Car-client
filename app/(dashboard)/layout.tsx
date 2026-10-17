@@ -7,7 +7,7 @@ import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuLabel,DropdownMenuRadioGroup,DropdownMenuRadioItem,DropdownMenuSeparator,DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
 import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription,DialogFooter} from '@/components/ui/dialog';
-import {navItems,pageTitle,routeAllowed} from '@/lib/nav';
+import {groupLabel,navItems,pageTitle,routeAllowed} from '@/lib/nav';
 import {greeting,initials,monthLabel} from '@/lib/clock';
 import {apiMode} from '@/lib/api';
 import {RentflowStoreProvider,useRentflowStore} from '@/lib/store-context';
@@ -22,9 +22,10 @@ import {usePeriod} from '@/lib/period';
 import {useBranch} from '@/lib/branch';
 import {BranchSwitcher} from '@/components/features/branches/branch-switcher';
 import {Can} from '@/lib/roles';
+import {t,dateLocale} from '@/lib/copy';
 
-const ROLE_LABEL:Record<string,string>={admin:'Administrator',accountant:'Accountant',operations:'Operations',viewer:'Viewer',mechanic:'Mechanic'};
-const roleLabel=(r?:string)=>ROLE_LABEL[r||'']||'Staff';
+import {roleLabel} from '@/lib/copy/labels';
+import {LanguageSwitch} from '@/components/shared/language-switch';
 
 export default function DashboardLayout({children}:{children:React.ReactNode}){
  return <Suspense fallback={<div className="app-shell"><div className="main-shell"><main className="content"><LoadingState/></main></div></div>}><RentflowStoreProvider><DashboardShell>{children}</DashboardShell></RentflowStoreProvider></Suspense>;
@@ -57,30 +58,30 @@ function DashboardShell({children}:{children:React.ReactNode}){
 
  return <div className="app-shell">
   <aside className={'sidebar '+(mobileMenu?'mobile-open':'')}>
-   <div className="brand"><div className="brand-mark"><CarFront size={23}/></div><div><strong>RentFlow</strong><span>OPERATIONS</span></div><button aria-label="Close menu" className="mobile-close" onClick={()=>setMobileMenu(false)}><X size={20}/></button></div>
-   {apiMode?<BranchSwitcher/>:<DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="workspace" aria-label="Switch workspace"><div className="workspace-icon">R</div><div><strong>RentFlow HQ</strong><small>Dhaka · Main branch</small></div><ChevronRight size={16}/></button></DropdownMenuTrigger><DropdownMenuContent align="start" className="w-56"><DropdownMenuLabel>Workspaces</DropdownMenuLabel><DropdownMenuRadioGroup value="hq"><DropdownMenuRadioItem value="hq">RentFlow HQ · Dhaka</DropdownMenuRadioItem></DropdownMenuRadioGroup><DropdownMenuSeparator/><DropdownMenuItem disabled>Add workspace (not available yet)</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
-   <nav aria-label="Main navigation">{navVisible.map(({heading,label,href,icon:Icon})=><div key={label}>{heading&&<div className="nav-group">{heading}</div>}<Link href={href} className={'nav-link '+(pathname===href?'active':'')} aria-current={pathname===href?'page':undefined} onClick={()=>setMobileMenu(false)}><Icon size={18}/><span>{label}</span>{label==='Notifications'&&store.notices.some(n=>!n.read)&&<i className="nav-dot"/>}</Link></div>)}</nav>
-   <div className="sidebar-foot"><div className="demo-sidebar">{apiMode?'API WORKSPACE':'DEMO WORKSPACE'}<br/><span>{apiMode?'Live data':'Sample data · saved in this browser'}</span></div></div>
+   <div className="brand"><div className="brand-mark"><CarFront size={23}/></div><div><strong>{t('common.rentflow')}</strong><span>{t('app.operations')}</span></div><button aria-label={t('app.closeMenu')} className="mobile-close" onClick={()=>setMobileMenu(false)}><X size={20}/></button></div>
+   {apiMode?<BranchSwitcher/>:<DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="workspace" aria-label={t('app.switchWorkspace')}><div className="workspace-icon">R</div><div><strong>{t('app.rentflowHq')}</strong><small>{t('app.dhakaMainBranch')}</small></div><ChevronRight size={16}/></button></DropdownMenuTrigger><DropdownMenuContent align="start" className="w-56"><DropdownMenuLabel>{t('app.workspaces')}</DropdownMenuLabel><DropdownMenuRadioGroup value="hq"><DropdownMenuRadioItem value="hq">{t('app.rentflowHqDhaka')}</DropdownMenuRadioItem></DropdownMenuRadioGroup><DropdownMenuSeparator/><DropdownMenuItem disabled>{t('app.addWorkspaceNotAvailable')}</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
+   <nav aria-label={t('app.mainNavigation')}>{navVisible.map(({heading,label,href,icon:Icon})=><div key={href}>{heading&&<div className="nav-group">{groupLabel(heading)}</div>}<Link href={href} className={'nav-link '+(pathname===href?'active':'')} aria-current={pathname===href?'page':undefined} onClick={()=>setMobileMenu(false)}><Icon size={18}/><span>{label}</span>{href==='/notifications'&&store.notices.some(n=>!n.read)&&<i className="nav-dot"/>}</Link></div>)}</nav>
+   <div className="sidebar-foot"><div className="demo-sidebar">{apiMode?t('app.workspaceLive'):t('app.workspaceSample')}<br/><span>{apiMode?t('app.liveData'):t('app.sampleDataNote')}</span></div></div>
   </aside>
   <div className="main-shell">
    <header className="topbar">
-    <button className="menu-button" onClick={()=>setMobileMenu(true)} aria-label="Open menu"><Menu size={22}/></button>
-    <div className="breadcrumb">Workspace <ChevronRight size={14}/> <strong>{title}</strong></div>
-    <div className="top-actions">
-     <div className="global-search"><Search size={17}/><Input aria-label="Search agreements, people or vehicles" placeholder="Search agreement, car, person..." value={searchDraft} onChange={e=>changeSearch(e.target.value)}/><kbd>⌕</kbd></div>
-     <button className="icon-button" aria-label="View notifications" onClick={()=>router.push('/notifications')}><Bell size={19}/>{store.notices.some(n=>!n.read)&&<i/>}</button>
+    <button className="menu-button" onClick={()=>setMobileMenu(true)} aria-label={t('app.openMenu')}><Menu size={22}/></button>
+    <div className="breadcrumb">{t('app.workspace')} <ChevronRight size={14}/> <strong>{title}</strong></div>
+    <div className="top-actions"><LanguageSwitch/>
+     <div className="global-search"><Search size={17}/><Input aria-label={t('app.searchAgreementsPeopleOr')} placeholder={t('app.searchAgreementCarPerson')} value={searchDraft} onChange={e=>changeSearch(e.target.value)}/><kbd>⌕</kbd></div>
+     <button className="icon-button" aria-label={t('app.viewNotifications')} onClick={()=>router.push('/notifications')}><Bell size={19}/>{store.notices.some(n=>!n.read)&&<i/>}</button>
      <span className="top-divider"/>
-     <button className="profile" onClick={()=>router.push('/settings')} aria-label="Open settings"><span>{apiMode?initials(store.backend?.userName):'SH'}</span><div><strong>{apiMode?store.backend?.userName||'Signed in':'Sakib Haider'}</strong><small>{apiMode?roleLabel(store.backend?.role):'Administrator'}</small></div></button>
+     <button className="profile" onClick={()=>router.push('/settings')} aria-label={t('app.openSettings')}><span>{apiMode?initials(store.backend?.userName):'SH'}</span><div><strong>{apiMode?store.backend?.userName||t('app.signedIn'):'Sakib Haider'}</strong><small>{apiMode?roleLabel(store.backend?.role):'Administrator'}</small></div></button>
     </div>
    </header>
    <main className="content">
     <div className="page-intro">
-     <div><div className="eyebrow">RENTFLOW / {title.toUpperCase()}</div><h1>{title==='Overview'?`${greeting()}, ${apiMode?store.backend?.userName||'there':'Sakib'}`:title}</h1><p>{title==='Overview'?'Here is where your rental accounts stand this month.':title==='Settlements'?'Review every balance before closing the month.':title==='Actor portal'?'See the limited view each party receives.':title==='Reports'?'Explore account totals and export the current scope.':title==='Settings'?'Policies and demo workspace controls.':`${period.label}${apiMode?'':' · Main branch'}`}</p></div>
-     <div className="intro-actions"><PeriodPicker/>{title!=='Actor portal'&&<Can action="entry.record"><Button onClick={()=>rf.openEntry()} className="primary-action"><Plus size={17}/> Record entry</Button></Can>}</div>
+     <div><div className="eyebrow">{t('app.eyebrow', {title: title.toUpperCase()})}</div><h1>{pathname==='/'?t('app.greeting', {greeting: greeting(), name: apiMode?store.backend?.userName||t('app.greetingNameFallback'):'Sakib'}):title}</h1><p>{pathname==='/'?t('app.hereIsWhereYour'):pathname==='/settlements'?t('app.reviewEveryBalanceBefore'):pathname==='/reports'?t('app.exploreAccountTotalsAnd'):pathname==='/settings'?t('app.policiesAndDemoWorkspace'):`${period.label}${apiMode?'':' · Main branch'}`}</p></div>
+     <div className="intro-actions"><PeriodPicker/>{<Can action="entry.record"><Button onClick={()=>rf.openEntry()} className="primary-action"><Plus size={17}/> {t('app.recordEntry')}</Button></Can>}</div>
     </div>
-    {period.multiMonth&&<p className="note period-note" role="note">Reports, the agreement statement and the entry lists (expenses, cashbook) use exactly {period.range.from} to {period.range.to}. The account tables and settlements show whole rent months, here {new Date((store.backend?.shownMonth??period.lastMonth)+'T12:00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'})}, the latest month in the range with a rent period.</p>}
-    <div className="demo-banner"><Info size={17}/><span>{apiMode?<><strong>API mode.</strong> Entries use Django and PostgreSQL. Message sending is not connected yet.</>:<><strong>Interactive demo.</strong> Sample agreements and entries; changes stay in this browser. No live payments, messages, or accounting posts occur.</>}</span></div>
-    {apiError&&<ErrorState message={`Could not load your workspace: ${apiError}`} onRetry={()=>location.reload()}/>}
+    {period.multiMonth&&<p className="note period-note" role="note">{t('app.periodNote', {from: period.range.from, to: period.range.to, month: new Date((store.backend?.shownMonth??period.lastMonth)+'T12:00:00').toLocaleDateString(dateLocale(),{month:'long',year:'numeric'})})}</p>}
+    <div className="demo-banner"><Info size={17}/><span>{apiMode?<><strong>{t('app.apiMode')}</strong> {t('app.entriesUseDjangoAnd')}</>:<><strong>{t('app.interactiveDemo')}</strong> Sample agreements and entries; changes stay in this browser. No live payments, messages, or accounting posts occur.</>}</span></div>
+    {apiError&&<ErrorState message={t('app.loadError', {error: apiError})} onRetry={()=>location.reload()}/>}
     <Fragment key={branch??'all'}>{allowed&&!apiError?children:null}</Fragment>
    </main>
   </div>
@@ -91,9 +92,9 @@ function DashboardShell({children}:{children:React.ReactNode}){
 
   <NewAgreementDialog/>
 
-  <Dialog open={!!rf.confirmClose} onOpenChange={o=>!o&&rf.setConfirmClose(null)}><DialogContent><DialogHeader><DialogTitle>Close {apiMode?monthLabel(store.backend?.shownMonth??period.lastMonth):'September 2026'} settlement?</DialogTitle><DialogDescription>{rf.confirmClose} · {apiMode?'This prepares, approves and closes the month on the server; no new entries are accepted afterwards. Review all four statements and source entries first.':'This marks the sample month as closed in your browser. Review all four statements and source entries first.'}</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={()=>rf.setConfirmClose(null)}>Keep open</Button><Button onClick={()=>rf.confirmClose&&rf.closeSettlement(rf.confirmClose)}>Confirm close</Button></DialogFooter></DialogContent></Dialog>
+  <Dialog open={!!rf.confirmClose} onOpenChange={o=>!o&&rf.setConfirmClose(null)}><DialogContent><DialogHeader><DialogTitle>{t('app.closeMonthTitle', {month: apiMode?monthLabel(store.backend?.shownMonth??period.lastMonth):t('app.closeMonthSample')})}</DialogTitle><DialogDescription>{rf.confirmClose} · {apiMode?t('app.thisPreparesApprovesAnd'):t('app.thisMarksTheSample')}</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={()=>rf.setConfirmClose(null)}>{t('app.keepOpen')}</Button><Button onClick={()=>rf.confirmClose&&rf.closeSettlement(rf.confirmClose)}>{t('app.confirmClose')}</Button></DialogFooter></DialogContent></Dialog>
 
-  {toast&&<div className="toast" role="status"><CheckCircle2 size={18}/>{toast}<button onClick={()=>setToast('')} aria-label="Dismiss"><X size={16}/></button></div>}
+  {toast&&<div className="toast" role="status"><CheckCircle2 size={18}/>{toast}<button onClick={()=>setToast('')} aria-label={t('app.dismiss')}><X size={16}/></button></div>}
  </div>;
 }
 

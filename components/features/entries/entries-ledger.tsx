@@ -8,6 +8,8 @@ import {EmptyState} from '@/components/shared/empty-state';
 import {LedgerTable} from '@/components/shared/ledger-table';
 import {Money} from '@/components/shared/money';
 import {useSortParam} from '@/lib/use-list-filters';
+import {t} from '@/lib/copy';
+import {entryStatusLabel,entryTypeLabel,partyLabel} from '@/lib/copy/labels';
 
 const statusTone=(s:Entry['status'])=>s==='Posted'?'good':s==='Reversed'?'bad':'warn';
 
@@ -15,13 +17,13 @@ const statusTone=(s:Entry['status'])=>s==='Posted'?'good':s==='Reversed'?'bad':'
 export function EntriesLedger({entries,store,onSelect}:{entries:Entry[];store:Store;onSelect:(id:string)=>void}){
  const [sorting,onSortingChange]=useSortParam('-date');
  const columns=useMemo<ColumnDef<Entry>[]>(()=>[
-  {id:'date',header:'Date / reference',accessorFn:e=>e.date,cell:({row:{original:e}})=><>{fmtDate(e.date)}<small>{e.reference}</small></>},
-  {id:'entry',header:'Entry / vehicle',enableSorting:false,cell:({row:{original:e}})=><><b>{e.type}</b><small>{store.agreements.find(a=>a.id===e.agreementId)?.vehicle} · {e.id}</small></>},
-  {id:'paidBy',header:'Paid by',accessorFn:e=>e.paidBy,enableSorting:false,cell:({row:{original:e}})=>e.paidBy},
-  {id:'responsible',header:'Responsible',accessorFn:e=>e.responsible,enableSorting:false,cell:({row:{original:e}})=>e.responsible},
-  {id:'recordedBy',header:'Recorded by',accessorFn:e=>e.recordedBy||'',enableSorting:false,cell:({row:{original:e}})=>e.recordedBy||'-'},
-  {id:'amount',header:'Amount',accessorFn:e=>e.amount,meta:{align:'right'},cell:({row:{original:e}})=><Money value={e.amount}/>},
-  {id:'status',header:'Status',enableSorting:false,cell:({row:{original:e}})=><Badge tone={statusTone(e.status)}>{e.status}</Badge>},
+  {id:'date',header:t('ledger.dateReference'),accessorFn:e=>e.date,cell:({row:{original:e}})=><>{fmtDate(e.date)}<small>{e.reference}</small></>},
+  {id:'entry',header:t('ledger.entryCar'),enableSorting:false,cell:({row:{original:e}})=><><b>{entryTypeLabel(e.type)}</b><small>{store.agreements.find(a=>a.id===e.agreementId)?.vehicle} · {e.id}</small></>},
+  {id:'paidBy',header:t('common.paidBy'),accessorFn:e=>e.paidBy,enableSorting:false,cell:({row:{original:e}})=>partyLabel(e.paidBy)},
+  {id:'responsible',header:t('ledger.responsible'),accessorFn:e=>e.responsible,enableSorting:false,cell:({row:{original:e}})=>partyLabel(e.responsible)},
+  {id:'recordedBy',header:t('entries.entriesLedger.recordedBy'),accessorFn:e=>e.recordedBy||'',enableSorting:false,cell:({row:{original:e}})=>e.recordedBy||'-'},
+  {id:'amount',header:t('ledger.amount'),accessorFn:e=>e.amount,meta:{align:'right'},cell:({row:{original:e}})=><Money value={e.amount}/>},
+  {id:'status',header:t('ledger.status'),enableSorting:false,cell:({row:{original:e}})=><Badge tone={statusTone(e.status)}>{entryStatusLabel(e.status)}</Badge>},
  ],[store.agreements]);
- return <LedgerTable data={entries} columns={columns} getRowId={e=>e.id} sorting={sorting} onSortingChange={onSortingChange} onRowClick={e=>onSelect(e.id)} rowActionLabel={e=>'View '+e.id} empty={<EmptyState title="No entries match these filters."/>}/>;
+ return <LedgerTable data={entries} columns={columns} getRowId={e=>e.id} sorting={sorting} onSortingChange={onSortingChange} onRowClick={e=>onSelect(e.id)} rowActionLabel={e=>t('table.viewRow',{id: e.id})} empty={<EmptyState title={t('entries.entriesLedger.noEntriesMatchThese')}/>}/>;
 }

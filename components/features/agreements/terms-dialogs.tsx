@@ -10,14 +10,17 @@ import {Textarea} from '@/components/ui/textarea';
 import {ErrorState} from '@/components/shared/error-state';
 import type {PartyOption,Version} from './terms-types';
 import {firstOfNextMonth} from '@/lib/clock';
-import {BASES,basisUnit,buildSchedule,defaultSchedule,fromApiSpec,sameSchedule,type ScheduleValue} from '@/lib/schedule';
+import {bases,basisUnit,buildSchedule,defaultSchedule,fromApiSpec,sameSchedule,type ScheduleValue} from '@/lib/schedule';
 import {ScheduleEditor} from './schedule-editor';
+import {t} from '@/lib/copy';
+import {fmtDay} from '@/lib/format';
+import {partyLabel} from '@/lib/copy/labels';
 
 const NEXT_MONTH=firstOfNextMonth();
 const roles=['operator','owner','customer'];
 const responsible=['owner','operator','customer','driver'];
-const title=(v:string)=>v.charAt(0).toUpperCase()+v.slice(1);
-const providers=[...roles.map(v=>({value:v,label:title(v)})),{value:'none',label:'No driver (vehicle only)'}];
+const title=(v:string)=>partyLabel(v);
+const providers=[...roles.map(v=>({value:v,label:title(v)})),{value:'none',label: t('common.noDriverVehicleOnly')}];
 
 function Pick({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:{value:string;label:string}[]}){
  return <label>{label}<Select value={value} onValueChange={onChange}><SelectTrigger aria-label={label}><SelectValue/></SelectTrigger><SelectContent>{options.map(o=><SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></label>;
@@ -52,42 +55,42 @@ export function ReviseTermsDialog({open,agreementPk,current,onClose,onDone}:{ope
   (['customer_rent_basis','owner_rent_basis','driver_salary_basis'] as const).forEach(k=>{if(f[k]!==(current[k]||'per_month'))changes[k]=f[k]});
   const sides=['customer','owner','driver'] as const;
   if(sides.some(s=>!sameSchedule(sched[s],fromApiSpec(current.payment_schedule?.[s]))))(changes as Record<string,unknown>).payment_schedule=buildSchedule(sched);
-  if(Object.keys(changes).length===0){setError('Change at least one term before saving.');return}
+  if(Object.keys(changes).length===0){setError(t('agreements.termsDialogs.changeAtLeastOne'));return}
   setBusy(true);setError('');
   try{
    const v=await livePost(orgId,`/agreements/${agreementPk}/revise`,{effective_from:f.effective_from,reason:f.reason.trim(),changes});
-   await onDone(`Terms version ${v.number} saved, effective ${v.effective_from}.`);
+   await onDone(t('terms.saved',{date: fmtDay(v.effective_from), number: v.number}));
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  };
 
  return <Dialog open={open} onOpenChange={o=>{if(!o)onClose()}}>
   <DialogContent className="entry-dialog">
-   <DialogHeader><DialogTitle>Revise terms</DialogTitle><DialogDescription>The old terms stay in the history. Months already issued are never changed.</DialogDescription></DialogHeader>
+   <DialogHeader><DialogTitle>{t('common.reviseTerms')}</DialogTitle><DialogDescription>{t('agreements.termsDialogs.theOldTermsStay')}</DialogDescription></DialogHeader>
    <div className="entry-form">
-    <label>Effective from<Input type="date" value={f.effective_from} onChange={e=>set('effective_from')(e.target.value)}/></label>
-    {day>1&&<p className="note">A mid-month date splits that month: each part is billed at its own terms, and the months already issued are never changed.</p>}
-    <div className="amount-with-basis"><label>Customer rent (৳ {basisUnit(f.customer_rent_basis)})<Input inputMode="numeric" value={f.customer_rent} onChange={e=>set('customer_rent')(e.target.value)}/></label><Pick label="Customer rent counts" value={f.customer_rent_basis} onChange={set('customer_rent_basis')} options={BASES.map(([value,label])=>({value,label}))}/></div>
-    <div className="amount-with-basis"><label>Owner rent (৳ {basisUnit(f.owner_rent_basis)})<Input inputMode="numeric" value={f.owner_rent} onChange={e=>set('owner_rent')(e.target.value)}/></label><Pick label="Owner rent counts" value={f.owner_rent_basis} onChange={set('owner_rent_basis')} options={BASES.map(([value,label])=>({value,label}))}/></div>
-    <Pick label="Who supplies the driver" value={f.driver_provider} onChange={set('driver_provider')} options={providers}/>
+    <label>{t('common.effectiveFrom')}<Input type="date" value={fmtDay(f.effective_from)} onChange={e=>set('effective_from')(e.target.value)}/></label>
+    {day>1&&<p className="note">{t('agreements.termsDialogs.aMidMonthDate')}</p>}
+    <div className="amount-with-basis"><label>{t('terms.labelCustomer',{unit: basisUnit(f.customer_rent_basis)})}<Input inputMode="numeric" value={f.customer_rent} onChange={e=>set('customer_rent')(e.target.value)}/></label><Pick label={t('agreements.termsDialogs.customerRentCounts')} value={f.customer_rent_basis} onChange={set('customer_rent_basis')} options={bases().map(([value,label])=>({value,label}))}/></div>
+    <div className="amount-with-basis"><label>{t('terms.labelOwner',{unit: basisUnit(f.owner_rent_basis)})}<Input inputMode="numeric" value={f.owner_rent} onChange={e=>set('owner_rent')(e.target.value)}/></label><Pick label={t('agreements.termsDialogs.ownerRentCounts')} value={f.owner_rent_basis} onChange={set('owner_rent_basis')} options={bases().map(([value,label])=>({value,label}))}/></div>
+    <Pick label={t('agreements.termsDialogs.whoSuppliesTheDriver')} value={f.driver_provider} onChange={set('driver_provider')} options={providers}/>
     {noDriver
-     ?<p className="note">Vehicle only: no driver and no salary on this agreement from this date. A driver can still work for you under a separate driver agreement (Drivers page).</p>
+     ?<p className="note">{t('agreements.termsDialogs.vehicleOnlyNoDriver')}</p>
      :<>
-      <Pick label="Who pays the driver" value={f.driver_paid_by} onChange={set('driver_paid_by')} options={plain(roles)}/>
+      <Pick label={t('agreements.termsDialogs.whoPaysTheDriver')} value={f.driver_paid_by} onChange={set('driver_paid_by')} options={plain(roles)}/>
       {operatorPays
-       ?<div className="amount-with-basis"><label>Driver salary (৳ {basisUnit(f.driver_salary_basis)})<Input inputMode="numeric" value={f.driver_salary} onChange={e=>set('driver_salary')(e.target.value)}/></label><Pick label="Driver salary counts" value={f.driver_salary_basis} onChange={set('driver_salary_basis')} options={BASES.map(([value,label])=>({value,label}))}/></div>
-       :<p className="note">The {f.driver_paid_by} pays the driver, so salary is 0 and no salary is payable on the statement.</p>}
+       ?<div className="amount-with-basis"><label>{t('terms.labelDriver',{unit: basisUnit(f.driver_salary_basis)})}<Input inputMode="numeric" value={f.driver_salary} onChange={e=>set('driver_salary')(e.target.value)}/></label><Pick label={t('agreements.termsDialogs.driverSalaryCounts')} value={f.driver_salary_basis} onChange={set('driver_salary_basis')} options={bases().map(([value,label])=>({value,label}))}/></div>
+       :<p className="note">{t('terms.thirdPartyPays',{payer: partyLabel(f.driver_paid_by).toLowerCase()})}</p>}
      </>}
-    <label>Overtime rate (optional, ৳ per unit)<Input inputMode="decimal" value={f.overtime_rate} onChange={e=>set('overtime_rate')(e.target.value)} placeholder="Suggested when you add an overtime charge"/></label>
-    <label>Overtime unit (optional)<Input value={f.overtime_unit} onChange={e=>set('overtime_unit')(e.target.value)} placeholder="hour, day, km"/></label>
-    <ScheduleEditor label="Customer pays us" value={sched.customer} onChange={x=>setSched(s=>({...s,customer:x}))}/>
-    <ScheduleEditor label="We pay the owner" value={sched.owner} onChange={x=>setSched(s=>({...s,owner:x}))}/>
-    {!noDriver&&operatorPays&&<ScheduleEditor label="We pay the driver" value={sched.driver} onChange={x=>setSched(s=>({...s,driver:x}))}/>}
-    <Pick label="Fuel responsibility" value={f.fuel_responsible} onChange={set('fuel_responsible')} options={plain(responsible)}/>
-    <Pick label="Repair responsibility" value={f.repair_responsible} onChange={set('repair_responsible')} options={plain(responsible)}/>
-    <label>Clauses<Textarea rows={3} value={f.clauses} onChange={e=>set('clauses')(e.target.value)}/></label>
-    <label>Reason (required)<Input value={f.reason} onChange={e=>set('reason')(e.target.value)} placeholder="Why are the terms changing?"/></label>
+    <label>{t('agreements.termsDialogs.overtimeRateOptionalPer')}<Input inputMode="decimal" value={f.overtime_rate} onChange={e=>set('overtime_rate')(e.target.value)} placeholder={t('agreements.termsDialogs.suggestedWhenYouAdd')}/></label>
+    <label>{t('agreements.termsDialogs.overtimeUnitOptional')}<Input value={f.overtime_unit} onChange={e=>set('overtime_unit')(e.target.value)} placeholder={t('agreements.termsDialogs.hourDayKm')}/></label>
+    <ScheduleEditor label={t('common.customerPaysUs')} value={sched.customer} onChange={x=>setSched(s=>({...s,customer:x}))}/>
+    <ScheduleEditor label={t('common.wePayTheOwner')} value={sched.owner} onChange={x=>setSched(s=>({...s,owner:x}))}/>
+    {!noDriver&&operatorPays&&<ScheduleEditor label={t('common.wePayTheDriver')} value={sched.driver} onChange={x=>setSched(s=>({...s,driver:x}))}/>}
+    <Pick label={t('common.fuelResponsibility')} value={f.fuel_responsible} onChange={set('fuel_responsible')} options={plain(responsible)}/>
+    <Pick label={t('common.repairResponsibility')} value={f.repair_responsible} onChange={set('repair_responsible')} options={plain(responsible)}/>
+    <label>{t('common.clauses')}<Textarea rows={3} value={f.clauses} onChange={e=>set('clauses')(e.target.value)}/></label>
+    <label>{t('common.reasonRequired')}<Input value={f.reason} onChange={e=>set('reason')(e.target.value)} placeholder={t('agreements.termsDialogs.whyAreTheTerms')}/></label>
     {error&&<ErrorState message={error}/>}
-    <div className="sheet-footer"><Button disabled={busy||!f.reason.trim()||!f.effective_from} onClick={()=>void submit()}>Save new terms</Button><Button variant="outline" onClick={onClose}>Cancel</Button></div>
+    <div className="sheet-footer"><Button disabled={busy||!f.reason.trim()||!f.effective_from} onClick={()=>void submit()}>{t('agreements.termsDialogs.saveNewTerms')}</Button><Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button></div>
    </div>
   </DialogContent>
  </Dialog>;
@@ -119,21 +122,21 @@ export function AssignDriverDialog({open,agreementPk,currentDriverId,onClose,onD
   try{
    const r=await livePost(orgId,`/agreements/${agreementPk}/assign-driver`,{driver_id:Number(driver),effective_from:from,...(salary.trim()?{salary_override:String(Number(salary))}:{})});
    const w:string[]=r.warnings||[];
-   if(w.length){setWarnings(w);await onDone(`Driver assigned from ${r.effective_from}. Warnings: ${w.join(' ')}`)}else await onDone(`Driver assigned from ${r.effective_from}.`);
+   if(w.length){setWarnings(w);await onDone(t('terms.driverAssignedWarn',{date: fmtDay(r.effective_from), warnings: w.join(' ')}))}else await onDone(t('terms.driverAssigned',{date: fmtDay(r.effective_from)}));
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  };
  return <Dialog open={open} onOpenChange={o=>{if(!o)onClose()}}>
   <DialogContent className="entry-dialog">
-   <DialogHeader><DialogTitle>Assign driver</DialogTitle><DialogDescription>The new driver takes over from the first of a month; the previous driver&apos;s history stays.</DialogDescription></DialogHeader>
+   <DialogHeader><DialogTitle>{t('common.assignDriver')}</DialogTitle><DialogDescription>{t('terms.assignNote')}</DialogDescription></DialogHeader>
    <div className="entry-form">
-    {!list&&!loadError&&<p className="note">Loading drivers...</p>}
-    {list&&options.length===0&&<p className="note">There is no other driver yet. Drivers are created with new agreements.</p>}
-    {options.length>0&&<Pick label="New driver" value={driver} onChange={setDriver} options={options}/>}
-    <label>Effective from<Input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label>
-    <label>Salary override (optional, ৳)<Input inputMode="numeric" value={salary} onChange={e=>setSalary(e.target.value)} placeholder="Leave empty to use the agreement salary"/></label>
+    {!list&&!loadError&&<p className="note">{t('agreements.termsDialogs.loadingDrivers')}</p>}
+    {list&&options.length===0&&<p className="note">{t('agreements.termsDialogs.thereIsNoOther')}</p>}
+    {options.length>0&&<Pick label={t('agreements.termsDialogs.newDriver')} value={driver} onChange={setDriver} options={options}/>}
+    <label>{t('common.effectiveFrom')}<Input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label>
+    <label>{t('agreements.termsDialogs.salaryOverrideOptional')}<Input inputMode="numeric" value={salary} onChange={e=>setSalary(e.target.value)} placeholder={t('agreements.termsDialogs.leaveEmptyToUse')}/></label>
     {warnings.length>0&&<ul className="exception warning">{warnings.map(w=><li key={w}>{w}</li>)}</ul>}
     {(loadError||error)&&<ErrorState message={loadError||error}/>}
-    <div className="sheet-footer"><Button disabled={busy||!driver||!from} onClick={()=>void submit()}>Assign driver</Button><Button variant="outline" onClick={onClose}>Cancel</Button></div>
+    <div className="sheet-footer"><Button disabled={busy||!driver||!from} onClick={()=>void submit()}>{t('common.assignDriver')}</Button><Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button></div>
    </div>
   </DialogContent>
  </Dialog>;
@@ -152,19 +155,19 @@ export function TransferOwnerDialog({open,vehicleId,currentOwnerId,onClose,onDon
  const submit=async()=>{
   if(!orgId)return;
   setBusy(true);setError('');
-  try{const r=await livePost(orgId,`/vehicles/${vehicleId}/transfer-ownership`,{owner_id:Number(owner),effective_from:from});await onDone(`Ownership transferred from ${r.effective_from}.`)}
+  try{const r=await livePost(orgId,`/vehicles/${vehicleId}/transfer-ownership`,{owner_id:Number(owner),effective_from:from});await onDone(t('terms.transferred',{date: fmtDay(r.effective_from)}))}
   catch(e){setError((e as Error).message)}finally{setBusy(false)}
  };
  return <Dialog open={open} onOpenChange={o=>{if(!o)onClose()}}>
   <DialogContent className="entry-dialog">
-   <DialogHeader><DialogTitle>Transfer ownership</DialogTitle><DialogDescription>Owner rent for months from this date goes to the new owner. Earlier months stay with the old owner.</DialogDescription></DialogHeader>
+   <DialogHeader><DialogTitle>{t('common.transferOwnership')}</DialogTitle><DialogDescription>{t('agreements.termsDialogs.ownerRentForMonths')}</DialogDescription></DialogHeader>
    <div className="entry-form">
-    {!list&&!loadError&&<p className="note">Loading owners...</p>}
-    {list&&options.length===0&&<p className="note">There is no other owner yet. Owners are created with new agreements.</p>}
-    {options.length>0&&<Pick label="New owner" value={owner} onChange={setOwner} options={options}/>}
-    <label>Effective from<Input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label>
+    {!list&&!loadError&&<p className="note">{t('agreements.termsDialogs.loadingOwners')}</p>}
+    {list&&options.length===0&&<p className="note">{t('agreements.termsDialogs.thereIsNoOther2')}</p>}
+    {options.length>0&&<Pick label={t('agreements.termsDialogs.newOwner')} value={owner} onChange={setOwner} options={options}/>}
+    <label>{t('common.effectiveFrom')}<Input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label>
     {(loadError||error)&&<ErrorState message={loadError||error}/>}
-    <div className="sheet-footer"><Button disabled={busy||!owner||!from} onClick={()=>void submit()}>Transfer ownership</Button><Button variant="outline" onClick={onClose}>Cancel</Button></div>
+    <div className="sheet-footer"><Button disabled={busy||!owner||!from} onClick={()=>void submit()}>{t('common.transferOwnership')}</Button><Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button></div>
    </div>
   </DialogContent>
  </Dialog>;
@@ -180,16 +183,16 @@ export function EndDateDialog({open,agreementPk,startDate,endDate,onClose,onDone
  const submit=async()=>{
   if(!orgId)return;
   setBusy(true);setError('');
-  try{const r=await apiRequest(`/orgs/${orgId}/agreements/${agreementPk}/dates`,{method:'PATCH',body:JSON.stringify({end_date:end||null})});await onDone(r.end_date?`The agreement now ends on ${r.end_date}.`:'The agreement is now open-ended.')}
+  try{const r=await apiRequest(`/orgs/${orgId}/agreements/${agreementPk}/dates`,{method:'PATCH',body:JSON.stringify({end_date:end||null})});await onDone(r.end_date?t('agreements.termsDialogs.theAgreementNowEnds', {end_date: fmtDay(r.end_date)}):t('agreements.termsDialogs.theAgreementIsNow'))}
   catch(e){setError((e as Error).message)}finally{setBusy(false)}
  };
  return <Dialog open={open} onOpenChange={o=>{if(!o)onClose()}}>
   <DialogContent className="entry-dialog">
-   <DialogHeader><DialogTitle>Change the end date</DialogTitle><DialogDescription>Extend, shorten or remove the end date. Months already issued are never repriced; the server refuses a change that would.</DialogDescription></DialogHeader>
+   <DialogHeader><DialogTitle>{t('agreements.termsDialogs.changeTheEndDate')}</DialogTitle><DialogDescription>{t('terms.endNote')}</DialogDescription></DialogHeader>
    <div className="entry-form">
-    <label>Ends (leave empty for open-ended)<Input type="date" min={startDate} value={end} onChange={e=>setEnd(e.target.value)}/></label>
+    <label>{t('common.endsLeaveEmptyFor')}<Input type="date" min={startDate} value={end} onChange={e=>setEnd(e.target.value)}/></label>
     {error&&<ErrorState message={error}/>}
-    <div className="sheet-footer"><Button disabled={busy||(!!end&&end<startDate)} onClick={()=>void submit()}>Save end date</Button><Button variant="outline" onClick={onClose}>Cancel</Button></div>
+    <div className="sheet-footer"><Button disabled={busy||(!!end&&end<startDate)} onClick={()=>void submit()}>{t('agreements.termsDialogs.saveEndDate')}</Button><Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button></div>
    </div>
   </DialogContent>
  </Dialog>;

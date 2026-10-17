@@ -14,6 +14,9 @@ import {ChargeDialog} from '@/components/features/billing/charge-dialog';
 import {Can} from '@/lib/roles';
 import {PayDriverDialog,ReviseSalaryDialog,EditTermsDialog} from './driver-agreement-actions';
 import type {DriverAgreementDetail,DriverPeriod} from './types';
+import {t,fmtNumber} from '@/lib/copy';
+import {fmtDay} from '@/lib/format';
+import {monthLabel} from '@/lib/clock';
 
 const firstOfNextMonth=()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth()+1,1,12).toISOString().slice(0,10)};
 const firstOfThisMonth=()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1,12).toISOString().slice(0,10)};
@@ -41,56 +44,56 @@ export function DriverAgreementDialog({agreementId,onClose,onChanged}:{agreement
  const issue=async()=>{
   if(!orgId||agreementId===null)return;
   setBusy(true);setMessage('');
-  try{const p=await livePost(orgId,`/driver-agreements/${agreementId}/periods?month=${month}`,{});await changed(`Salary for ${p.month.slice(0,7)} issued: ${Number(p.earned).toLocaleString('en-BD')} BDT due.`)}
+  try{const p=await livePost(orgId,`/driver-agreements/${agreementId}/periods?month=${month}`,{});await changed(t('driverAgr.issued',{month: p.month.slice(0,7), amount: '৳'+fmtNumber(Number(p.earned))}))}
   catch(e){setMessage((e as Error).message)}finally{setBusy(false)}
  };
 
  return <Dialog open={agreementId!==null} onOpenChange={o=>{if(!o)onClose()}}>
   <DialogContent className="agreement-dialog">
    <DialogHeader>
-    <DialogTitle>{detail?`${detail.ref} · ${detail.driver.name}`:'Driver agreement'}</DialogTitle>
-    <DialogDescription>Salary and staff arrangement outside any vehicle agreement. It has no customer, owner, invoices or month-end closing.</DialogDescription>
+    <DialogTitle>{detail?`${detail.ref} · ${detail.driver.name}`:t('driverAgreements.driverAgreementDialog.driverAgreement')}</DialogTitle>
+    <DialogDescription>{t('driverAgreements.driverAgreementDialog.salaryAndStaffArrangement')}</DialogDescription>
    </DialogHeader>
    {error&&<ErrorState message={error} onRetry={()=>void load()}/>}
-   {!detail&&!error&&<p className="note">Loading...</p>}
+   {!detail&&!error&&<p className="note">{t('driverAgr.loading')}</p>}
    {detail&&<div className="terms-section">
     {message&&<p role="status" className="note">{message}</p>}
     {detail.warnings.length>0&&<ul className="exception warning">{detail.warnings.map(w=><li key={w}>{w}</li>)}</ul>}
     <div className="terms">
-     <div><span>Status</span><b><Badge tone={detail.status==='active'?'good':'neutral'}>{detail.status==='active'?'Active':'Ended'}</Badge></b></div>
-     <div><span>Salary / month</span><b><Money value={Number(detail.salary)}/></b></div>
-     <div><span>From</span><b>{detail.start_date}</b></div>
+     <div><span>{t('common.status')}</span><b><Badge tone={detail.status==='active'?'good':'neutral'}>{detail.status==='active'?t('driverAgr.active'):t('driverAgr.ended')}</Badge></b></div>
+     <div><span>{t('common.salaryMonth')}</span><b><Money value={Number(detail.salary)}/></b></div>
+     <div><span>{t('common.from')}</span><b>{fmtDay(detail.start_date)}</b></div>
      <div><span>To</span><b>{detail.end_date||'Open'}</b></div>
-     <div><span>Usual vehicle</span><b>{detail.vehicle?`${detail.vehicle.registration} · ${detail.vehicle.model_name}`:'None'}</b></div>
-     <div><span>Staff terms</span><b>{detail.terms||'None recorded'}</b></div>
+     <div><span>{t('common.usualVehicle')}</span><b>{detail.vehicle?`${detail.vehicle.registration} · ${detail.vehicle.model_name}`:t('driverAgr.none')}</b></div>
+     <div><span>{t('common.staffTerms')}</span><b>{detail.terms||t('common.noneRecorded')}</b></div>
     </div>
     <Can action="agreement.write"><div className="settlement-buttons">
-     <Button variant="outline" onClick={()=>setSub('revise')}>Change salary</Button>
-     <Button variant="outline" onClick={()=>setSub('terms')}>Edit end date or terms</Button>
+     <Button variant="outline" onClick={()=>setSub('revise')}>{t('common.changeSalary')}</Button>
+     <Button variant="outline" onClick={()=>setSub('terms')}>{t('common.editEndDateOr')}</Button>
     </div></Can>
 
-    <h4 className="detail-subheading">Monthly salary</h4>
+    <h4 className="detail-subheading">{t('driverAgreements.driverAgreementDialog.monthlySalary')}</h4>
     <Can action="finance"><div className="billing-toolbar">
-     <label>Issue the month of<Input type="date" value={month} onChange={e=>setMonth(e.target.value)}/></label>
-     <Button disabled={busy||!month} onClick={()=>void issue()}>Issue salary for this month</Button>
+     <label>{t('driverAgreements.driverAgreementDialog.issueTheMonthOf')}<Input type="date" value={month} onChange={e=>setMonth(e.target.value)}/></label>
+     <Button disabled={busy||!month} onClick={()=>void issue()}>{t('driverAgreements.driverAgreementDialog.issueSalaryForThis')}</Button>
     </div></Can>
-    <p className="note">Pick the first day of a month (for example {firstOfNextMonth()}). Each month is a full month of salary.</p>
-    {detail.periods.length===0?<p className="note">No month has been issued yet.</p>:<div className="billing-table terms-table" role="table" aria-label="Issued months">
-     <div role="row" className="head"><span>Month</span><span>Earned</span><span>Paid</span><span>Due</span><span>Bill</span><span/></div>
-     {detail.periods.map(p=><div role="row" key={p.id}><span><b>{p.month.slice(0,7)}</b></span><b className="nums"><Money value={Number(p.earned)}/></b><b className="nums"><Money value={Number(p.paid)}/></b><b className="nums"><Money value={Number(p.due)} signed state={p.bill_state}/></b><span><BillStateChip state={p.bill_state}/></span>
-      <span className="row-actions"><Can action="payment.post"><Button size="sm" variant="outline" onClick={()=>setPaying(p)}>Pay</Button><Button size="sm" variant="outline" onClick={()=>setCharging(p)}>Deduct</Button></Can></span></div>)}
+    <p className="note">{t('driverAgr.pickFirstDay',{example: fmtDay(firstOfNextMonth())})}</p>
+    {detail.periods.length===0?<p className="note">{t('driverAgreements.driverAgreementDialog.noMonthHasBeen')}</p>:<div className="billing-table terms-table" role="table" aria-label={t('driverAgreements.driverAgreementDialog.issuedMonths')}>
+     <div role="row" className="head"><span>{t('common.month')}</span><span>{t('common.earned')}</span><span>{t('common.paid')}</span><span>{t('common.due')}</span><span>{t('common.bill')}</span><span/></div>
+     {detail.periods.map(p=><div role="row" key={p.id}><span><b>{monthLabel(p.month)}</b></span><b className="nums"><Money value={Number(p.earned)}/></b><b className="nums"><Money value={Number(p.paid)}/></b><b className="nums"><Money value={Number(p.due)} signed state={p.bill_state}/></b><span><BillStateChip state={p.bill_state}/></span>
+      <span className="row-actions"><Can action="payment.post"><Button size="sm" variant="outline" onClick={()=>setPaying(p)}>{t('driverAgreements.driverAgreementDialog.pay')}</Button><Button size="sm" variant="outline" onClick={()=>setCharging(p)}>{t('driverAgreements.driverAgreementDialog.deduct')}</Button></Can></span></div>)}
     </div>}
 
-    <h4 className="detail-subheading">Salary history</h4>
-    <div className="billing-table terms-table" role="table" aria-label="Salary history">
-     <div role="row" className="head"><span>Version</span><span>Effective from</span><span>Salary</span><span>Reason</span></div>
-     {detail.versions.map(v=><div role="row" key={v.number}><span><b>v{v.number}</b></span><span>{v.effective_from}</span><b className="nums"><Money value={Number(v.salary)}/></b><span>{v.reason||'-'}</span></div>)}
+    <h4 className="detail-subheading">{t('driverAgreements.driverAgreementDialog.salaryHistory')}</h4>
+    <div className="billing-table terms-table" role="table" aria-label={t('driverAgreements.driverAgreementDialog.salaryHistory')}>
+     <div role="row" className="head"><span>{t('common.version')}</span><span>{t('common.effectiveFrom')}</span><span>{t('driverAgreements.driverAgreementDialog.salary')}</span><span>{t('common.reason')}</span></div>
+     {detail.versions.map(v=><div role="row" key={v.number}><span><b>v{v.number}</b></span><span>{fmtDay(v.effective_from)}</span><b className="nums"><Money value={Number(v.salary)}/></b><span>{v.reason||'-'}</span></div>)}
     </div>
 
-    <DocumentList targetType="driver_agreement" targetId={detail.id} title="Signed agreement and files"/>
+    <DocumentList targetType="driver_agreement" targetId={detail.id} title={t('driverAgreements.driverAgreementDialog.signedAgreementAndFiles')}/>
 
     <ReviseSalaryDialog open={sub==='revise'} agreementId={detail.id} currentSalary={detail.salary} onClose={()=>setSub('')} onDone={changed}/>
-    <EditTermsDialog open={sub==='terms'} agreementId={detail.id} endDate={detail.end_date} terms={detail.terms} onClose={()=>setSub('')} onDone={changed}/>
+    <EditTermsDialog open={sub==='terms'} agreementId={detail.id} endDate={fmtDay(detail.end_date)} terms={detail.terms} onClose={()=>setSub('')} onDone={changed}/>
     {paying&&<PayDriverDialog open periodId={paying.id} month={paying.month} onClose={()=>setPaying(null)} onDone={changed}/>}
     {charging&&<ChargeDialog open periodId={charging.id} driverOnly onClose={()=>setCharging(null)} onDone={changed}/>}
    </div>}

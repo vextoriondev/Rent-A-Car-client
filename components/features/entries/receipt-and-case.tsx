@@ -5,6 +5,7 @@ import {useRentflowStore} from '@/lib/store-context';
 import {ACCEPT,fileProblem} from '@/components/features/documents/document-list';
 import {Input} from '@/components/ui/input';
 import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/components/ui/select';
+import {t} from '@/lib/copy';
 
 type Case={id:number;vehicle_id:number;issue:string;status:string};
 type Vehicle={id:number;registration:string};
@@ -29,15 +30,15 @@ export function ReceiptAndCase({agreementId,file,onFile,caseId,onCase}:{agreemen
  useEffect(()=>()=>{if(preview)URL.revokeObjectURL(preview)},[preview]);
 
  return <>
-  <label>Receipt file (optional)
+  <label>{t('entry.receiptFile')}
    <Input key={file?.name||'none'} type="file" accept={ACCEPT} onChange={e=>{const f=e.target.files?.[0]||null;const p=f?fileProblem(f):'';setProblem(p);onFile(p?null:f)}}/>
-   <small className="hint">PDF, PNG, JPEG or WebP up to 10 MB. Some categories need a receipt before the cost can be approved.</small>
+   <small className="hint">{t('entries.receiptAndCase.pdfPngJpegOr')}</small>
   </label>
   {problem&&<p role="alert" className="form-error">{problem}</p>}
-  {file&&<div className="receipt-pick">{preview&&/* eslint-disable-next-line @next/next/no-img-element */<img src={preview} alt={`Preview of ${file.name}`}/>}<span>{file.name}</span><button type="button" className="remove-receipt" onClick={()=>onFile(null)}>Remove ×</button></div>}
-  {options.length>0&&<label>Maintenance case (optional)
-   <Select value={caseId||NONE} onValueChange={v=>onCase(v===NONE?'':v)}><SelectTrigger aria-label="Maintenance case"><SelectValue/></SelectTrigger>
-    <SelectContent><SelectItem value={NONE}>Not linked</SelectItem>{options.map(c=><SelectItem key={c.id} value={String(c.id)}>#{c.id} · {c.issue}</SelectItem>)}</SelectContent></Select>
+  {file&&<div className="receipt-pick">{preview&&/* eslint-disable-next-line @next/next/no-img-element */<img src={preview} alt={t('entry.previewAlt',{name: file.name})}/>}<span>{file.name}</span><button type="button" className="remove-receipt" onClick={()=>onFile(null)}>{t('entries.receiptAndCase.remove')}</button></div>}
+  {options.length>0&&<label>{t('entry.repairJob')}
+   <Select value={caseId||NONE} onValueChange={v=>onCase(v===NONE?'':v)}><SelectTrigger aria-label={t('entries.receiptAndCase.maintenanceCase')}><SelectValue/></SelectTrigger>
+    <SelectContent><SelectItem value={NONE}>{t('entries.receiptAndCase.notLinked')}</SelectItem>{options.map(c=><SelectItem key={c.id} value={String(c.id)}>#{c.id} · {c.issue}</SelectItem>)}</SelectContent></Select>
   </label>}
  </>;
 }

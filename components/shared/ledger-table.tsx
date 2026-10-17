@@ -3,6 +3,7 @@ import type {ReactNode} from 'react';
 import {ArrowDown,ArrowUp,ArrowUpDown,ChevronRight} from 'lucide-react';
 import {flexRender,getCoreRowModel,getSortedRowModel,useReactTable,type ColumnDef,type OnChangeFn,type SortingState} from '@tanstack/react-table';
 import {Table,TableBody,TableCell,TableHead,TableHeader,TableRow} from '@/components/ui/table';
+import {t} from '@/lib/copy';
 
 declare module '@tanstack/react-table'{
  // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -27,7 +28,7 @@ export function LedgerTable<T>({data,columns,getRowId,onRowClick,rowActionLabel,
     return <TableHead key={h.id} className={align} aria-sort={dir==='asc'?'ascending':dir==='desc'?'descending':col.getCanSort()?'none':undefined}>
      {col.getCanSort()?<button type="button" className="sort-button" onClick={col.getToggleSortingHandler()}>{label}{dir==='asc'?<ArrowUp size={12}/>:dir==='desc'?<ArrowDown size={12}/>:<ArrowUpDown size={12} className="sort-idle"/>}</button>:label}
     </TableHead>;
-   })}{rowActionLabel&&<TableHead><span className="sr-only">Actions</span></TableHead>}</TableRow>)}</TableHeader>
+   })}{rowActionLabel&&<TableHead><span className="sr-only">{t('shared.ledgerTable.actions')}</span></TableHead>}</TableRow>)}</TableHeader>
    <TableBody>{rows.map(r=><TableRow key={r.id} className={onRowClick?'click-row':undefined} onClick={onRowClick?()=>onRowClick(r.original):undefined}>
     {r.getVisibleCells().map(c=><TableCell key={c.id} className={[c.column.columnDef.meta?.align==='right'?'text-right nums':'',c.column.columnDef.meta?.className||''].join(' ').trim()||undefined}>{flexRender(c.column.columnDef.cell,c.getContext())}</TableCell>)}
     {rowActionLabel&&<TableCell><button type="button" aria-label={rowActionLabel(r.original)} className="row-link"><ChevronRight size={18}/></button></TableCell>}

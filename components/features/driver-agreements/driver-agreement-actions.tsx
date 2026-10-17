@@ -9,6 +9,8 @@ import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/compo
 import {Textarea} from '@/components/ui/textarea';
 import {ErrorState} from '@/components/shared/error-state';
 import {Money} from '@/components/shared/money';
+import {t,fmtNumber} from '@/lib/copy';
+import {fmtDay} from '@/lib/format';
 
 const nextMonth=()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth()+1,1,12).toISOString().slice(0,10)};
 
@@ -35,22 +37,22 @@ export function PayDriverDialog({open,periodId,month,onClose,onDone}:{open:boole
   setBusy(true);setError('');
   try{
    await livePost(orgId,'/payments',{kind,amount:String(Number(amount)),reference:reference.trim(),method:'bank',event_date:date,allocations:[{obligation_id:target.obligation_id,amount:String(Number(amount))}]},key);
-   await onDone(`${kind==='salary_advance'?'Advance':'Salary payment'} of ৳${Number(amount).toLocaleString('en-BD')} recorded for ${month.slice(0,7)}.`);
+   await onDone(t('driverAgr.recorded',{kind: kind==='salary_advance'?t('driverAgr.advance'):t('driverAgreements.driverAgreementActions.salaryPayment'), amount: '৳'+fmtNumber(Number(amount)), month: month.slice(0,7)}));
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  };
  return <Dialog open={open} onOpenChange={o=>{if(!o)onClose()}}>
   <DialogContent className="entry-dialog">
-   <DialogHeader><DialogTitle>Pay salary for {month.slice(0,7)}</DialogTitle><DialogDescription>Still open on this month: <b><Money value={openAmount}/></b>. An advance counts against the same salary.</DialogDescription></DialogHeader>
+   <DialogHeader><DialogTitle>{t('driverAgr.paySalary',{month: month.slice(0,7)})}</DialogTitle><DialogDescription>{t('driverAgreements.driverAgreementActions.stillOpenOnThis')} <b><Money value={openAmount}/></b>{t('driverAgreements.driverAgreementActions.anAdvanceCountsAgainst')}</DialogDescription></DialogHeader>
    <div className="entry-form">
-    <label>Type
-     <Select value={kind} onValueChange={setKind}><SelectTrigger aria-label="Payment type"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="driver_payout">Salary payment</SelectItem><SelectItem value="salary_advance">Salary advance</SelectItem></SelectContent></Select>
+    <label>{t('common.kindOf')}
+     <Select value={kind} onValueChange={setKind}><SelectTrigger aria-label={t('driverAgreements.driverAgreementActions.paymentType')}><SelectValue/></SelectTrigger><SelectContent><SelectItem value="driver_payout">{t('driverAgreements.driverAgreementActions.salaryPayment')}</SelectItem><SelectItem value="salary_advance">{t('driverAgreements.driverAgreementActions.salaryAdvance')}</SelectItem></SelectContent></Select>
     </label>
-    <label>Amount (৳)<Input inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0"/></label>
-    <label>Reference<Input value={reference} onChange={e=>setReference(e.target.value)} placeholder="Bank or mobile money reference"/></label>
-    <label>Date<Input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
-    {over&&<p className="form-error" role="alert">That is more than what is still open on this month.</p>}
+    <label>{t('common.amount2')}<Input inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0"/></label>
+    <label>{t('common.reference')}<Input value={reference} onChange={e=>setReference(e.target.value)} placeholder={t('common.bankOrMobileMoney')}/></label>
+    <label>{t('common.date')}<Input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
+    {over&&<p className="form-error" role="alert">{t('driverAgreements.driverAgreementActions.thatIsMoreThan')}</p>}
     {error&&<ErrorState message={error}/>}
-    <div className="sheet-footer"><Button disabled={busy||!target||over||!(Number(amount)>0)||!reference.trim()||!date} onClick={()=>void submit()}>Record payment</Button><Button variant="outline" onClick={onClose}>Cancel</Button></div>
+    <div className="sheet-footer"><Button disabled={busy||!target||over||!(Number(amount)>0)||!reference.trim()||!date} onClick={()=>void submit()}>{t('driverAgreements.driverAgreementActions.recordPayment')}</Button><Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button></div>
    </div>
   </DialogContent>
  </Dialog>;
@@ -68,19 +70,19 @@ export function ReviseSalaryDialog({open,agreementId,currentSalary,onClose,onDon
  const submit=async()=>{
   if(!orgId)return;
   setBusy(true);setError('');
-  try{const v=await livePost(orgId,`/driver-agreements/${agreementId}/revise`,{effective_from:from,salary:String(Number(salary)),reason:reason.trim()});await onDone(`Salary version ${v.number} saved, effective ${v.effective_from}.`)}
+  try{const v=await livePost(orgId,`/driver-agreements/${agreementId}/revise`,{effective_from:from,salary:String(Number(salary)),reason:reason.trim()});await onDone(t('driverAgr.salarySaved',{date: fmtDay(v.effective_from), number: v.number}))}
   catch(e){setError((e as Error).message)}finally{setBusy(false)}
  };
  return <Dialog open={open} onOpenChange={o=>{if(!o)onClose()}}>
   <DialogContent className="entry-dialog">
-   <DialogHeader><DialogTitle>Change salary</DialogTitle><DialogDescription>The old salary stays in the history. Months already issued are never changed.</DialogDescription></DialogHeader>
+   <DialogHeader><DialogTitle>{t('common.changeSalary')}</DialogTitle><DialogDescription>{t('driverAgreements.driverAgreementActions.theOldSalaryStays')}</DialogDescription></DialogHeader>
    <div className="entry-form">
-    <label>Effective from<Input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label>
-    {Number(from.slice(8,10))>1&&<p className="note">A mid-month date applies from the next month.</p>}
-    <label>New salary / month (৳)<Input inputMode="numeric" value={salary} onChange={e=>setSalary(e.target.value)}/></label>
-    <label>Reason (required)<Input value={reason} onChange={e=>setReason(e.target.value)} placeholder="Why is the salary changing?"/></label>
+    <label>{t('common.effectiveFrom')}<Input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label>
+    {Number(from.slice(8,10))>1&&<p className="note">{t('driverAgreements.driverAgreementActions.aMidMonthDate')}</p>}
+    <label>{t('driverAgreements.driverAgreementActions.newSalaryMonth')}<Input inputMode="numeric" value={salary} onChange={e=>setSalary(e.target.value)}/></label>
+    <label>{t('common.reasonRequired')}<Input value={reason} onChange={e=>setReason(e.target.value)} placeholder={t('driverAgreements.driverAgreementActions.whyIsTheSalary')}/></label>
     {error&&<ErrorState message={error}/>}
-    <div className="sheet-footer"><Button disabled={busy||!reason.trim()||!(Number(salary)>0)||!from} onClick={()=>void submit()}>Save new salary</Button><Button variant="outline" onClick={onClose}>Cancel</Button></div>
+    <div className="sheet-footer"><Button disabled={busy||!reason.trim()||!(Number(salary)>0)||!from} onClick={()=>void submit()}>{t('driverAgreements.driverAgreementActions.saveNewSalary')}</Button><Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button></div>
    </div>
   </DialogContent>
  </Dialog>;
@@ -99,17 +101,17 @@ export function EditTermsDialog({open,agreementId,endDate,terms,onClose,onDone}:
   setBusy(true);setError('');
   try{
    await apiRequest(`/orgs/${orgId}/driver-agreements/${agreementId}`,{method:'PATCH',body:JSON.stringify({end_date:end||null,terms:text})});
-   await onDone('Driver agreement updated.');
+   await onDone(t('driverAgr.updated'));
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  };
  return <Dialog open={open} onOpenChange={o=>{if(!o)onClose()}}>
   <DialogContent className="entry-dialog">
-   <DialogHeader><DialogTitle>Edit end date or terms</DialogTitle><DialogDescription>Ending the agreement stops new months from being issued; issued months and their balances stay.</DialogDescription></DialogHeader>
+   <DialogHeader><DialogTitle>{t('common.editEndDateOr')}</DialogTitle><DialogDescription>{t('driverAgr.endNote')}</DialogDescription></DialogHeader>
    <div className="entry-form">
-    <label>Ends (leave empty for open-ended)<Input type="date" value={end} onChange={e=>setEnd(e.target.value)}/></label>
-    <label>Staff terms<Textarea rows={4} value={text} onChange={e=>setText(e.target.value)}/></label>
+    <label>{t('common.endsLeaveEmptyFor')}<Input type="date" value={end} onChange={e=>setEnd(e.target.value)}/></label>
+    <label>{t('common.staffTerms')}<Textarea rows={4} value={text} onChange={e=>setText(e.target.value)}/></label>
     {error&&<ErrorState message={error}/>}
-    <div className="sheet-footer"><Button disabled={busy} onClick={()=>void submit()}>Save</Button><Button variant="outline" onClick={onClose}>Cancel</Button></div>
+    <div className="sheet-footer"><Button disabled={busy} onClick={()=>void submit()}>{t('common.save')}</Button><Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button></div>
    </div>
   </DialogContent>
  </Dialog>;

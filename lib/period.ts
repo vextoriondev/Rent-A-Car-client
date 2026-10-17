@@ -3,6 +3,7 @@ import {useCallback,useMemo} from 'react';
 import {usePathname,useRouter,useSearchParams} from 'next/navigation';
 import {apiMode} from './api';
 import {currentMonthRange} from './clock';
+import {t,dateLocale} from '@/lib/copy';
 
 /** Global period (F2): day / week / month / year / custom, kept in the URL as ?from=&to= (inclusive ISO dates). ?month=YYYY-MM-01 from old links still works. */
 export type Preset='day'|'week'|'month'|'year'|'custom';
@@ -51,19 +52,19 @@ export function shiftRange(r:Range,dir:1|-1):Range{
 
 /** Why a range cannot be used, or '' when it is fine. */
 export function rangeProblem(r:Range){
- if(!valid(r.from)||!valid(r.to))return 'Enter both dates.';
- if(r.from>r.to)return 'The start date is after the end date.';
- if((parse(r.to).getTime()-parse(r.from).getTime())/86400000>MAX_DAYS)return 'A period can span at most 5 years.';
+ if(!valid(r.from)||!valid(r.to))return t('period.enterBothDates');
+ if(r.from>r.to)return t('period.theStartDateIs');
+ if((parse(r.to).getTime()-parse(r.from).getTime())/86400000>MAX_DAYS)return t('period.aPeriodCanSpan');
  return '';
 }
 
-const fmt=(s:string,o:Intl.DateTimeFormatOptions)=>parse(s).toLocaleDateString('en-GB',o);
+const fmt=(s:string,o:Intl.DateTimeFormatOptions)=>parse(s).toLocaleDateString(dateLocale(),o);
 export function rangeLabel(r:Range){
  const p=presetOf(r);
  if(p==='day')return fmt(r.from,{day:'numeric',month:'short',year:'numeric'});
  if(p==='month')return fmt(r.from,{month:'long',year:'numeric'});
  if(p==='year')return r.from.slice(0,4);
- return `${fmt(r.from,{day:'numeric',month:'short',year:'numeric'})} to ${fmt(r.to,{day:'numeric',month:'short',year:'numeric'})}`;
+ return t('period.range',{from: fmt(r.from,{day:'numeric',month:'short',year:'numeric'}), to: fmt(r.to,{day:'numeric',month:'short',year:'numeric'})});
 }
 /** First-of-month for every month from `earliest` to `latest` (any dates), newest first. Feeds the picker's month shortcuts. */
 export function monthList(earliest:string,latest:string){const out:string[]=[];for(let m=monthStart(latest);m>=monthStart(earliest);m=addMonths(m,-1))out.push(m);return out}

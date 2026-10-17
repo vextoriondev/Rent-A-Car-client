@@ -15,6 +15,7 @@ import {EmptyState} from '@/components/shared/empty-state';
 import {Money} from '@/components/shared/money';
 import {SettlementWorkflow,stateLabel,stateTone,type SettlementRow} from '@/components/features/settlements/settlement-workflow';
 import {Can} from '@/lib/roles';
+import {t,localizeDigits} from '@/lib/copy';
 
 export default function SettlementsPage(){
  const rf=useRentflowStore();
@@ -31,20 +32,20 @@ export default function SettlementsPage(){
  },[orgId,shown]);
  useEffect(()=>{void loadRows()},[loadRows,store.closed.length]);
  return <>
-  <div className="settlement-banner"><div><span className="eyebrow">{(apiMode?monthLabel(shown):'September 2026').toUpperCase()} · CLOSE PERIOD</span><h2>Month-end settlement</h2><p>Review customer, owner, driver and operator positions for each agreement.</p></div><div className="settlement-count"><strong>{store.closed.length}/{store.agreements.length}</strong><span>closed</span></div></div>
+  <div className="settlement-banner"><div><span className="eyebrow">{t('settle.banner',{month: apiMode?monthLabel(shown):t('app.closeMonthSample')})}</span><h2>{t('settlements.monthEndSettlement')}</h2><p>{t('settlements.reviewCustomerOwnerDriver')}</p></div><div className="settlement-count"><strong>{localizeDigits(store.closed.length+'/'+store.agreements.length)}</strong><span>{t('ledger.closed')}</span></div></div>
   <div className="settlement-grid">{agreements.map(a=>{
    const s=statement(a,store.entries);
    const pending=store.entries.some(e=>e.agreementId===a.id&&e.status==='Pending approval');
    const closed=store.closed.includes(a.id);
    const row=apiMode?rows[Number(a.id.replace('AGR-',''))]:undefined;
    return <Card key={a.id} className="settlement-card">
-    <div className="settlement-top"><div><small>{a.id} · {a.registration}</small><h3>{a.customer}</h3></div><Badge tone={row?stateTone(row.state):closed?'good':pending?'warn':'blue'}>{row?stateLabel[row.state]:closed?'Closed':pending?'Needs review':'Ready to review'}</Badge></div>
-    <div className="settlement-figures"><div><span>Customer due</span><b><Money value={s.customerDue}/></b></div><div><span>Owner due</span><b><Money value={s.ownerDue}/></b></div><div><span>Driver due</span><b><Money value={s.driverDue}/></b></div></div>
-    {pending&&<ApprovalBanner>Expense approval required before closing.</ApprovalBanner>}
-    <div className="settlement-actions"><button type="button" className="text-button" onClick={()=>rf.setSelected(a.id)}>View four statements <ChevronRight size={15}/></button>{apiMode?<Can action="finance"><span className="settlement-buttons"><Button size="sm" onClick={()=>setWorkflowFor(a.id)}>{closed?'Review or reopen':'Review settlement'}</Button><Button variant="outline" size="sm" disabled={closed||pending} onClick={()=>rf.setConfirmClose(a.id)} title="Runs prepare, approval and close in one step">One-click close</Button></span></Can>:<Button variant="outline" size="sm" disabled={closed||pending} onClick={()=>rf.setConfirmClose(a.id)}>{closed?'Closed':'Close'}</Button>}</div>
+    <div className="settlement-top"><div><small>{a.id} · {a.registration}</small><h3>{a.customer}</h3></div><Badge tone={row?stateTone(row.state):closed?'good':pending?'warn':'blue'}>{row?stateLabel[row.state]:closed?t('settle.closedWord'):pending?t('settlements.needsReview'):t('settlements.readyToReview')}</Badge></div>
+    <div className="settlement-figures"><div><span>{t('common.customerDue')}</span><b><Money value={s.customerDue}/></b></div><div><span>{t('common.ownerDue')}</span><b><Money value={s.ownerDue}/></b></div><div><span>{t('common.driverDue')}</span><b><Money value={s.driverDue}/></b></div></div>
+    {pending&&<ApprovalBanner>{t('settlements.expenseApprovalRequiredBefore')}</ApprovalBanner>}
+    <div className="settlement-actions"><button type="button" className="text-button" onClick={()=>rf.setSelected(a.id)}>{t('settlements.viewFourStatements')} <ChevronRight size={15}/></button>{apiMode?<Can action="finance"><span className="settlement-buttons"><Button size="sm" onClick={()=>setWorkflowFor(a.id)}>{closed?t('settlements.reviewOrReopen'):t('settlements.reviewSettlement')}</Button><Button variant="outline" size="sm" disabled={closed||pending} onClick={()=>rf.setConfirmClose(a.id)} title={t('settlements.runsPrepareApprovalAnd')}>{t('settlements.oneClickClose')}</Button></span></Can>:<Button variant="outline" size="sm" disabled={closed||pending} onClick={()=>rf.setConfirmClose(a.id)}>{closed?t('settle.closedWord'):t('settle.closeWord')}</Button>}</div>
    </Card>;
   })}</div>
-  {agreements.length===0&&<EmptyState title="No settlements match your search."/>}
+  {agreements.length===0&&<EmptyState title={t('settlements.noSettlementsMatchYour')}/>}
   {apiMode&&<SettlementWorkflow agreementId={workflowFor} onClose={()=>setWorkflowFor(null)} onChanged={()=>void loadRows()}/>}
  </>;
 }

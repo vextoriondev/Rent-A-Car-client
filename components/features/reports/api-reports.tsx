@@ -16,14 +16,16 @@ import {EmptyState} from '@/components/shared/empty-state';
 import {ErrorState} from '@/components/shared/error-state';
 import {Money} from '@/components/shared/money';
 import {SectionHeading} from '@/components/shared/section-heading';
+import {t,tn} from '@/lib/copy';
+import {fmtDay} from '@/lib/format';
 
-type Report={title:string;columns:string[];rows:(string|number)[][];totals:Record<string,string>;count:number;next:number|null;bill_states?:BillState[]};
+type Report={title:string;columns:string[];column_ids:string[];column_types:('text'|'money'|'count'|'date')[];rows:(string|number)[][];totals:Record<string,string>;count:number;next:number|null;bill_states?:BillState[]};
 type ReportType={type:string;title:string};
 const ALL='All';
 /** These two have their own pages (a day picker; a category is required). */
 const OWN_PAGE=['daily-expenses','category-by-vehicle'];
-const isMoney=(c:string)=>c.endsWith('BDT');
-const isCount=(c:string)=>c==='Entries'||c==='Days overdue';
+type Kind='text'|'money'|'count'|'date';
+const isNumber=(k?:Kind)=>k==='money'||k==='count';
 
 /** API mode: every server report (GET /reports/{type}) for the period picker's dates, with the server CSV as the download. Bill colours come from the server's `bill_states`; the aging report's `Days overdue` is a column. */
 export function ApiReports(){
@@ -46,29 +48,29 @@ export function ApiReports(){
  },[orgId,type,query]);
 
  const title=types.find(t=>t.type===type)?.title??type;
- const scope=`Period: ${label}${agreement!==ALL?`; Agreement: ${agreement}`:''}`;
- const table=useMemo(()=>({title,scope,columns:data?.columns??[],rows:data?.rows.map(r=>r.map((c,i)=>data.columns[i]&&(isMoney(data.columns[i])||isCount(data.columns[i]))?Number(c):c))??[],totals:data&&Object.keys(data.totals).length?data.columns.map((c,i)=>i===0?'Total':data.totals[c]!==undefined?Number(data.totals[c]):''):undefined}),[data,title,scope]);
+ const scope=t('rep.period',{label})+(agreement!==ALL?t('rep.agreementScope',{agreement}):'');
+ const table=useMemo(()=>({title,scope,columns:data?.columns??[],rows:data?.rows.map(r=>r.map((c,i)=>isNumber(data.column_types[i])?Number(c):data.column_types[i]==='date'?fmtDay(String(c)):c))??[],totals:data&&Object.keys(data.totals).length?data.column_ids.map((id,i)=>i===0?t('rep.total'):data.totals[id]!==undefined?Number(data.totals[id]):''):undefined}),[data,title,scope]);
  const billed=!!data?.bill_states;
  return <>
   <div className="report-header"><Card>
-   <span className="eyebrow">REPORT BUILDER</span><h2>{label} reports</h2><p>Reports use exactly the dates in the period picker. Balance reports add an Opening column (the balance before the first day); Outstanding or Due is the balance on the last day. Download the CSV (opens in Excel) or print to PDF.</p>
+   <span className="eyebrow">{t('common.reportBuilder')}</span><h2>{t('rep.heading',{label})}</h2><p>{t('rep.intro')}</p>
    <div className="report-controls">
-    <Select value={type} onValueChange={setType}><SelectTrigger aria-label="Report type"><SelectValue/></SelectTrigger><SelectContent>{types.map(r=><SelectItem key={r.type} value={r.type}>{r.title}</SelectItem>)}</SelectContent></Select>
-    <Select value={agreement} onValueChange={setAgreement}><SelectTrigger aria-label="Filter report by agreement"><SelectValue/></SelectTrigger><SelectContent><SelectItem value={ALL}>All agreements</SelectItem>{rf.store.agreements.map(a=><SelectItem key={a.id} value={a.id}>{a.registration} · {a.id}</SelectItem>)}</SelectContent></Select>
+    <Select value={type} onValueChange={setType}><SelectTrigger aria-label={t('common.reportType')}><SelectValue/></SelectTrigger><SelectContent>{types.map(r=><SelectItem key={r.type} value={r.type}>{r.title}</SelectItem>)}</SelectContent></Select>
+    <Select value={agreement} onValueChange={setAgreement}><SelectTrigger aria-label={t('reports.apiReports.filterReportByAgreement')}><SelectValue/></SelectTrigger><SelectContent><SelectItem value={ALL}>{t('reports.apiReports.allAgreements')}</SelectItem>{rf.store.agreements.map(a=><SelectItem key={a.id} value={a.id}>{a.registration} · {a.id}</SelectItem>)}</SelectContent></Select>
     {data&&<DownloadButtons table={table} stem={fileStem(type,stem)} serverPath={`/orgs/${orgId}/reports/${type}/export?${query}`}/>}
    </div>
-   <p className="note"><Link className="text-button" href="/expenses/daily">Daily expense inspection</Link> · <Link className="text-button" href="/settings">Cost by category (open a category in Settings)</Link></p>
+   <p className="note"><Link className="text-button" href="/expenses/daily">{t('common.dailyExpenseInspection')}</Link> · <Link className="text-button" href="/settings">{t('reports.apiReports.costByCategoryOpen')}</Link></p>
   </Card></div>
   <Card>
-   <SectionHeading title={title} subtitle={data?`${data.count} ${data.count===1?'row':'rows'} · ${label}`:'Loading...'}/>
+   <SectionHeading title={title} subtitle={data?tn('rep.rows',data.count)+' · '+label:t('rep.loading')}/>
    {error&&<ErrorState message={error}/>}
-   {data&&data.rows.length===0&&<EmptyState title="Nothing to report for this period" description="Try a wider period or clear the agreement filter."/>}
+   {data&&data.rows.length===0&&<EmptyState title={t('reports.apiReports.nothingToReportFor')} description={t('reports.apiReports.tryAWiderPeriod')}/>}
    {data&&data.rows.length>0&&<Table>
-    <TableHeader><TableRow>{data.columns.map(c=><TableHead key={c} className={isMoney(c)||isCount(c)?'text-right':undefined}>{c}</TableHead>)}{billed&&<TableHead>Bill</TableHead>}</TableRow></TableHeader>
-    <TableBody>{data.rows.map((r,i)=><TableRow key={i}>{r.map((c,j)=><TableCell key={j} className={isMoney(data.columns[j])||isCount(data.columns[j])?'text-right nums':undefined}>{isMoney(data.columns[j])?<Money value={Number(c)} signed/>:String(c)}</TableCell>)}{billed&&<TableCell>{data.bill_states![i]&&<BillStateChip state={data.bill_states![i]}/>}</TableCell>}</TableRow>)}</TableBody>
-    {Object.keys(data.totals).length>0&&<TableFooter><TableRow>{data.columns.map((c,j)=><TableCell key={c} className={isMoney(c)?'text-right nums':undefined}>{j===0?'Total':data.totals[c]!==undefined?<Money value={Number(data.totals[c])} signed/>:''}</TableCell>)}{billed&&<TableCell/>}</TableRow></TableFooter>}
+    <TableHeader><TableRow>{data.columns.map((c,j)=><TableHead key={data.column_ids[j]} className={isNumber(data.column_types[j])?'text-right':undefined}>{c}</TableHead>)}{billed&&<TableHead>{t('common.bill')}</TableHead>}</TableRow></TableHeader>
+    <TableBody>{data.rows.map((r,i)=><TableRow key={i}>{r.map((c,j)=><TableCell key={j} className={isNumber(data.column_types[j])?'text-right nums':undefined}>{data.column_types[j]==='money'?<Money value={Number(c)} signed/>:data.column_types[j]==='date'?fmtDay(String(c)):String(c)}</TableCell>)}{billed&&<TableCell>{data.bill_states![i]&&<BillStateChip state={data.bill_states![i]}/>}</TableCell>}</TableRow>)}</TableBody>
+    {Object.keys(data.totals).length>0&&<TableFooter><TableRow>{data.column_ids.map((id,j)=><TableCell key={id} className={data.column_types[j]==='money'?'text-right nums':undefined}>{j===0?t('rep.total'):data.totals[id]!==undefined?(data.column_types[j]==='money'?<Money value={Number(data.totals[id])} signed/>:data.totals[id]):''}</TableCell>)}{billed&&<TableCell/>}</TableRow></TableFooter>}
    </Table>}
-   {data?.next!=null&&<p className="note">Showing the first {data.rows.length} of {data.count} rows on screen; the CSV contains every row.</p>}
+   {data?.next!=null&&<p className="note">{t('rep.first',{shown: data.rows.length, count: data.count})}</p>}
   </Card>
  </>;
 }

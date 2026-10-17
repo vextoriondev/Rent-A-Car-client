@@ -8,6 +8,8 @@ import {Button} from '@/components/ui/button';
 import {Card} from '@/components/ui/card';
 import {Input} from '@/components/ui/input';
 import {SectionHeading} from '@/components/shared/section-heading';
+import {t} from '@/lib/copy';
+import {categoryName} from '@/lib/copy/labels';
 
 /** API mode: create, rename and deactivate expense categories. Deactivated ones stay in history, filters and reports but are refused on new entries. The code never changes. Admin only; the server enforces it. */
 export function CostCategoriesSettings(){
@@ -23,32 +25,32 @@ export function CostCategoriesSettings(){
  };
  const patch=(id:number,body:object)=>apiRequest(`/orgs/${orgId}/expense-categories/${id}`,{method:'PATCH',body:JSON.stringify(body)});
  const add=async()=>{
-  const n=name.trim();if(!n){setNote('Enter a name for the category.');return}
+  const n=name.trim();if(!n){setNote(t('expenses.costCategoriesSettings.enterANameFor'));return}
   const code=n.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
-  if(!code){setNote('Use letters or numbers in the name.');return}
-  if(await run(()=>apiRequest(`/orgs/${orgId}/expense-categories`,{method:'POST',body:JSON.stringify({code,name:n})}),`Added "${n}".`))setName('');
+  if(!code){setNote(t('expenses.costCategoriesSettings.useLettersOrNumbers'));return}
+  if(await run(()=>apiRequest(`/orgs/${orgId}/expense-categories`,{method:'POST',body:JSON.stringify({code,name:n})}),t('cats.added',{name: n})))setName('');
  };
  const rename=async()=>{
   if(!editing)return;
-  if(await run(()=>patch(editing.id,{name:editing.name}),'Category renamed.'))setEditing(null);
+  if(await run(()=>patch(editing.id,{name:editing.name}),t('cats.renamed')))setEditing(null);
  };
  return <Card>
-  <SectionHeading title="Cost categories" subtitle="Deactivated categories stay in history and reports but cannot be chosen on new entries."/>
-  {!categories&&!error&&<p className="settings-copy">Loading...</p>}
+  <SectionHeading title={t('common.costCategories')} subtitle={t('expenses.costCategoriesSettings.deactivatedCategoriesStayIn')}/>
+  {!categories&&!error&&<p className="settings-copy">{t('cats.loading')}</p>}
   {error&&<p role="alert" className="note">{error}</p>}
   {categories&&<ul className="category-list">
    {categories.map(c=><li key={c.id} className="category-row">
     {editing?.id===c.id
-     ?<><Input aria-label={`New name for ${c.name}`} value={editing.name} onChange={e=>setEditing({id:c.id,name:e.target.value})}/><Button size="sm" disabled={busy} onClick={()=>void rename()}>Save</Button><Button size="sm" variant="outline" onClick={()=>setEditing(null)}>Cancel</Button></>
-     :<><span className="category-name"><Link href={`/expenses/categories/${c.code}`}>{c.name}</Link> <small className="hint">{c.code}</small></span>
-      <Badge tone={c.active?'good':'neutral'}>{c.active?'Active':'Inactive'}</Badge>
-      <Button size="sm" variant="outline" aria-label={`Rename ${c.name}`} onClick={()=>setEditing({id:c.id,name:c.name})}>Rename</Button>
-      <Button size="sm" variant="outline" disabled={busy} aria-label={`${c.active?'Deactivate':'Reactivate'} ${c.name}`} onClick={()=>void run(()=>patch(c.id,{active:!c.active}),c.active?`"${c.name}" deactivated.`:`"${c.name}" is active again.`)}>{c.active?'Deactivate':'Reactivate'}</Button></>}
+     ?<><Input aria-label={t('cats.ariaNewName',{name: categoryName(c.code,c.name)})} value={editing.name} onChange={e=>setEditing({id:c.id,name:e.target.value})}/><Button size="sm" disabled={busy} onClick={()=>void rename()}>{t('common.save')}</Button><Button size="sm" variant="outline" onClick={()=>setEditing(null)}>{t('common.cancel')}</Button></>
+     :<><span className="category-name"><Link href={`/expenses/categories/${c.code}`}>{categoryName(c.code,c.name)}</Link></span>
+      <Badge tone={c.active?'good':'neutral'}>{c.active?t('cats.active'):t('cats.inactive')}</Badge>
+      <Button size="sm" variant="outline" aria-label={t('cats.ariaRename',{name: categoryName(c.code,c.name)})} onClick={()=>setEditing({id:c.id,name:c.name})}>{t('expenses.costCategoriesSettings.rename')}</Button>
+      <Button size="sm" variant="outline" disabled={busy} aria-label={t(c.active?'cats.ariaToggleOff':'cats.ariaToggleOn',{name: categoryName(c.code,c.name)})} onClick={()=>void run(()=>patch(c.id,{active:!c.active}),c.active?t('cats.off',{name: categoryName(c.code,c.name)}):t('cats.on',{name: categoryName(c.code,c.name)}))}>{c.active?t('cats.toggleOff'):t('cats.toggleOn')}</Button></>}
    </li>)}
   </ul>}
   <div className="category-add">
-   <Input aria-label="New category name" value={name} placeholder="New category, e.g. Insurance" onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')void add()}}/>
-   <Button disabled={busy} onClick={()=>void add()}>Add category</Button>
+   <Input aria-label={t('expenses.costCategoriesSettings.newCategoryName')} value={name} placeholder={t('expenses.costCategoriesSettings.newCategoryEG')} onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')void add()}}/>
+   <Button disabled={busy} onClick={()=>void add()}>{t('expenses.costCategoriesSettings.addCategory')}</Button>
   </div>
   {note&&<p role="status" className="note">{note}</p>}
  </Card>;

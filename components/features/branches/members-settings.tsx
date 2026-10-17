@@ -8,6 +8,8 @@ import {Input} from '@/components/ui/input';
 import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/components/ui/select';
 import {SectionHeading} from '@/components/shared/section-heading';
 import {useBranches} from './branch-switcher';
+import {t} from '@/lib/copy';
+import {roleLabel} from '@/lib/copy/labels';
 
 type Member={id:number;user_id:number;username:string;role:string;branch:{id:number;name:string}|null};
 const ROLES=['admin','accountant','operations','viewer','mechanic'];
@@ -38,31 +40,31 @@ export function MembersSettings(){
   catch(e){setNote((e as Error).message)}finally{setBusy(false)}
  };
  const addBranch=async()=>{
-  const n=name.trim();if(!n){setNote('Enter a name for the branch.');return}
+  const n=name.trim();if(!n){setNote(t('branches.membersSettings.enterANameFor'));return}
   setBusy(true);setNote('');
-  try{const b=await apiRequest(`/orgs/${orgId}/branches`,{method:'POST',body:JSON.stringify({name:n})});setExtra(x=>[...x,b]);setName('');setNote(`Added branch "${n}". Reload to see it in the switcher.`)}
+  try{const b=await apiRequest(`/orgs/${orgId}/branches`,{method:'POST',body:JSON.stringify({name:n})});setExtra(x=>[...x,b]);setName('');setNote(t('branches.membersSettings.addedBranchReloadTo', {n}))}
   catch(e){setNote((e as Error).message)}finally{setBusy(false)}
  };
  return <Card>
-  <SectionHeading title="Users and branches" subtitle="A user with a branch sees only that branch. Admins always see every branch."/>
-  {!members&&!error&&<p className="settings-copy">Loading...</p>}
+  <SectionHeading title={t('branches.membersSettings.usersAndBranches')} subtitle={t('branches.membersSettings.aUserWithA')}/>
+  {!members&&!error&&<p className="settings-copy">{t('members.loading')}</p>}
   {error&&<p role="alert" className="note">{error}</p>}
   {members&&members.length>0&&<ul className="category-list">
    {members.map(m=><li key={m.id} className="category-row">
     <span className="category-name"><b>{m.username}</b></span>
-    <Select value={m.role} disabled={busy} onValueChange={v=>void patch(m,{role:v},`${m.username} is now ${v}.`)}>
-     <SelectTrigger aria-label={`Role of ${m.username}`}><SelectValue/></SelectTrigger>
-     <SelectContent>{ROLES.map(r=><SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+    <Select value={m.role} disabled={busy} onValueChange={v=>void patch(m,{role:v},t('members.roleNow',{name: m.username, role: roleLabel(v)}))}>
+     <SelectTrigger aria-label={t('members.ariaRole',{name: m.username})}><SelectValue/></SelectTrigger>
+     <SelectContent>{ROLES.map(r=><SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>)}</SelectContent>
     </Select>
-    <Select value={m.branch?String(m.branch.id):NONE} disabled={busy} onValueChange={v=>void patch(m,v===NONE?{clear_branch:true}:{branch_id:Number(v)},v===NONE?`${m.username} now sees every branch.`:`${m.username} is limited to that branch.`)}>
-     <SelectTrigger aria-label={`Branch of ${m.username}`}><SelectValue/></SelectTrigger>
-     <SelectContent><SelectItem value={NONE}>All branches</SelectItem>{all.map(b=><SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>)}</SelectContent>
+    <Select value={m.branch?String(m.branch.id):NONE} disabled={busy} onValueChange={v=>void patch(m,v===NONE?{clear_branch:true}:{branch_id:Number(v)},v===NONE?t('members.seesAll',{name: m.username}):t('members.limited',{name: m.username}))}>
+     <SelectTrigger aria-label={t('members.ariaBranch',{name: m.username})}><SelectValue/></SelectTrigger>
+     <SelectContent><SelectItem value={NONE}>{t('common.allBranches')}</SelectItem>{all.map(b=><SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>)}</SelectContent>
     </Select>
    </li>)}
   </ul>}
   <div className="category-add">
-   <Input aria-label="New branch name" value={name} placeholder="New branch, e.g. Sylhet" onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')void addBranch()}}/>
-   <Button disabled={busy} onClick={()=>void addBranch()}>Add branch</Button>
+   <Input aria-label={t('branches.membersSettings.newBranchName')} value={name} placeholder={t('branches.membersSettings.newBranchEG')} onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')void addBranch()}}/>
+   <Button disabled={busy} onClick={()=>void addBranch()}>{t('branches.membersSettings.addBranch')}</Button>
   </div>
   {note&&<p role="status" className="note">{note}</p>}
  </Card>;

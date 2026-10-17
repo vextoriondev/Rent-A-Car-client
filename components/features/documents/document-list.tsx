@@ -6,13 +6,14 @@ import {useRentflowStore} from '@/lib/store-context';
 import {Button} from '@/components/ui/button';
 import {ErrorState} from '@/components/shared/error-state';
 import {Can} from '@/lib/roles';
+import {t} from '@/lib/copy';
 
 export type DocumentRow={id:number;name:string;content_type:string;size:number;created_at:string};
 export const ACCEPT='application/pdf,image/png,image/jpeg,image/webp';
 export const MAX_BYTES=10*1024*1024;
 const ALLOWED=ACCEPT.split(',');
 /** Client-side check that mirrors the server rules, so the message appears before anything is sent. */
-export const fileProblem=(f:File)=>!ALLOWED.includes(f.type)?'Only PDF, PNG, JPEG or WebP files are allowed.':f.size>MAX_BYTES?'Files may be at most 10 MB.':'';
+export const fileProblem=(f:File)=>!ALLOWED.includes(f.type)?t('documents.documentList.onlyPdfPngJpeg'):f.size>MAX_BYTES?t('documents.documentList.filesMayBeAt'):'';
 const kb=(n:number)=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
 
 /** Files attached to one record (expense, vehicle, maintenance case...). Open uses a short-lived signed link; the server decides who may see or remove a file. */
@@ -36,7 +37,7 @@ export function DocumentList({targetType,targetId,title='Documents'}:{targetType
   if(!file||!orgId)return;
   const problem=fileProblem(file);if(problem){setMessage(problem);return}
   setBusy(true);setMessage('');
-  try{const form=new FormData();form.append('target_type',targetType);form.append('target_id',String(targetId));form.append('file',file);await apiUpload(`/orgs/${orgId}/documents`,form);await load();setMessage(`${file.name} uploaded.`)}
+  try{const form=new FormData();form.append('target_type',targetType);form.append('target_id',String(targetId));form.append('file',file);await apiUpload(`/orgs/${orgId}/documents`,form);await load();setMessage(t('documents.documentList.uploaded', {name: file.name}))}
   catch(e){setMessage((e as Error).message)}finally{setBusy(false);if(input.current)input.current.value=''}
  };
  const open=async(d:DocumentRow)=>{
@@ -45,21 +46,21 @@ export function DocumentList({targetType,targetId,title='Documents'}:{targetType
   catch(e){setMessage((e as Error).message)}
  };
  const remove=async(d:DocumentRow)=>{
-  if(!orgId||!window.confirm(`Remove ${d.name}? This is recorded in the audit log.`))return;
-  try{await apiRequest(`/orgs/${orgId}/documents/${d.id}`,{method:'DELETE'});await load();setMessage(`${d.name} removed.`)}
+  if(!orgId||!window.confirm(t('docs.confirmRemove',{name: d.name})))return;
+  try{await apiRequest(`/orgs/${orgId}/documents/${d.id}`,{method:'DELETE'});await load();setMessage(t('documents.documentList.removed', {name: d.name}))}
   catch(e){setMessage((e as Error).message)}
  };
 
  return <div className="doc-list">
   <div className="settlement-status"><h3 className="detail-subheading">{title}</h3>
-   <Can action="document.upload"><Button size="sm" variant="outline" disabled={busy} onClick={()=>input.current?.click()}><Paperclip size={14}/> Add file</Button></Can>
-   <input ref={input} type="file" hidden accept={ACCEPT} aria-label={`Upload to ${title}`} onChange={e=>void upload(e.target.files?.[0])}/>
+   <Can action="document.upload"><Button size="sm" variant="outline" disabled={busy} onClick={()=>input.current?.click()}><Paperclip size={14}/> {t('documents.documentList.addFile')}</Button></Can>
+   <input ref={input} type="file" hidden accept={ACCEPT} aria-label={t('docs.ariaUpload',{title})} onChange={e=>void upload(e.target.files?.[0])}/>
   </div>
   {error&&<ErrorState message={error} onRetry={()=>void load()}/>}
   {message&&<p role="status" className="note">{message}</p>}
-  {docs&&docs.length===0&&<p className="note">No files yet. PDF, PNG, JPEG or WebP, up to 10 MB.</p>}
+  {docs&&docs.length===0&&<p className="note">{t('documents.documentList.noFilesYetPdf')}</p>}
   {docs&&docs.map(d=><div key={d.id} className="doc-row"><FileText size={16}/><span><b>{d.name}</b><small>{kb(d.size)} · {d.created_at.slice(0,10)}</small></span>
-   <Button size="sm" variant="outline" onClick={()=>void open(d)} aria-label={`Open ${d.name}`}>Open</Button>
-   <Can action="document.delete"><Button size="sm" variant="outline" onClick={()=>void remove(d)} aria-label={`Remove ${d.name}`}><Trash2 size={14}/></Button></Can></div>)}
+   <Button size="sm" variant="outline" onClick={()=>void open(d)} aria-label={t('docs.ariaOpen',{name: d.name})}>{t('common.open')}</Button>
+   <Can action="document.delete"><Button size="sm" variant="outline" onClick={()=>void remove(d)} aria-label={t('docs.ariaRemove',{name: d.name})}><Trash2 size={14}/></Button></Can></div>)}
  </div>;
 }

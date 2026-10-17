@@ -11,17 +11,19 @@ import {ErrorState} from '@/components/shared/error-state';
 import {Money} from '@/components/shared/money';
 import {SectionHeading} from '@/components/shared/section-heading';
 import type {DownloadTable} from '@/lib/downloads';
+import {t} from '@/lib/copy';
+import {HelpTip} from '@/components/shared/help-tip';
 
 type Side={opening:{due:string};movements:Record<string,string>;closing:{due:string;bill_state:BillState}};
 type RangeStatementData={from:string;to:string;customer:Side;owner:Side;driver:Side;operator:{accrual_margin:string;recorded_cash_movement:string;operator_borne_costs:string}};
 
 /** Which movement lines each side shows, with a sign: money that raises the balance is positive, money that lowers it negative. */
 const LINES:Record<'customer'|'owner'|'driver',[string,string,1|-1][]>={
- customer:[['billed','Billed (rent and charges)',1],['received','Received',-1],['carried_forward','Carried forward',-1]],
- owner:[['gross','Gross rent',1],['offsets','Offsets for costs paid',-1],['paid','Paid out',-1],['carried_forward','Carried forward',-1]],
- driver:[['earned','Salary earned',1],['paid','Paid (including advances)',-1],['carried_forward','Carried forward',-1]],
+ customer:[['billed',t('range.customer.billed'),1],['received',t('range.customer.received'),-1],['carried_forward',t('range.customer.carried'),-1]],
+ owner:[['gross',t('range.owner.gross'),1],['offsets',t('range.owner.offsets'),-1],['paid',t('range.owner.paid'),-1],['carried_forward',t('range.customer.carried'),-1]],
+ driver:[['earned',t('range.driver.earned'),1],['paid',t('range.driver.paid'),-1],['carried_forward',t('range.customer.carried'),-1]],
 };
-const TITLE={customer:'Customer',owner:'Owner',driver:'Driver'} as const;
+const TITLE={get customer(){return t('range.side.customer')},get owner(){return t('range.side.owner')},get driver(){return t('range.side.driver')}} as const;
 const num=(v?:string)=>Number(v||0);
 
 /** One agreement over exactly the picker's dates: the opening balance, every movement in the range, and the closing balance (GET /agreements/{id}/statement?from&to).
@@ -43,27 +45,27 @@ export function RangeStatement({agreementPk,agreementLabel,hasDriver}:{agreement
   if(!data)return null;
   const rows:(string|number)[][]=[];
   for(const s of sides){
-   rows.push([TITLE[s],'Opening balance',num(data[s].opening.due)]);
+   rows.push([TITLE[s],t('range.opening'),num(data[s].opening.due)]);
    for(const [k,l,sign] of LINES[s])rows.push([TITLE[s],l,sign*num(data[s].movements[k])]);
-   rows.push([TITLE[s],'Closing balance',num(data[s].closing.due)]);
+   rows.push([TITLE[s],t('range.closing'),num(data[s].closing.due)]);
   }
-  rows.push(['Operator','Accrual margin',num(data.operator.accrual_margin)],['Operator','Net cash movement',num(data.operator.recorded_cash_movement)]);
-  return {title:`Statement ${agreementLabel}`,scope:`${agreementLabel}; ${range.from} to ${range.to}`,columns:['Side','Item','Amount BDT'],rows};
+  rows.push([t('range.side.operator'),t('range.profit'),num(data.operator.accrual_margin)],[t('range.side.operator'),t('range.netCash'),num(data.operator.recorded_cash_movement)]);
+  return {title: t('billing.rangeStatement.statement', {agreementLabel}),scope:t('range.scope',{agreement: agreementLabel, from: range.from, to: range.to}),columns:[t('range.colSide'),t('range.colItem'),t('range.colAmount')],rows};
  },[data,sides.join(),agreementLabel,range.from,range.to]);  // eslint-disable-line react-hooks/exhaustive-deps
 
  return <Card>
-  <SectionHeading title={`Statement for ${label}`} subtitle="The balance when the period starts, everything that moved inside it, and the balance when it ends. Rent accrues only for the days in the period."/>
+  <SectionHeading title={t('range.statementFor',{label})} subtitle={t('billing.rangeStatement.theBalanceWhenThe')}/>
   {error&&<ErrorState message={error}/>}
-  {!data&&!error&&<p className="note">Working out the statement...</p>}
+  {!data&&!error&&<p className="note">{t('billing.rangeStatement.workingOutTheStatement')}</p>}
   {data&&table&&<>
    <div className="billing-toolbar"><span/><DownloadButtons table={table} stem={`${agreementLabel}-statement-${range.from}_${range.to}`}/></div>
-   <div className="billing-ledger" aria-label="Statement for the chosen dates">
+   <div className="billing-ledger" aria-label={t('billing.rangeStatement.statementForTheChosen')}>
     {sides.map(s=><div key={s}><h3 className="detail-subheading">{TITLE[s]}</h3>
-     <p><span>Opening balance</span><b><Money value={num(data[s].opening.due)} signed/></b></p>
+     <p><span>{t('common.openingBalance')}<HelpTip tip="tip.balanceStart"/></span><b><Money value={num(data[s].opening.due)} signed/></b></p>
      {LINES[s].map(([k,l,sign])=><p key={k}><span>{l}</span><b><Money value={sign*num(data[s].movements[k])} signed/></b></p>)}
-     <p className="total"><span>Closing balance <BillStateChip state={data[s].closing.bill_state}/></span><b><Money value={num(data[s].closing.due)} signed state={data[s].closing.bill_state}/></b></p></div>)}
+     <p className="total"><span>{t('billing.rangeStatement.closingBalance')}<HelpTip tip="tip.balanceEnd"/> <BillStateChip state={data[s].closing.bill_state}/></span><b><Money value={num(data[s].closing.due)} signed state={data[s].closing.bill_state}/></b></p></div>)}
    </div>
-   <p className="note">Operator over these dates: accrual margin <b><Money value={num(data.operator.accrual_margin)} signed/></b> · net cash <b><Money value={num(data.operator.recorded_cash_movement)} signed/></b>.</p>
+   <p className="note">{t('billing.rangeStatement.operatorOverTheseDates')} <b><Money value={num(data.operator.accrual_margin)} signed/></b> {t('billing.rangeStatement.netCash')} <b><Money value={num(data.operator.recorded_cash_movement)} signed/></b>.</p>
   </>}
  </Card>;
 }

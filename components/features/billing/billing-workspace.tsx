@@ -20,9 +20,14 @@ import {SplitPaymentDialog} from './split-payment-dialog';
 import {invoiceLabel,invoiceTone,type Charge,type Invoice,type Ledger} from './types';
 import {Can} from '@/lib/roles';
 import type {BillState} from '@/lib/bill-state';
+import {t,tn,fmtNumber} from '@/lib/copy';
+import {HelpTip} from '@/components/shared/help-tip';
+import {fmtDay} from '@/lib/format';
+import {accountLabel,sourceLabel} from '@/lib/copy/labels';
 
-const sideLabel:Record<string,string>={customer:'Customer',owner:'Owner',driver:'Driver'};
-const kindLabel:Record<string,string>={charge:'Charge',credit:'Credit',adjustment:'Adjustment',reimbursement:'Reimbursement',opening_balance:'Opening balance',overtime:'Overtime',absence_deduction:'Absence deduction',fine:'Fine'};
+
+const sideLabel:Record<string,string>={get customer(){return t('billing.side.customer')},get owner(){return t('billing.side.owner')},get driver(){return t('billing.side.driver')}};
+const kindLabel:Record<string,string>={get charge(){return t('billing.kind.charge')},get credit(){return t('billing.kind.credit')},get adjustment(){return t('billing.kind.adjustment')},get reimbursement(){return t('billing.kind.reimbursement')},get opening_balance(){return t('common.openingBalance')},get overtime(){return t('billing.kind.overtime')},get absence_deduction(){return t('billing.billingWorkspace.absenceDeduction')},get fine(){return t('billing.kind.fine')}};
 
 /** API mode: charges, credits, adjustments, the period ledger, carry-forward, invoices and split payments for one agreement's month. */
 export function BillingWorkspace(){
@@ -59,77 +64,77 @@ export function BillingWorkspace(){
   setBusy(true);setMessage('');
   try{
    const posted:Charge[]=await livePost(backend.orgId,`/periods/${periodId}/carry-forward`,{});
-   await changed(posted.length?`Brought forward ${posted.length/2} balance${posted.length>2?'s':''} from the previous month as opening balances.`:'Nothing to carry forward: the previous month has no balance left, or it was already carried.');
+   await changed(posted.length?tn('billing.moved',posted.length/2):t('billing.billingWorkspace.nothingToCarryForward'));
   }catch(e){setMessage((e as Error).message)}finally{setBusy(false)}
  };
 
  const voidInvoice=async(inv:Invoice)=>{
   if(!backend)return;
-  const reason=window.prompt(`Void ${inv.number}? Give the reason (kept in the audit log).`);
+  const reason=window.prompt(t('billing.voidPrompt',{number: inv.number}));
   if(!reason?.trim())return;
   setBusy(true);setMessage('');
-  try{await livePost(backend.orgId,`/invoices/${inv.id}/void`,{reason:reason.trim()});await changed(`${inv.number} voided.`)}
+  try{await livePost(backend.orgId,`/invoices/${inv.id}/void`,{reason:reason.trim()});await changed(t('billing.voided',{number: inv.number}))}
   catch(e){setMessage((e as Error).message)}finally{setBusy(false)}
  };
 
  const invoicePdf=(inv:Invoice)=>{
-  const t:DownloadTable={title:`Invoice ${inv.number}`,scope:`Customer: ${current?.customer}; Vehicle: ${current?.vehicle} ${current?.registration}; Issued ${inv.issue_date}; due ${inv.due_date}; status ${invoiceLabel[inv.status]}`,columns:['Description','Amount BDT'],rows:[...inv.lines.map(l=>[l.description,Number(l.amount)]),['Paid so far',Number(inv.paid)],['Outstanding',Number(inv.outstanding)]],totals:['Invoice total',Number(inv.amount)]};
-  printPdf(t,`rentflow-${inv.number}`);
+  const table:DownloadTable={title: t('billing.billingWorkspace.invoice', {number: inv.number}),scope:t('billing.scope',{customer: current?.customer, car: current?.vehicle+' '+current?.registration, issued: fmtDay(inv.issue_date), due: fmtDay(inv.due_date), status: invoiceLabel[inv.status]}),columns:[t('billing.col.description'),t('billing.col.amount')],rows:[...inv.lines.map(l=>[l.description,Number(l.amount)]),[t('billing.row.paidSoFar'),Number(inv.paid)],[t('billing.row.outstanding'),Number(inv.outstanding)]],totals:[t('billing.row.total'),Number(inv.amount)]};
+  printPdf(table,`rentflow-${inv.number}`);
  };
 
- if(!current||!backend)return <Card><SectionHeading title="Charges, invoices and ledger" subtitle="Issue the month for an agreement to use these tools."/><EmptyState title="No issued period yet"/></Card>;
+ if(!current||!backend)return <Card><SectionHeading title={t('common.chargesInvoicesAndLedger')} subtitle={t('billing.billingWorkspace.issueTheMonthFor')}/><EmptyState title={t('billing.billingWorkspace.noIssuedPeriodYet')}/></Card>;
 
  const stmt=ledger?.statement;
  const num=(v?:string)=>Number(v||0);
  const stateOf=(side:{bill_state?:BillState}|undefined)=>side?.bill_state;
  return <>
   <Card>
-   <SectionHeading title="Charges, invoices and ledger" subtitle="Extra charges, credits and adjustments, the period ledger, invoices and split payments, for one agreement at a time."/>
+   <SectionHeading title={t('common.chargesInvoicesAndLedger')} subtitle={t('billing.billingWorkspace.extraChargesCreditsAnd')}/>
    <div className="billing-toolbar">
-    <label>Agreement
+    <label>{t('common.agreement2')}
      <Select value={current.id} onValueChange={setAgreementId}>
-      <SelectTrigger aria-label="Agreement"><SelectValue/></SelectTrigger>
+      <SelectTrigger aria-label={t('common.agreement')}><SelectValue/></SelectTrigger>
       <SelectContent>{options.map(a=><SelectItem key={a.id} value={a.id}>{a.id} · {a.vehicle} · {a.customer}</SelectItem>)}</SelectContent>
      </Select>
     </label>
     <div className="settlement-buttons">
      <Can action="finance">
-     <Button disabled={closed} onClick={()=>setDialog('charge')}><Plus size={16}/> Add charge or credit</Button>
-     <Button variant="outline" disabled={closed} onClick={()=>setDialog('split')}><Split size={16}/> Split a payment</Button>
-     <Button variant="outline" onClick={()=>setDialog('invoice')}><FilePlus2 size={16}/> Invoice</Button>
-     <Button variant="outline" disabled={busy||closed} onClick={()=>void carryForward()}><Landmark size={16}/> Bring balance forward</Button>
+     <Button disabled={closed} onClick={()=>setDialog('charge')}><Plus size={16}/> {t('billing.billingWorkspace.addChargeOrCredit')}</Button>
+     <Button variant="outline" disabled={closed} onClick={()=>setDialog('split')}><Split size={16}/> {t('billing.billingWorkspace.splitAPayment')}</Button>
+     <Button variant="outline" onClick={()=>setDialog('invoice')}><FilePlus2 size={16}/> {t('billing.billingWorkspace.invoice2')}</Button>
+     <Button variant="outline" disabled={busy||closed} onClick={()=>void carryForward()}><Landmark size={16}/> {t('billing.billingWorkspace.bringBalanceForward')}</Button>
      </Can>
     </div>
    </div>
-   {closed&&<p className="note">This month is closed. New charges and payments are refused; bring the balance forward into the next month instead.</p>}
+   {closed&&<p className="note">{t('billing.closedNote')}</p>}
    {message&&<p role="status" className="note">{message}</p>}
    {error&&<ErrorState message={error} onRetry={()=>void load()}/>}
-   {!error&&!stmt&&<p className="note">Loading the ledger...</p>}
+   {!error&&!stmt&&<p className="note">{t('billing.billingWorkspace.loadingTheLedger')}</p>}
    {stmt&&<>
     <div className="billing-ledger">
-     <div><h3 className="detail-subheading">Customer</h3>
-      <p><span>Billed</span><b><Money value={num(stmt.customer.billed)}/></b></p>
-      <p><span>Received</span><b><Money value={num(stmt.customer.received)}/></b></p>
-      <p><span>Carried forward</span><b><Money value={num(stmt.customer.carried_forward)}/></b></p>
-      <p className="total"><span>Due</span><b><Money value={num(stmt.customer.due)} signed state={stateOf(stmt.customer)}/></b></p></div>
-     <div><h3 className="detail-subheading">Owner</h3>
-      <p><span>Gross rent</span><b><Money value={num(stmt.owner.gross)}/></b></p>
-      <p><span>Offsets</span><b><Money value={num(stmt.owner.offsets)}/></b></p>
-      <p><span>Paid</span><b><Money value={num(stmt.owner.paid)}/></b></p>
-      <p className="total"><span>Due</span><b><Money value={num(stmt.owner.due)} signed state={stateOf(stmt.owner)}/></b></p></div>
+     <div><h3 className="detail-subheading">{t('common.customer')}</h3>
+      <p><span>{t('billing.billingWorkspace.billed')}</span><b><Money value={num(stmt.customer.billed)}/></b></p>
+      <p><span>{t('common.received')}</span><b><Money value={num(stmt.customer.received)}/></b></p>
+      <p><span>{t('billing.billingWorkspace.carriedForward')}</span><b><Money value={num(stmt.customer.carried_forward)}/></b></p>
+      <p className="total"><span>{t('common.due')}</span><b><Money value={num(stmt.customer.due)} signed state={stateOf(stmt.customer)}/></b></p></div>
+     <div><h3 className="detail-subheading">{t('common.owner')}</h3>
+      <p><span>{t('billing.billingWorkspace.grossRent')}</span><b><Money value={num(stmt.owner.gross)}/></b></p>
+      <p><span>{t('common.offsets')}</span><b><Money value={num(stmt.owner.offsets)}/></b></p>
+      <p><span>{t('common.paid')}</span><b><Money value={num(stmt.owner.paid)}/></b></p>
+      <p className="total"><span>{t('common.due')}</span><b><Money value={num(stmt.owner.due)} signed state={stateOf(stmt.owner)}/></b></p></div>
      {current.noDriver
-      ?<div><h3 className="detail-subheading">Driver</h3><p className="note">No driver on this agreement. A driver, if any, works under a separate driver agreement.</p></div>
-      :<div><h3 className="detail-subheading">Driver</h3>
-      <p><span>Salary earned</span><b><Money value={num(stmt.driver.earned)}/></b></p>
-      <p><span>Advance</span><b><Money value={num(stmt.driver.advance)}/></b></p>
-      <p><span>Salary paid (excl. advance)</span><b><Money value={num(stmt.driver.paid)-num(stmt.driver.advance)}/></b></p>
-      <p className="total"><span>Due</span><b><Money value={num(stmt.driver.due)} signed state={stateOf(stmt.driver)}/></b></p></div>}
+      ?<div><h3 className="detail-subheading">{t('common.driver')}</h3><p className="note">{t('billing.billingWorkspace.noDriverOnThis')}</p></div>
+      :<div><h3 className="detail-subheading">{t('common.driver')}</h3>
+      <p><span>{t('common.salaryEarned')}</span><b><Money value={num(stmt.driver.earned)}/></b></p>
+      <p><span>{t('common.advance')}</span><b><Money value={num(stmt.driver.advance)}/></b></p>
+      <p><span>{t('billing.billingWorkspace.salaryPaidExclAdvance')}</span><b><Money value={num(stmt.driver.paid)-num(stmt.driver.advance)}/></b></p>
+      <p className="total"><span>{t('common.due')}</span><b><Money value={num(stmt.driver.due)} signed state={stateOf(stmt.driver)}/></b></p></div>}
     </div>
-    <p className={'reconcile '+(ledger.reconciles?'ok':'bad')} role="status">{ledger.reconciles?<><CheckCircle2 size={14}/> The ledger agrees with the obligations for this month.</>:<><CircleAlert size={14}/> The ledger and the obligations disagree for this month. Do not close it; contact support.</>}</p>
-    <button type="button" className="text-button" aria-expanded={showLines} onClick={()=>setShowLines(v=>!v)}>{showLines?'Hide':'Show'} ledger lines ({ledger.lines.length})</button>
-    {showLines&&<div className="billing-lines" role="table" aria-label="Ledger lines">
-     <div role="row" className="head"><span>Entry</span><span>Source</span><span>Account</span><span>Debit</span><span>Credit</span></div>
-     {ledger.lines.map((l,i)=><div role="row" key={i}><span>#{l.entry_id}</span><span>{l.source_type.replace(/_/g,' ')} {l.source_id}</span><span>{l.account.replace(/_/g,' ').toLowerCase()}</span><b className="nums"><Money value={num(l.debit)}/></b><b className="nums"><Money value={num(l.credit)}/></b></div>)}
+    <p className={'reconcile '+(ledger.reconciles?'ok':'bad')} role="status">{ledger.reconciles?<><CheckCircle2 size={14}/> {t('billing.billingWorkspace.theLedgerAgreesWith')}</>:<><CircleAlert size={14}/> {t('billing.noMatch')}</>}</p>
+    <HelpTip tip="tip.accountRecord"/><button type="button" className="text-button" aria-expanded={showLines} onClick={()=>setShowLines(v=>!v)}>{showLines?t('billing.hideLines',{count: ledger.lines.length}):t('billing.showLines',{count: ledger.lines.length})}</button>
+    {showLines&&<div className="billing-lines" role="table" aria-label={t('billing.billingWorkspace.ledgerLines')}>
+     <div role="row" className="head"><span>{t('billing.billingWorkspace.entry')}</span><span>{t('common.source')}</span><span>{t('billing.billingWorkspace.account')}</span><span>{t('billing.billingWorkspace.debit')}</span><span>{t('billing.billingWorkspace.credit')}</span></div>
+     {ledger.lines.map((l,i)=><div role="row" key={i}><span>#{l.entry_id}</span><span>{sourceLabel(l.source_type)} {l.source_id}</span><span>{accountLabel(l.account)}</span><b className="nums"><Money value={num(l.debit)}/></b><b className="nums"><Money value={num(l.credit)}/></b></div>)}
     </div>}
    </>}
   </Card>
@@ -137,20 +142,20 @@ export function BillingWorkspace(){
   <RangeStatement agreementPk={Number(current.id.replace('AGR-',''))} agreementLabel={current.id} hasDriver={!current.noDriver}/>
 
   <Card>
-   <SectionHeading title="Invoices" subtitle="Status is worked out from payments applied: issued, partly paid, paid, overdue or void."/>
-   {invoices.length===0?<EmptyState title="No invoices for this month yet" description="Use Invoice to preview and issue one."/>:<div className="billing-table" role="table" aria-label="Invoices">
-    <div role="row" className="head"><span>Number</span><span>Due date</span><span>Amount</span><span>Paid</span><span>Outstanding</span><span>Status</span><span/></div>
-    {invoices.map(inv=><div role="row" key={inv.id}><span><b>{inv.number}</b></span><span>{inv.due_date}</span><b className="nums"><Money value={num(inv.amount)}/></b><b className="nums"><Money value={num(inv.paid)}/></b><b className="nums"><Money value={num(inv.outstanding)} state={inv.bill_state}/></b>
+   <SectionHeading title={t('billing.billingWorkspace.invoices')} subtitle={t('billing.billingWorkspace.statusIsWorkedOut')}/>
+   {invoices.length===0?<EmptyState title={t('billing.billingWorkspace.noInvoicesForThis')} description={t('billing.billingWorkspace.useInvoiceToPreview')}/>:<div className="billing-table" role="table" aria-label={t('billing.billingWorkspace.invoices')}>
+    <div role="row" className="head"><span>{t('billing.billingWorkspace.number')}</span><span>{t('billing.billingWorkspace.dueDate')}</span><span>{t('common.amount')}</span><span>{t('common.paid')}</span><span>{t('common.outstanding')}</span><span>{t('common.status')}</span><span/></div>
+    {invoices.map(inv=><div role="row" key={inv.id}><span><b>{inv.number}</b></span><span>{fmtDay(inv.due_date)}</span><b className="nums"><Money value={num(inv.amount)}/></b><b className="nums"><Money value={num(inv.paid)}/></b><b className="nums"><Money value={num(inv.outstanding)} state={inv.bill_state}/></b>
      <span><Badge tone={invoiceTone[inv.status]}>{invoiceLabel[inv.status]}</Badge></span>
-     <span className="row-actions"><Button size="sm" variant="outline" onClick={()=>invoicePdf(inv)} aria-label={`PDF for ${inv.number}`}>PDF</Button>{inv.status!=='void'&&num(inv.paid)===0&&<Button size="sm" variant="outline" disabled={busy} onClick={()=>void voidInvoice(inv)} aria-label={`Void ${inv.number}`}>Void</Button>}</span></div>)}
+     <span className="row-actions"><Button size="sm" variant="outline" onClick={()=>invoicePdf(inv)} aria-label={t('billing.ariaPdf',{number: inv.number})}>{t('billing.billingWorkspace.pdf')}</Button>{inv.status!=='void'&&num(inv.paid)===0&&<Button size="sm" variant="outline" disabled={busy} onClick={()=>void voidInvoice(inv)} aria-label={t('billing.ariaVoid',{number: inv.number})}>{t('billing.billingWorkspace.void')}</Button>}</span></div>)}
    </div>}
   </Card>
 
   <Card>
-   <SectionHeading title="Charges, credits and adjustments" subtitle="Each one is a permanent ledger entry; correct a mistake with an opposite entry, never an edit."/>
-   {charges.length===0?<EmptyState title="No extra charges this month"/>:<div className="billing-table charges" role="table" aria-label="Charges">
-    <div role="row" className="head"><span>Kind</span><span>For</span><span>Effect</span><span>Amount</span><span>Note</span></div>
-    {charges.map(c=><div role="row" key={c.id}><span>{kindLabel[c.kind]||c.kind}</span><span>{sideLabel[c.side]}</span><span>{c.direction==='increase'?'Increases balance':'Reduces balance'}</span><b className="nums"><Money value={Number(c.amount)}/></b><span>{c.description||c.reference||'-'}{c.quantity&&c.unit_rate?` (${Number(c.quantity)} x ${Number(c.unit_rate).toLocaleString('en-BD')})`:''}</span></div>)}
+   <SectionHeading title={t('billing.billingWorkspace.chargesCreditsAndAdjustments')} subtitle={t('billing.billingWorkspace.eachOneIsA')}/>
+   {charges.length===0?<EmptyState title={t('billing.billingWorkspace.noExtraChargesThis')}/>:<div className="billing-table charges" role="table" aria-label={t('billing.billingWorkspace.charges')}>
+    <div role="row" className="head"><span>{t('billing.billingWorkspace.kind')}</span><span>{t('billing.billingWorkspace.for')}</span><span>{t('common.effect')}</span><span>{t('common.amount')}</span><span>{t('billing.billingWorkspace.note')}</span></div>
+    {charges.map(c=><div role="row" key={c.id}><span>{kindLabel[c.kind]||c.kind}</span><span>{sideLabel[c.side]}</span><span>{c.direction==='increase'?t('billing.billingWorkspace.increasesBalance'):t('billing.billingWorkspace.reducesBalance')}</span><b className="nums"><Money value={Number(c.amount)}/></b><span>{c.description||c.reference||'-'}{c.quantity&&c.unit_rate?t('billing.chargeQty',{quantity: Number(c.quantity), rate: fmtNumber(Number(c.unit_rate))}):''}</span></div>)}
    </div>}
   </Card>
 

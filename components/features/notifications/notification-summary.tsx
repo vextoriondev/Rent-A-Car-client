@@ -1,4 +1,5 @@
 import type {Notice} from '@/lib/demo';
+import {t,localizeDigits} from '@/lib/copy';
 
 /** Counts shown above the notification list. Delivery state is independent of whether the entry itself was posted. */
 export function notificationCounts(notices:Notice[]){
@@ -12,10 +13,10 @@ export function notificationCounts(notices:Notice[]){
 
 export function NotificationSummary({notices}:{notices:Notice[]}){
  const c=notificationCounts(notices);
- return <div className="mini-metrics notice-metrics" aria-label="Notification summary">
-  <div className="card"><span>Queued</span><strong>{c.queued}</strong></div>
-  <div className="card"><span>Delivered</span><strong>{c.delivered}</strong></div>
-  <div className="card"><span>Failed</span><strong>{c.failed}</strong></div>
-  <div className="card"><span>Unread</span><strong>{c.unread}</strong></div>
+ return <div className="mini-metrics notice-metrics" aria-label={t('notifications.notificationSummary.notificationSummary')}>
+  <div className="card"><span>{t('notifications.notificationSummary.queued')}</span><strong>{localizeDigits(c.queued)}</strong></div>
+  <div className="card"><span>{t('notifications.notificationSummary.delivered')}</span><strong>{localizeDigits(c.delivered)}</strong></div>
+  <div className="card"><span>{t('notifications.notificationSummary.failed')}</span><strong>{localizeDigits(c.failed)}</strong></div>
+  <div className="card"><span>{t('notifications.notificationSummary.unread')}</span><strong>{localizeDigits(c.unread)}</strong></div>
  </div>;
 }

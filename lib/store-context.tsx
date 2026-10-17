@@ -9,9 +9,10 @@ import {useBranch} from './branch';
 import {buildSchedule} from './schedule';
 import {monthLabel} from './clock';
 import {expenseCategoryCodes,type AgreementFormValues,type EntryFormValues} from './forms';
+import {t} from '@/lib/copy';
 
 interface RentflowContextValue{
- store:Store;ready:boolean;apiError:string;apiBusy:boolean;toast:string;setToast:(v:string)=>void;
+ store:Store;ready:boolean;apiError:string;/** The server's message code of the last failed entry (for example `possible_duplicate`), so a screen reacts to the code and never to the wording. */lastErrorCode:{current:string};apiBusy:boolean;toast:string;setToast:(v:string)=>void;
  selected:string|null;setSelected:(id:string|null)=>void;
  entryOpen:boolean;setEntryOpen:(v:boolean)=>void;
  agreementOpen:boolean;setAgreementOpen:(v:boolean)=>void;
@@ -54,6 +55,7 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
  const [selected,setSelected]=useSelected();
  const {range,lastMonth}=usePeriod();
  const branch=useBranch();
+ const lastErrorCode=useRef('');
  const liveArgs=useRef({month:lastMonth,range});liveArgs.current={month:lastMonth,range};
  const [entryOpen,setEntryOpen]=useState(false);
  const [agreementOpen,setAgreementOpen]=useState(false);
@@ -86,30 +88,30 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
   const amount=Math.round(Number(v.amount));
   const entryType=v.type;
   const repeated=store.entries.some(e=>e.status!=='Reversed'&&v.reference.trim()&&e.reference.toLowerCase()===v.reference.trim().toLowerCase());
-  if(!chosen)return 'Choose an agreement.';
+  if(!chosen)return t('storeContext.chooseAnAgreement');
   // In API mode the server decides closed periods (late entry), duplicates (with a reason) and balances.
-  if(!apiMode&&store.closed.includes(chosen.id))return 'This agreement is closed for September. Reopen policy is not enabled in this demo.';
-  if(!apiMode&&repeated)return 'This reference is already recorded. Check the existing entry before submitting.';
-  if(!apiMode&&entryType==='Customer payment'&&amount>statement(chosen,store.entries).customerDue)return 'Payment exceeds the open rent balance in this demo.';
-  if(!apiMode&&entryType==='Owner payout'&&amount>statement(chosen,store.entries).ownerDue)return 'Payout exceeds the current owner balance.';
-  if(!apiMode&&(entryType==='Driver payout'||entryType==='Salary advance')&&amount>statement(chosen,store.entries).driverDue)return 'Amount exceeds the current driver balance.';
+  if(!apiMode&&store.closed.includes(chosen.id))return t('storeContext.thisAgreementIsClosed');
+  if(!apiMode&&repeated)return t('storeContext.thisReferenceIsAlready');
+  if(!apiMode&&entryType==='Customer payment'&&amount>statement(chosen,store.entries).customerDue)return t('storeContext.paymentExceedsTheOpen');
+  if(!apiMode&&entryType==='Owner payout'&&amount>statement(chosen,store.entries).ownerDue)return t('storeContext.payoutExceedsTheCurrent');
+  if(!apiMode&&(entryType==='Driver payout'||entryType==='Salary advance')&&amount>statement(chosen,store.entries).driverDue)return t('storeContext.amountExceedsTheCurrent');
   if(apiMode){
    const backend=store.backend;
-   if(!backend)return 'The backend is not connected. Sign in and reload.';
+   if(!backend)return t('storeContext.theBackendIsNot');
    const periodId=backend.periodIds[chosen.id];const ob=backend.obligationIds[chosen.id];
-   if(!periodId||!ob)return 'Issue the month for this agreement before recording an entry.';
+   if(!periodId||!ob)return t('storeContext.issueTheMonthFor');
    setApiBusy(true);
    let uploadNote='';
    try{
     if(entryType==='Expense'){
      const category=expenseCategoryCodes[v.category]??(/^[a-z0-9_]+$/.test(v.category)?v.category:'');
-     if(!category)throw new Error('Choose a supported expense category.');
+     if(!category)throw new Error(t('storeContext.chooseACategoryFrom'));
      const saved=await livePost(backend.orgId,'/expenses',{period_id:periodId,category,amount:String(amount),event_date:v.date,paid_by:v.payer.toLowerCase(),responsible:v.liable.toLowerCase(),offset_owner:v.offset&&chosen.rules.offset&&v.payer==='Operator'&&v.liable==='Owner',reference:v.reference,description:v.description,draft:!!opts?.draft||!!opts?.file,receipt_reference:v.receiptRef.trim(),override_reason:v.overrideReason.trim(),allow_duplicate_reason:v.duplicateReason.trim(),late_entry:v.lateEntry,...(opts?.maintenanceCaseId?{maintenance_case_id:opts.maintenanceCaseId}:{})},entryKey);
      if(opts?.file){
       // A file counts as proof only once it is attached, so the entry is held as a draft, the file is uploaded, and then it is submitted.
       try{const form=new FormData();form.append('target_type','expense');form.append('target_id',String(saved.id));form.append('file',opts.file);await apiUpload(`/orgs/${backend.orgId}/documents`,form)}
-      catch(e){uploadNote=` The entry is kept as a draft because the receipt file was not uploaded: ${(e as Error).message} Add it from the entry, then submit.`}
-      if(!opts.draft&&!uploadNote){try{await livePost(backend.orgId,`/expenses/${saved.id}/submit`,{})}catch(e){uploadNote=` The receipt is attached but the entry stayed a draft: ${(e as Error).message}`}}
+      catch(e){uploadNote=t('storeContext.weKeptTheEntry', {value: (e as Error).message})}
+      if(!opts.draft&&!uploadNote){try{await livePost(backend.orgId,`/expenses/${saved.id}/submit`,{})}catch(e){uploadNote=t('storeContext.theReceiptIsAttached', {value: (e as Error).message})}}
      }
     }else{
      const kinds:{[key:string]:string}={'Customer payment':'customer_payment','Owner payout':'owner_payout','Driver payout':'driver_payout','Salary advance':'salary_advance'};
@@ -120,21 +122,21 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
     const next=await refreshLive();
     setEntryOpen(false);
     setSelected(next.entries.find(x=>x.reference===v.reference)?.id||null);
-    setToast((opts?.draft?'Draft saved. Submit it from the entry when it is ready; balances are unchanged until then.':'Entry saved to the Django backend. Message delivery remains queued.')+uploadNote);
+    setToast((opts?.draft?t('storeContext.draftSavedSubmitIt'):t('storeContext.entrySavedToThe'))+uploadNote);
     return null;
-   }catch(e){return (e as Error).message}
+   }catch(e){lastErrorCode.current=e instanceof ApiError?e.code:'';return (e as Error).message}
    finally{setApiBusy(false)}
   }
   const item:Entry={id:'ENT-'+(2401+store.entries.length),agreementId:chosen.id,type:entryType,amount,date:v.date,category:v.category,paidBy:entryType==='Customer payment'?chosen.customer:v.payer,responsible:entryType==='Expense'?v.liable:'Operator',reference:v.reference.trim(),description:v.description.trim()||v.category+' · '+chosen.vehicle,status:entryType==='Expense'&&amount>=5000?'Pending approval':'Posted',offset:entryType==='Expense'&&v.liable==='Owner'&&v.payer==='Operator'&&v.offset&&chosen.rules.offset,receipt:v.receipt||undefined};
-  setStore(s=>({...s,entries:[item,...s.entries],notices:[{id:'NT-'+Date.now(),title:item.status==='Posted'?'Entry recorded':'Expense awaiting approval',detail:item.id+' · '+chosen.vehicle,date:v.date,status:'Queued',read:false,recipient:entryType==='Customer payment'?'Customer billing contact':entryType==='Expense'?v.liable:'Affected party'},...s.notices]}));
+  setStore(s=>({...s,entries:[item,...s.entries],notices:[{id:'NT-'+Date.now(),title:item.status==='Posted'?t('storeContext.entryRecorded'):t('storeContext.expenseAwaitingApproval'),detail:item.id+' · '+chosen.vehicle,date:v.date,status:'Queued',read:false,recipient:entryType==='Customer payment'?t('storeContext.customerBillingContact'):entryType==='Expense'?v.liable:t('storeContext.affectedParty')},...s.notices]}));
   setEntryOpen(false);setSelected(item.id);
-  setToast(item.status==='Posted'?`${item.id} posted in this demo. Message queued.`:`${item.id} saved for approval. Balances unchanged.`);
+  setToast(item.status==='Posted'?t('storeContext.isRecordedAMessage', {id: item.id}):t('storeContext.isWaitingForApproval', {id: item.id}));
   return null;
  };
 
  const approve=(id:string)=>{
   if(apiMode){const backend=store.backend;const expenseId=backend?.expenseIds[id];if(!backend||!expenseId)return;void livePost(backend.orgId,`/expenses/${expenseId}/approve`,{}).then(refreshLive).then(()=>{setSelected(null);setToast(id+' approved.')}).catch(e=>setToast(e.message));return}
-  setStore(s=>({...s,entries:s.entries.map(e=>e.id===id?{...e,status:'Posted'}:e)}));setToast(id+' approved and reflected in balances.');setSelected(null);
+  setStore(s=>({...s,entries:s.entries.map(e=>e.id===id?{...e,status:'Posted'}:e)}));setToast(t('storeContext.approved', {id}));setSelected(null);
  };
 
  const submitDraft=(id:string)=>{
@@ -144,25 +146,25 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
 
  const discardDraft=(id:string)=>{
   const backend=store.backend;const expenseId=backend?.expenseIds[id];if(!apiMode||!backend||!expenseId)return;
-  if(!window.confirm('Discard this draft? Drafts have not touched any balance.'))return;
-  void apiRequest(`/orgs/${backend.orgId}/expenses/${expenseId}`,{method:'DELETE'}).then(refreshLive).then(()=>{setSelected(null);setToast(id+' discarded.')}).catch(e=>setToast(e.message));
+  if(!window.confirm(t('storeContext.throwAwayThisDraft')))return;
+  void apiRequest(`/orgs/${backend.orgId}/expenses/${expenseId}`,{method:'DELETE'}).then(refreshLive).then(()=>{setSelected(null);setToast(t('storeContext.discarded', {id}))}).catch(e=>setToast(e.message));
  };
 
  const reverse=(id:string)=>{
-  if(apiMode){const backend=store.backend;const expenseId=backend?.expenseIds[id];if(!backend||!expenseId)return;const reason=window.prompt('Correction reason: why is this posted entry being reversed? (the original stays in the history)');if(!reason?.trim())return;void livePost(backend.orgId,`/expenses/${expenseId}/reverse`,{reason:reason.trim()}).then(refreshLive).then(()=>{setSelected(null);setToast(id+' reversed.')}).catch(e=>setToast(e.message));return}
-  setStore(s=>({...s,entries:s.entries.map(e=>e.id===id?{...e,status:'Reversed'}:e)}));setToast(id+' reversed in this demo.');setSelected(null);
+  if(apiMode){const backend=store.backend;const expenseId=backend?.expenseIds[id];if(!backend||!expenseId)return;const reason=window.prompt(t('storeContext.whyAreYouCancelling'));if(!reason?.trim())return;void livePost(backend.orgId,`/expenses/${expenseId}/reverse`,{reason:reason.trim()}).then(refreshLive).then(()=>{setSelected(null);setToast(t('storeContext.reversed', {id}))}).catch(e=>setToast(e.message));return}
+  setStore(s=>({...s,entries:s.entries.map(e=>e.id===id?{...e,status:'Reversed'}:e)}));setToast(t('storeContext.reversed', {id}));setSelected(null);
  };
 
  const closeSettlement=(id:string)=>{
-  if(apiMode){const backend=store.backend;const periodId=backend?.periodIds[id];if(!backend||!periodId)return;void livePost(backend.orgId,`/periods/${periodId}/close`,{}).then(refreshLive).then(()=>{setConfirmClose(null);setToast(id+' closed in the backend.')}).catch(e=>{setConfirmClose(null);setToast(e.message)});return}
-  setStore(s=>({...s,closed:[...new Set([...s.closed,id])]}));setConfirmClose(null);setToast(id+' closed for September. This demo records the state locally.');
+  if(apiMode){const backend=store.backend;const periodId=backend?.periodIds[id];if(!backend||!periodId)return;void livePost(backend.orgId,`/periods/${periodId}/close`,{}).then(refreshLive).then(()=>{setConfirmClose(null);setToast(t('storeContext.closedLive', {id}))}).catch(e=>{setConfirmClose(null);setToast(e.message)});return}
+  setStore(s=>({...s,closed:[...new Set([...s.closed,id])]}));setConfirmClose(null);setToast(t('storeContext.closedDemo', {id}));
  };
 
  const createAgreement=async(n:AgreementFormValues):Promise<string|null>=>{
-  if(store.agreements.some(a=>a.registration.toLowerCase()===n.registration.toLowerCase()&&a.status==='Active'))return 'This registration already has an active agreement.';
+  if(store.agreements.some(a=>a.registration.toLowerCase()===n.registration.toLowerCase()&&a.status==='Active'))return t('storeContext.thisRegistrationAlreadyHas');
   if(apiMode){
    const backend=store.backend;
-   if(!backend)return 'Backend session is unavailable.';
+   if(!backend)return t('storeContext.backendSessionIsUnavailable');
    setApiBusy(true);
    try{
     const a=await livePost(backend.orgId,'/agreements/quick',{customer:n.customer,owner:n.owner,driver:n.driverProvider==='None'?'':n.driver,driver_id:n.driverProvider==='None'||!n.driverId?null:Number(n.driverId),vehicle:n.vehicle,registration:n.registration,start:n.start,end:n.end||null,rent:n.rent,rent_basis:n.rentBasis,owner_rent_basis:n.ownerRentBasis,salary_basis:n.salaryBasis,payment_schedule:buildSchedule({customer:n.customerSchedule,owner:n.ownerSchedule,driver:n.driverProvider!=='None'&&n.driverPaidBy==='Operator'?n.driverSchedule:undefined}),owner_rent:n.ownerRent,salary:n.driverProvider!=='None'&&n.driverPaidBy==='Operator'?n.salary:'0',fuel:n.fuel,repair:n.repair,offset:n.offset,driver_provider:n.driverProvider.toLowerCase(),driver_paid_by:(n.driverProvider==='None'?'Operator':n.driverPaidBy).toLowerCase(),clauses:n.clauses.trim()});
@@ -171,7 +173,7 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
     await refreshLive();
     setAgreementOpen(false);setSelected(`AGR-${a.id}`);
     const warnings:string[]=a.warnings||[];
-    setToast(`Agreement created, with ${monthLabel(firstMonth)} issued.`+(warnings.length?' Warnings: '+warnings.join(' '):''));
+    setToast(t('storeContext.agreementCreatedIsReady', {firstMonth: monthLabel(firstMonth)})+(warnings.length?t('storeContext.pleaseCheck')+warnings.join(' '):''));
     return null;
    }catch(e){return (e as Error).message}
    finally{setApiBusy(false)}
@@ -179,7 +181,7 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
   const a:Agreement={id:'AGR-'+(1042+store.agreements.length),vehicle:n.vehicle,registration:n.registration,owner:n.owner,customer:n.customer,driver:n.driverProvider==='None'?'':n.driver,noDriver:n.driverProvider==='None',rent:Number(n.rent),ownerRent:Number(n.ownerRent),salary:n.driverProvider!=='None'&&n.driverPaidBy==='Operator'?Number(n.salary):0,start:n.start,end:n.end||null,status:'Active',rules:{fuel:n.fuel,repair:n.repair,offset:n.offset}};
   setStore(s=>({...s,agreements:[...s.agreements,a]}));
   setAgreementOpen(false);setSelected(a.id);
-  setToast(a.id+' added to this demo.');
+  setToast(t('storeContext.addedDemo', {id: a.id}));
   return null;
  };
 
@@ -188,16 +190,16 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
  const markAllNoticesRead=()=>{setStore(s=>({...s,notices:s.notices.map(x=>x.read?x:{...x,read:true})}))};
 
  const retryNotice=(id:string)=>{
-  if(apiMode&&store.backend){const org=store.backend.orgId;void livePost(org,`/notifications/${id.replace('NT-','')}/retry`,{}).then(refreshLive).then(()=>{setToast('Retry queued in the backend.');setSelected(null)}).catch(e=>setToast(e.message));return}
-  setSelected(null);setToast('Retry queued in this demo.');
+  if(apiMode&&store.backend){const org=store.backend.orgId;void livePost(org,`/notifications/${id.replace('NT-','')}/retry`,{}).then(refreshLive).then(()=>{setToast(t('storeContext.weWillTryTo'));setSelected(null)}).catch(e=>setToast(e.message));return}
+  setSelected(null);setToast(t('storeContext.weWillTryTo'));
  };
 
- const resetDemo=()=>{setStore(structuredClone(seed));setToast('Demo workspace restored.')};
+ const resetDemo=()=>{setStore(structuredClone(seed));setToast(t('storeContext.theSampleDataIs'))};
 
  const signOut=()=>{if(apiMode)void logout().finally(()=>router.replace('/login'))};
 
  const value:RentflowContextValue={
-  store,ready,apiError,apiBusy,toast,setToast,
+  store,ready,apiError,apiBusy,toast,setToast,lastErrorCode,
   selected,setSelected,
   entryOpen,setEntryOpen,agreementOpen,setAgreementOpen,confirmClose,setConfirmClose,mobileMenu,setMobileMenu,
   entryInit,

@@ -13,6 +13,7 @@ import {FilterToolbar} from '@/components/shared/filter-toolbar';
 import {NotificationSummary} from '@/components/features/notifications/notification-summary';
 import {ContactPreferences} from '@/components/features/notifications/contact-preferences';
 import {Can} from '@/lib/roles';
+import {t} from '@/lib/copy';
 
 export default function NotificationsPage(){
  const rf=useRentflowStore();
@@ -29,9 +30,9 @@ export default function NotificationsPage(){
  return <div className="notice-page">
   <NotificationSummary notices={notices}/>
   <Card>
-   <SectionHeading title="Notification activity" subtitle="Delivery status is distinct from posting state." action={<Button variant="outline" disabled={unread===0} onClick={rf.markAllNoticesRead}>Mark all read</Button>}/>
-   <p className="note delivery-note"><Info size={14} aria-hidden/> {apiMode?'Messages are recorded and queued, but no SMS or email provider is connected yet, so nothing is sent until one is chosen.':'Sample data. In the live app, messages are queued until a delivery provider is connected.'}</p>
-   <FilterToolbar filters={[{param:'status',label:'Filter by delivery status',allValue:'All',options:['Queued','Delivered','Failed']},{param:'read',label:'Filter by read state',allValue:'All',options:['Unread']}]}/>
+   <SectionHeading title={t('notifications.notificationActivity')} subtitle={t('notifications.deliveryStatusIsDistinct')} action={<Button variant="outline" disabled={unread===0} onClick={rf.markAllNoticesRead}>{t('notifications.markAllRead')}</Button>}/>
+   <p className="note delivery-note"><Info size={14} aria-hidden/> {apiMode?t('notifications.messagesAreRecordedAnd'):t('notifications.sampleDataInThe')}</p>
+   <FilterToolbar filters={[{param:'status',label: t('notifications.filterByDeliveryStatus'),allValue:'All',options:[{value:'Queued',label:t('notices.status.queued')},{value:'Delivered',label:t('notices.status.delivered')},{value:'Failed',label:t('notices.status.failed')}]},{param:'read',label: t('notifications.filterByReadState'),allValue:'All',options:[{value:'Unread',label:t('notices.status.unread')}]}]}/>
    <div className="notice-list">{shown.map(n=><div className="notice-row" key={n.id}>
     <button type="button" className={'notice '+(!n.read?'unread':'')} onClick={()=>{rf.markNoticeRead(n.id);rf.setSelected(n.id)}}>
      <span className={'notice-symbol '+(n.status==='Failed'?'red':'teal')}><Bell size={18}/></span>
@@ -39,10 +40,10 @@ export default function NotificationsPage(){
      <span className="notice-end"><DeliveryStatus status={n.status}/><small>{fmtDate(n.date)}</small></span>
      <ChevronRight size={17}/>
     </button>
-    {n.status==='Failed'&&<Can action="finance"><Button variant="outline" size="sm" className="notice-retry" onClick={()=>rf.retryNotice(n.id)}><RotateCcw size={14}/> Retry</Button></Can>}
+    {n.status==='Failed'&&<Can action="finance"><Button variant="outline" size="sm" className="notice-retry" onClick={()=>rf.retryNotice(n.id)}><RotateCcw size={14}/> {t('common.retry')}</Button></Can>}
    </div>)}</div>
-   {notices.length===0&&<EmptyState title="No notifications yet."/>}
-   {notices.length>0&&shown.length===0&&<EmptyState title="No notifications match these filters."/>}
+   {notices.length===0&&<EmptyState title={t('notifications.noNotificationsYet')}/>}
+   {notices.length>0&&shown.length===0&&<EmptyState title={t('notifications.noNotificationsMatchThese')}/>}
   </Card>
   <ContactPreferences/>
  </div>;

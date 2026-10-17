@@ -11,6 +11,8 @@ import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {FilterToolbar} from '@/components/shared/filter-toolbar';
 import {EntriesLedger} from '@/components/features/entries/entries-ledger';
+import {t} from '@/lib/copy';
+import {entryStatusLabel} from '@/lib/copy/labels';
 
 export default function ExpensesPage(){
  const rf=useRentflowStore();
@@ -19,8 +21,8 @@ export default function ExpensesPage(){
  const [status]=useQueryParam('status','All');
  const entries=useMemo(()=>inPeriod.filter(e=>e.type==='Expense'&&(status==='All'||e.status===status)&&agreements.some(a=>a.id===e.agreementId)),[inPeriod,status,agreements]);
  return <Card>
-  <SectionHeading title="Expenses and maintenance" subtitle="Payer and ultimately responsible party are recorded separately." action={<div className="download-buttons"><Button variant="outline" asChild><Link href="/expenses/daily">Daily inspection</Link></Button><Button onClick={()=>rf.openEntry('Expense')}><Plus size={16}/> Record expense</Button></div>}/>
-  <FilterToolbar filters={[{param:'owner',label:'Filter by owner',allValue:ALL_OWNERS,options:owners},{param:'status',label:'Filter by status',allValue:'All',options:['Posted','Pending approval','Reversed']}]}/>
+  <SectionHeading title={t('expenses.expensesAndMaintenance')} subtitle={t('expenses.payerAndUltimatelyResponsible')} action={<div className="download-buttons"><Button variant="outline" asChild><Link href="/expenses/daily">{t('expenses.dailyInspection')}</Link></Button><Button onClick={()=>rf.openEntry('Expense')}><Plus size={16}/> {t('common.recordExpense')}</Button></div>}/>
+  <FilterToolbar filters={[{param:'owner',label: t('common.filterByOwner'),allValue:ALL_OWNERS,allLabel:t('common.allOwners'),options:owners},{param:'status',label: t('common.filterByStatus'),allValue:'All',options:['Posted','Pending approval','Reversed'].map(v=>({value:v,label:entryStatusLabel(v)}))}]}/>
   <EntriesLedger entries={entries} store={rf.store} onSelect={rf.setSelected}/>
  </Card>;
 }

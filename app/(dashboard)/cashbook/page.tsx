@@ -11,6 +11,8 @@ import {SectionHeading} from '@/components/shared/section-heading';
 import {Card} from '@/components/ui/card';
 import {FilterToolbar} from '@/components/shared/filter-toolbar';
 import {EntriesLedger} from '@/components/features/entries/entries-ledger';
+import {t} from '@/lib/copy';
+import {entryStatusLabel} from '@/lib/copy/labels';
 
 export default function CashbookPage(){
  const rf=useRentflowStore();
@@ -21,10 +23,10 @@ export default function CashbookPage(){
  const [owner]=useQueryParam('owner',ALL_OWNERS);
  const [q]=useQueryParam('q');
  const entries=useMemo(()=>inPeriod.filter(e=>(status==='All'||e.status===status)&&agreements.some(a=>a.id===e.agreementId)),[inPeriod,status,agreements]);
- const table=useMemo(()=>entriesTable(entries,scopeText([{label:'Owner',value:owner,all:ALL_OWNERS},{label:'Status',value:status,all:'All'},{label:'Search',value:q,all:''}],period.label)),[entries,owner,status,q,period.label]);
+ const table=useMemo(()=>entriesTable(entries,scopeText([{label: t('common.owner'),value:owner,all:ALL_OWNERS},{label: t('common.status'),value:status,all:'All'},{label: t('common.search'),value:q,all:''}],period.label)),[entries,owner,status,q,period.label]);
  return <Card>
-  <SectionHeading title="Cashbook and entries" subtitle="Recorded receipts, expenses, advances and payouts." action={<DownloadButtons table={table} stem={fileStem('entries',period.stem)}/>}/>
-  <FilterToolbar filters={[{param:'owner',label:'Filter by owner',allValue:ALL_OWNERS,options:owners},{param:'status',label:'Filter by status',allValue:'All',options:['Posted','Pending approval','Reversed']}]}/>
+  <SectionHeading title={t('common.cashbookAndEntries')} subtitle={t('cashbook.recordedReceiptsExpensesAdvances')} action={<DownloadButtons table={table} stem={fileStem('entries',period.stem)}/>}/>
+  <FilterToolbar filters={[{param:'owner',label: t('common.filterByOwner'),allValue:ALL_OWNERS,allLabel:t('common.allOwners'),options:owners},{param:'status',label: t('common.filterByStatus'),allValue:'All',options:['Posted','Pending approval','Reversed'].map(v=>({value:v,label:entryStatusLabel(v)}))}]}/>
   <EntriesLedger entries={entries} store={rf.store} onSelect={rf.setSelected}/>
  </Card>;
 }

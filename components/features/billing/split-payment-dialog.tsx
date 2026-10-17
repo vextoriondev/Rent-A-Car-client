@@ -7,6 +7,7 @@ import {Dialog,DialogContent,DialogDescription,DialogHeader,DialogTitle} from '@
 import {Input} from '@/components/ui/input';
 import {ErrorState} from '@/components/shared/error-state';
 import {Money} from '@/components/shared/money';
+import {t,fmtNumber} from '@/lib/copy';
 
 /** One customer payment split across several obligations of the month (rent and extra charges), each capped at what is still open (GET /periods/{id}/obligations). The server still enforces it and its message is shown as is. */
 type Target={obligation_id:number;description:string;amount:string;open_amount:string};
@@ -34,27 +35,27 @@ export function SplitPaymentDialog({open,periodId,onClose,onDone}:{open:boolean;
   setBusy(true);setError('');
   try{
    await livePost(backend.orgId,'/payments',{kind:'customer_payment',amount:String(total),reference:reference.trim(),method:'bank',event_date:date,allocations:rows.map(r=>({obligation_id:r.id,amount:String(r.part)}))},key);
-   onDone(`Payment of ৳${total.toLocaleString('en-BD')} split across ${rows.length} item${rows.length>1?'s':''}.`);
+   onDone(t('split.done',{amount: '৳'+fmtNumber(total), count: rows.length}));
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  };
 
  return <Dialog open={open} onOpenChange={o=>{if(!o)onClose()}}>
   <DialogContent className="entry-dialog">
    <DialogHeader>
-    <DialogTitle>Split a customer payment</DialogTitle>
-    <DialogDescription>Enter how much of the payment goes to each item. The payment total is the sum of the parts.</DialogDescription>
+    <DialogTitle>{t('billing.splitPaymentDialog.splitACustomerPayment')}</DialogTitle>
+    <DialogDescription>{t('billing.splitPaymentDialog.enterHowMuchOf')}</DialogDescription>
    </DialogHeader>
    <div className="entry-form">
-    {!targets&&!error&&<p className="note">Loading what is still open...</p>}
-    {targets&&targets.length===0&&<p className="note">Nothing is open to pay on this month.</p>}
-    {list.map(t=>{const id=t.obligation_id,open=Number(t.open_amount);return <label key={id}>{t.description} <small className="hint">(billed <Money value={Number(t.amount)}/>, open <Money value={open}/>)</small>
-     <Input inputMode="decimal" value={parts[id]||''} disabled={open<=0} onChange={e=>setParts(p=>({...p,[id]:e.target.value}))} placeholder="0" aria-label={`Amount for ${t.description}`}/></label>})}
-    <label>Payment reference<Input value={reference} onChange={e=>setReference(e.target.value)} placeholder="Bank or mobile money reference"/></label>
-    <label>Date<Input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
-    <p className="note" aria-live="polite">Payment total: <b><Money value={total}/></b>{rows.length>1&&` across ${rows.length} items`}</p>
-    {over&&<p className="form-error" role="alert">One of the amounts is more than what is still open on that item.</p>}
+    {!targets&&!error&&<p className="note">{t('billing.splitPaymentDialog.loadingWhatIsStill')}</p>}
+    {targets&&targets.length===0&&<p className="note">{t('billing.splitPaymentDialog.nothingIsOpenTo')}</p>}
+    {list.map(item=>{const id=item.obligation_id,open=Number(item.open_amount);return <label key={id}>{item.description} <small className="hint">{t('split.billedOpen',{billed: '৳'+fmtNumber(Number(item.amount)), open: '৳'+fmtNumber(open)})}</small>
+     <Input inputMode="decimal" value={parts[id]||''} disabled={open<=0} onChange={e=>setParts(p=>({...p,[id]:e.target.value}))} placeholder="0" aria-label={t('split.ariaAmount',{name: item.description})}/></label>})}
+    <label>{t('billing.splitPaymentDialog.paymentReference')}<Input value={reference} onChange={e=>setReference(e.target.value)} placeholder={t('common.bankOrMobileMoney')}/></label>
+    <label>{t('common.date')}<Input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
+    <p className="note" aria-live="polite">{t('billing.splitPaymentDialog.paymentTotal')} <b><Money value={total}/></b>{rows.length>1&&t('split.across',{count: rows.length})}</p>
+    {over&&<p className="form-error" role="alert">{t('billing.splitPaymentDialog.oneOfTheAmounts')}</p>}
     {error&&<ErrorState message={error}/>}
-    <div className="sheet-footer"><Button disabled={busy||over||total<=0||!reference.trim()||!date} onClick={()=>void submit()}>Record split payment</Button><Button variant="outline" onClick={onClose}>Cancel</Button></div>
+    <div className="sheet-footer"><Button disabled={busy||over||total<=0||!reference.trim()||!date} onClick={()=>void submit()}>{t('billing.splitPaymentDialog.recordSplitPayment')}</Button><Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button></div>
    </div>
   </DialogContent>
  </Dialog>;

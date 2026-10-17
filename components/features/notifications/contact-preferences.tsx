@@ -5,12 +5,14 @@ import {apiRequest} from '@/lib/api';
 import {Card} from '@/components/ui/card';
 import {SectionHeading} from '@/components/shared/section-heading';
 import {EmptyState} from '@/components/shared/empty-state';
+import {t} from '@/lib/copy';
+import {partyLabel} from '@/lib/copy/labels';
 
 /** SMS and email only (decision D2); WhatsApp was dropped. */
 export type Channel='sms'|'email';
 export type Preferred=Channel|'none';
 export interface Pref{id:number|string;name:string;kind:string;consent:Record<Channel,boolean>;preferred:Preferred}
-export const CHANNELS:{key:Channel;label:string}[]=[{key:'sms',label:'SMS'},{key:'email',label:'Email'}];
+export const CHANNELS:{key:Channel;label:string}[]=[{key:'sms',label: t('notifications.contactPreferences.sms')},{key:'email',label: t('common.email')}];
 
 /** A channel can only be preferred while consent for it is on; switching consent off clears the preference. Mirrors the backend rule. */
 export function applyConsent(p:Pref,channel:Channel,on:boolean):Pref{
@@ -55,22 +57,22 @@ export function ContactPreferences(){
   try{
    const row=await apiRequest(`/orgs/${orgId}/parties/${p.id}/consent`,{method:'PUT',body:JSON.stringify({...body,source:'Dashboard'})});
    const updated=fromApi(row);if(updated)setParties(list=>list?.map(x=>x.id===p.id?updated:x)??null);
-  }catch(e){rf.setToast(e instanceof Error?e.message:'Could not save the preference')}
+  }catch(e){rf.setToast(e instanceof Error?e.message:t('notifications.contactPreferences.couldNotSaveThe'))}
   finally{setBusy(null)}
  },[orgId,rf]);
  const toggle=(p:Pref,channel:Channel)=>{const on=!p.consent[channel];const next=applyConsent(p,channel,on);void save(p,next,{[channel]:on,...(next.preferred!==p.preferred?{preferred_channel:next.preferred}:{})})};
  const prefer=(p:Pref,channel:Preferred)=>{const next=applyPreferred(p,channel);if(next!==p)void save(p,next,{preferred_channel:channel})};
  return <Card>
-  <SectionHeading title="Contact preferences" subtitle="People are only messaged on a channel they have agreed to."/>
-  {parties===null&&<p className="settings-copy">Loading contact preferences…</p>}
-  {restricted&&<p className="note">Contact preferences are visible to administrators and accountants only.</p>}
-  {parties&&parties.length===0&&!restricted&&<EmptyState title="No parties yet."/>}
+  <SectionHeading title={t('notifications.contactPreferences.contactPreferences')} subtitle={t('notifications.contactPreferences.peopleAreOnlyMessaged')}/>
+  {parties===null&&<p className="settings-copy">{t('notifications.contactPreferences.loadingContactPreferences')}</p>}
+  {restricted&&<p className="note">{t('notifications.contactPreferences.contactPreferencesAreVisible')}</p>}
+  {parties&&parties.length===0&&!restricted&&<EmptyState title={t('notifications.contactPreferences.noPartiesYet')}/>}
   {parties&&parties.length>0&&<div className="pref-list">{parties.map(p=><div className="pref-row" key={p.id}>
-   <div className="pref-who"><strong>{p.name}</strong><small>{p.kind}</small></div>
-   <div className="pref-channels" role="group" aria-label={`Consent for ${p.name}`}>{CHANNELS.map(c=><button type="button" key={c.key} disabled={busy===`${p.id}`} aria-pressed={p.consent[c.key]} className={'pref-chip '+(p.consent[c.key]?'chosen':'')} onClick={()=>toggle(p,c.key)}>{c.label}</button>)}</div>
-   <label className="pref-preferred">Preferred
-    <select value={p.preferred} disabled={busy===`${p.id}`} aria-label={`Preferred channel for ${p.name}`} onChange={e=>prefer(p,e.target.value as Preferred)}>
-     <option value="none">None</option>{CHANNELS.map(c=><option key={c.key} value={c.key} disabled={!p.consent[c.key]}>{c.label}</option>)}
+   <div className="pref-who"><strong>{p.name}</strong><small>{partyLabel(p.kind)}</small></div>
+   <div className="pref-channels" role="group" aria-label={t('notif.ariaConsent',{name: p.name})}>{CHANNELS.map(c=><button type="button" key={c.key} disabled={busy===`${p.id}`} aria-pressed={p.consent[c.key]} className={'pref-chip '+(p.consent[c.key]?'chosen':'')} onClick={()=>toggle(p,c.key)}>{c.label}</button>)}</div>
+   <label className="pref-preferred">{t('common.preferred')}
+    <select value={p.preferred} disabled={busy===`${p.id}`} aria-label={t('notif.ariaChannel',{name: p.name})} onChange={e=>prefer(p,e.target.value as Preferred)}>
+     <option value="none">{t('notifications.contactPreferences.none')}</option>{CHANNELS.map(c=><option key={c.key} value={c.key} disabled={!p.consent[c.key]}>{c.label}</option>)}
     </select>
    </label>
   </div>)}</div>}

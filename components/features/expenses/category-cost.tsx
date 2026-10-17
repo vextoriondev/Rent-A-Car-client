@@ -14,8 +14,10 @@ import {EmptyState} from '@/components/shared/empty-state';
 import {ErrorState} from '@/components/shared/error-state';
 import {Money} from '@/components/shared/money';
 import {SectionHeading} from '@/components/shared/section-heading';
+import {t,tn} from '@/lib/copy';
+import {categoryName} from '@/lib/copy/labels';
 
-type Report={columns:string[];rows:string[][];totals:Record<string,string>;count:number};
+type Report={columns:string[];column_ids:string[];rows:string[][];totals:Record<string,string>;count:number};
 
 /** Posted cost of one category per vehicle for the period picker's dates (GET /reports/category-by-vehicle). A deactivated category still works. */
 export function CategoryCost(){
@@ -35,27 +37,27 @@ export function CategoryCost(){
   return()=>{stale=true};
  },[orgId,query]);
 
- const name=category?.name??code;
- const scope=`Category: ${name}; Period: ${label}`;
- const table=useMemo(()=>({title:`Cost category by vehicle: ${name}`,scope,columns:data?.columns??[],rows:data?.rows.map(r=>[r[0],r[1],Number(r[2]),Number(r[3])])??[],totals:data?['Total','','',Number(data.totals['Amount BDT'])]:undefined}),[data,name,scope]);
- if(!apiMode)return <Card><SectionHeading title="Cost by category"/><EmptyState title="API mode only" description="Cost categories read the Django backend. In this demo, filter Expenses by category."/></Card>;
- const total=data?Number(data.totals['Amount BDT']):0;
+ const name=category?categoryName(category.code,category.name):code;
+ const scope=t('catCost.scope',{name, label});
+ const table=useMemo(()=>({title: t('expenses.categoryCost.costCategoryByVehicle', {name}),scope,columns:data?.columns??[],rows:data?.rows.map(r=>[r[0],r[1],Number(r[2]),Number(r[3])])??[],totals:data?[t('catCost.total'),'','',Number(data.totals.amount)]:undefined}),[data,name,scope]);
+ if(!apiMode)return <Card><SectionHeading title={t('expenses.categoryCost.costByCategory')}/><EmptyState title={t('common.apiModeOnly')} description={t('expenses.categoryCost.costCategoriesReadThe')}/></Card>;
+ const total=data?Number(data.totals.amount):0;
 
  return <Card>
-  <SectionHeading title={`${name} cost by vehicle`} subtitle={`Posted entries dated ${label}. Change the dates with the period picker above.`} action={<div className="download-buttons"><Link className="text-button" href="/settings">Cost categories</Link>{data&&<DownloadButtons table={table} stem={`rentflow-category-${code}-${periodStem}`} serverPath={`/orgs/${orgId}/reports/category-by-vehicle/export?${query}`}/>}</div>}/>
+  <SectionHeading title={t('catCost.title',{name})} subtitle={t('catCost.subtitle',{label})} action={<div className="download-buttons"><Link className="text-button" href="/settings">{t('common.costCategories')}</Link>{data&&<DownloadButtons table={table} stem={`rentflow-category-${code}-${periodStem}`} serverPath={`/orgs/${orgId}/reports/category-by-vehicle/export?${query}`}/>}</div>}/>
   <div className="toolbar daily-filters">
    <Select value={code} onValueChange={v=>router.push(`/expenses/categories/${v}${typeof window!=='undefined'?window.location.search:''}`)}>
-    <SelectTrigger aria-label="Category"><SelectValue/></SelectTrigger>
-    <SelectContent>{(categories??[]).map(c=><SelectItem key={c.code} value={c.code}>{c.active?c.name:`${c.name} (inactive)`}</SelectItem>)}</SelectContent>
+    <SelectTrigger aria-label={t('common.category')}><SelectValue/></SelectTrigger>
+    <SelectContent>{(categories??[]).map(c=><SelectItem key={c.code} value={c.code}>{c.active?categoryName(c.code,c.name):t('catCost.inactive',{name: categoryName(c.code,c.name)})}</SelectItem>)}</SelectContent>
    </Select>
-   {category&&!category.active&&<Badge tone="neutral">Inactive: kept for history, not offered on new entries</Badge>}
+   {category&&!category.active&&<Badge tone="neutral">{t('expenses.categoryCost.inactiveKeptForHistory')}</Badge>}
   </div>
   {error&&<ErrorState message={error}/>}
-  {data&&data.rows.length===0&&<EmptyState title="No posted cost in this period" description="Try a wider period or another category."/>}
+  {data&&data.rows.length===0&&<EmptyState title={t('expenses.categoryCost.noPostedCostIn')} description={t('expenses.categoryCost.tryAWiderPeriod')}/>}
   {data&&data.rows.length>0&&<Table>
-   <TableHeader><TableRow>{data.columns.map((c,i)=><TableHead key={c} className={i>=2?'text-right':undefined}>{c}</TableHead>)}</TableRow></TableHeader>
+   <TableHeader><TableRow>{data.columns.map((c,i)=><TableHead key={data.column_ids[i]} className={i>=2?'text-right':undefined}>{c}</TableHead>)}</TableRow></TableHeader>
    <TableBody>{data.rows.map((r,i)=><TableRow key={i}><TableCell>{r[0]}</TableCell><TableCell>{r[1]}</TableCell><TableCell className="text-right nums">{r[2]}</TableCell><TableCell className="text-right nums"><Money value={Number(r[3])}/></TableCell></TableRow>)}</TableBody>
-   <TableFooter><TableRow><TableCell colSpan={2}>Total ({data.count} {data.count===1?'vehicle':'vehicles'})</TableCell><TableCell/><TableCell className="text-right nums"><Money value={total}/></TableCell></TableRow></TableFooter>
+   <TableFooter><TableRow><TableCell colSpan={2}>{tn('catCost.footer',data.count)}</TableCell><TableCell/><TableCell className="text-right nums"><Money value={total}/></TableCell></TableRow></TableFooter>
   </Table>}
  </Card>;
 }

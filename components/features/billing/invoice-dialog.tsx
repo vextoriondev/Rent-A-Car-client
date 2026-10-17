@@ -7,6 +7,7 @@ import {Dialog,DialogContent,DialogDescription,DialogHeader,DialogTitle} from '@
 import {Input} from '@/components/ui/input';
 import {ErrorState} from '@/components/shared/error-state';
 import {Money} from '@/components/shared/money';
+import {t,fmtNumber} from '@/lib/copy';
 
 type Line={obligation_id:number;kind:string;description:string;amount:string};
 type Preview={lines:Line[];total:string};
@@ -36,26 +37,26 @@ export function InvoiceDialog({open,periodId,onClose,onDone}:{open:boolean;perio
   setBusy(true);setError('');
   try{
    const inv=await livePost(orgId,'/invoices',{period_id:periodId,obligation_ids:picked,...(dueDate?{due_date:dueDate}:{})},key);
-   onDone(`${inv.number} issued for ৳${Number(inv.amount).toLocaleString('en-BD')}.`);
+   onDone(t('invoice.issued',{number: inv.number, amount: '৳'+fmtNumber(Number(inv.amount))}));
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  };
 
  return <Dialog open={open} onOpenChange={o=>{if(!o)onClose()}}>
   <DialogContent className="entry-dialog">
    <DialogHeader>
-    <DialogTitle>Issue an invoice</DialogTitle>
-    <DialogDescription>Only customer amounts that are not already on a live invoice are listed. An invoice posts nothing new; it groups what is already owed.</DialogDescription>
+    <DialogTitle>{t('billing.invoiceDialog.issueAnInvoice')}</DialogTitle>
+    <DialogDescription>{t('invoice.intro')}</DialogDescription>
    </DialogHeader>
    <div className="entry-form">
-    {!preview&&!error&&<p className="note">Loading the preview...</p>}
-    {preview&&preview.lines.length===0&&<p className="note">Nothing left to invoice for this month.</p>}
+    {!preview&&!error&&<p className="note">{t('billing.invoiceDialog.loadingThePreview')}</p>}
+    {preview&&preview.lines.length===0&&<p className="note">{t('billing.invoiceDialog.nothingLeftToInvoice')}</p>}
     {preview&&preview.lines.length>0&&<div className="statement-lines">
      {preview.lines.map(l=><label key={l.obligation_id} className="check-row"><input type="checkbox" checked={picked.includes(l.obligation_id)} onChange={()=>toggle(l.obligation_id)}/><span>{l.description}</span><b className="nums"><Money value={Number(l.amount)} signed/></b></label>)}
-     <div className="total"><span>Invoice total</span><b className="nums"><Money value={total}/></b></div>
+     <div className="total"><span>{t('billing.invoiceDialog.invoiceTotal')}</span><b className="nums"><Money value={total}/></b></div>
     </div>}
-    <label>Due date (optional, default 15 days)<Input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}/></label>
+    <label>{t('billing.invoiceDialog.dueDateOptionalDefault')}<Input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}/></label>
     {error&&<ErrorState message={error}/>}
-    <div className="sheet-footer"><Button disabled={busy||picked.length===0||total<=0} onClick={()=>void issue()}>Issue invoice</Button><Button variant="outline" onClick={onClose}>Cancel</Button></div>
+    <div className="sheet-footer"><Button disabled={busy||picked.length===0||total<=0} onClick={()=>void issue()}>{t('billing.invoiceDialog.issueInvoice')}</Button><Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button></div>
    </div>
   </DialogContent>
  </Dialog>;
