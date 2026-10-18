@@ -799,6 +799,7 @@ export const en={
  'label.category.other': "Other",
  'label.category.ownerRent': "Owner rent",
  'label.category.rent': "Rent",
+ 'label.category.payout': "Payment made",
  'label.category.repair': "Repair",
  'label.category.salary': "Salary",
  'label.category.toll': "Toll or parking",

@@ -801,6 +801,7 @@ export const bn:Partial<Record<keyof typeof en,string>>={
  'label.category.other': "অন্যান্য",
  'label.category.ownerRent': "মালিকের ভাড়া",
  'label.category.rent': "ভাড়া",
+ 'label.category.payout': "দেওয়া পেমেন্ট",
  'label.category.repair': "মেরামত",
  'label.category.salary': "বেতন",
  'label.category.toll': "টোল বা পার্কিং",

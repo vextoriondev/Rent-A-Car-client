@@ -80,6 +80,7 @@ export const categoryLabel=(v:string)=>{
   case 'driver allowance':return t('label.category.driverAllowance');
   case 'driver salary (paid directly)':case 'driver salary':return t('label.category.driverSalaryDirect');
   case 'rent':return t('label.category.rent');
+  case 'payout':return t('label.category.payout');
   case 'owner rent':return t('label.category.ownerRent');
   case 'salary':return t('label.category.salary');
   case 'advance':return t('label.category.advance');

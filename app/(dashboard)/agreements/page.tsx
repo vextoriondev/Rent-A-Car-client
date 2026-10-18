@@ -31,6 +31,6 @@ export default function AgreementsPage(){
  return <Card>
   <SectionHeading title={t('agreements.rentalAgreements')} subtitle={tn('agreements.shown', rows.length)} action={<Button onClick={()=>{rf.setAgreementOpen(true)}}><Plus size={16}/> {t('common.newAgreement')}</Button>}/>
   <FilterToolbar filters={[{param:'owner',label: t('common.filterByOwner'),allValue:ALL_OWNERS,allLabel:t('common.allOwners'),options:owners}]}/>
-  <LedgerTable data={rows} columns={columns} getRowId={a=>a.id} sorting={sorting} onSortingChange={onSortingChange} onRowClick={a=>rf.setSelected(a.id)} rowActionLabel={a=>'Open '+a.id} empty={<EmptyState title={t('agreements.noAgreementsMatchThis')} description={t('agreements.clearYourFiltersTo')}/>}/>
+  <LedgerTable data={rows} columns={columns} getRowId={a=>a.id} sorting={sorting} onSortingChange={onSortingChange} onRowClick={a=>rf.setSelected(a.id)} rowActionLabel={a=>t('table.openRow',{id:a.id})} empty={<EmptyState title={t('agreements.noAgreementsMatchThis')} description={t('agreements.clearYourFiltersTo')}/>}/>
  </Card>;
 }
