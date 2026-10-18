@@ -168,8 +168,9 @@ export function RentflowStoreProvider({children}:{children:ReactNode}){
    setApiBusy(true);
    try{
     const a=await livePost(backend.orgId,'/agreements/quick',{customer:n.customer,owner:n.owner,driver:n.driverProvider==='None'?'':n.driver,driver_id:n.driverProvider==='None'||!n.driverId?null:Number(n.driverId),vehicle:n.vehicle,registration:n.registration,start:n.start,end:n.end||null,rent:n.rent,rent_basis:n.rentBasis,owner_rent_basis:n.ownerRentBasis,salary_basis:n.salaryBasis,payment_schedule:buildSchedule({customer:n.customerSchedule,owner:n.ownerSchedule,driver:n.driverProvider!=='None'&&n.driverPaidBy==='Operator'?n.driverSchedule:undefined}),owner_rent:n.ownerRent,salary:n.driverProvider!=='None'&&n.driverPaidBy==='Operator'?n.salary:'0',fuel:n.fuel,repair:n.repair,offset:n.offset,driver_provider:n.driverProvider.toLowerCase(),driver_paid_by:(n.driverProvider==='None'?'Operator':n.driverPaidBy).toLowerCase(),clauses:n.clauses.trim()});
-    const firstMonth=n.start.slice(0,7)+'-01';   // issue the month the agreement starts in
-    await livePost(backend.orgId,`/agreements/${a.id}/periods?month=${firstMonth}`,{});
+    const firstMonth=n.start.slice(0,7)+'-01';   // issue the month the agreement starts in, or every month up to now when asked
+    if(n.billToNow)await livePost(backend.orgId,`/agreements/${a.id}/periods/catch-up`,{});
+    else await livePost(backend.orgId,`/agreements/${a.id}/periods?month=${firstMonth}`,{});
     await refreshLive();
     setAgreementOpen(false);setSelected(`AGR-${a.id}`);
     const warnings:string[]=a.warnings||[];

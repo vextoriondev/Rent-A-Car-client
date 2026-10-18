@@ -30,6 +30,7 @@ export function AgreementTerms({agreementId}:{agreementId:string}){
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
  const [busy,setBusy]=useState(false);
+ const [billMonth,setBillMonth]=useState('');
  const [dialog,setDialog]=useState<''|'revise'|'driver'|'owner'|'end'>('');
 
  const load=useCallback(async()=>{
@@ -45,6 +46,14 @@ export function AgreementTerms({agreementId}:{agreementId:string}){
 
  const current=[...detail.versions].reverse().find(v=>v.status==='active')||detail.versions[detail.versions.length-1];
  const done=async(text:string)=>{setDialog('');await rf.refreshLive();await load();setMessage(text)};
+ const bill=async(path:string,okText:(r:any)=>string)=>{
+  if(!backend)return;
+  setBusy(true);setMessage('');
+  try{const r=await livePost(backend.orgId,`/agreements/${pk}/${path}`,{});await done(okText(r))}
+  catch(e){setMessage((e as Error).message)}finally{setBusy(false)}
+ };
+ const billOne=()=>billMonth?bill(`periods?month=${billMonth}-01`,r=>t('agreements.agreementTerms.billed',{month: r.month.slice(0,7)})):undefined;
+ const billAll=()=>bill('periods/catch-up',r=>t('agreements.agreementTerms.billedMonths',{count: String(r.issued.length)}));
  const activate=async()=>{
   if(!backend)return;
   setBusy(true);setMessage('');
@@ -69,6 +78,7 @@ export function AgreementTerms({agreementId}:{agreementId:string}){
    {detail.status==='draft'&&<Can action="agreement.write"><Button disabled={busy} onClick={()=>void activate()}>{t('common.activateAgreement')}</Button></Can>}
    {detail.status==='active'&&<Can action="finance"><Button variant="outline" onClick={()=>setDialog('revise')}>{t('common.reviseTerms')}</Button></Can>}
    {detail.status==='active'&&<Can action="finance"><Button variant="outline" onClick={()=>setDialog('end')}>{t('agreements.agreementTerms.changeEndDate')}</Button></Can>}
+   {detail.status==='active'&&<Can action="finance"><label className="check-label">{t('agreements.agreementTerms.billAMonth')} <input type="month" value={billMonth} min={detail.start_date.slice(0,7)} max={detail.end_date?detail.end_date.slice(0,7):undefined} onChange={e=>setBillMonth(e.target.value)}/></label><Button variant="outline" disabled={busy||!billMonth} onClick={()=>void billOne()}>{t('agreements.agreementTerms.billThisMonth')}</Button><Button variant="outline" disabled={busy} onClick={()=>void billAll()}>{t('agreements.agreementTerms.billAllMonthsToNow')}</Button></Can>}
    <Can action="driver.assign"><Button variant="outline" onClick={()=>setDialog('driver')}>{t('common.assignDriver')}</Button></Can>
    <Can action="finance"><Button variant="outline" onClick={()=>setDialog('owner')}>{t('common.transferOwnership')}</Button></Can>
   </div>
