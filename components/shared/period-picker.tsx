@@ -42,7 +42,7 @@ export function PeriodPicker(){
     </div>
     <div className="period-custom">
      <label>{t('common.from')}<Input type="date" value={draft.from} onChange={e=>setDraft({...draft,from:e.target.value})}/></label>
-     <label>To<Input type="date" value={draft.to} onChange={e=>setDraft({...draft,to:e.target.value})}/></label>
+     <label>{t('common.to')}<Input type="date" value={draft.to} onChange={e=>setDraft({...draft,to:e.target.value})}/></label>
     </div>
     {problem&&<p className="note" role="alert">{problem}</p>}
     <Button size="sm" disabled={!!problem||unchanged} onClick={()=>{setRange(draft);setOpen(false)}}>{t('shared.periodPicker.applyRange')}</Button>

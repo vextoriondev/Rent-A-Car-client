@@ -39,7 +39,7 @@ export function PaymentDays({agreementPk,hasDriver}:{agreementPk:number;hasDrive
   {!data&&!error&&<p className="note">{t('agreements.paymentDays.loadingThePaymentDays')}</p>}
   {data&&<div className="billing-table terms-table" role="table" aria-label={t('agreements.paymentDays.paymentDays')}>
    <div role="row" className="head"><span>{t('common.due')}</span><span>{t('agreements.paymentDays.covers')}</span><span>{t('common.amount')}</span><span>{t('agreements.paymentDays.paidSoFar')}</span><span>{t('common.state')}</span></div>
-   {data.items.map(d=><div role="row" key={fmtDay(d.due_date)}><span><b>{fmtDay(d.due_date)}</b></span><span>{fmtDay(d.covers_from)} to {fmtDay(d.covers_to)}</span><b className="nums"><Money value={Number(d.amount)}/></b><b className="nums"><Money value={Number(d.paid)}/></b><span><Badge tone={tone[d.state]}>{label[d.state]}</Badge></span></div>)}
+   {data.items.map(d=><div role="row" key={fmtDay(d.due_date)}><span><b>{fmtDay(d.due_date)}</b></span><span>{t('period.range',{from:fmtDay(d.covers_from),to:fmtDay(d.covers_to)})}</span><b className="nums"><Money value={Number(d.amount)}/></b><b className="nums"><Money value={Number(d.paid)}/></b><span><Badge tone={tone[d.state]}>{label[d.state]}</Badge></span></div>)}
    {data.items.length===0&&<p className="note">{t('agreements.paymentDays.noPaymentDaysYet')}</p>}
   </div>}
  </div>;

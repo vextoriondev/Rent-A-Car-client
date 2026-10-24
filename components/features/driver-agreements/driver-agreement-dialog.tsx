@@ -63,7 +63,7 @@ export function DriverAgreementDialog({agreementId,onClose,onChanged}:{agreement
      <div><span>{t('common.status')}</span><b><Badge tone={detail.status==='active'?'good':'neutral'}>{detail.status==='active'?t('driverAgr.active'):t('driverAgr.ended')}</Badge></b></div>
      <div><span>{t('common.salaryMonth')}</span><b><Money value={Number(detail.salary)}/></b></div>
      <div><span>{t('common.from')}</span><b>{fmtDay(detail.start_date)}</b></div>
-     <div><span>To</span><b>{detail.end_date||'Open'}</b></div>
+     <div><span>{t('common.to')}</span><b>{detail.end_date||t('terms.noEnd')}</b></div>
      <div><span>{t('common.usualVehicle')}</span><b>{detail.vehicle?`${detail.vehicle.registration} · ${detail.vehicle.model_name}`:t('driverAgr.none')}</b></div>
      <div><span>{t('common.staffTerms')}</span><b>{detail.terms||t('common.noneRecorded')}</b></div>
     </div>

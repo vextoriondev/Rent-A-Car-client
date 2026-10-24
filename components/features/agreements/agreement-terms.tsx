@@ -68,7 +68,7 @@ export function AgreementTerms({agreementId}:{agreementId:string}){
    {current.driver_provider==='none'
     ?<div><span>{t('common.driver')}</span><b>{t('common.noDriverVehicleOnly')}</b></div>
     :<><div><span>{t('agreements.agreementTerms.driverSuppliedBy')}</span><b>{role(current.driver_provider)}</b></div><div><span>{t('agreements.agreementTerms.driverPaidBy')}</span><b>{role(current.driver_paid_by)}</b></div></>}
-   <div><span>{t('agreements.agreementTerms.runs')}</span><b>{fmtDay(detail.start_date)} to {detail.end_date?fmtDay(detail.end_date):t('terms.noEnd')}</b></div>
+   <div><span>{t('agreements.agreementTerms.runs')}</span><b>{t('period.range',{from:fmtDay(detail.start_date),to:detail.end_date?fmtDay(detail.end_date):t('terms.noEnd')})}</b></div>
    <div><span>{t('common.customerRent')}</span><b>{basisLabel(current.customer_rent_basis)}</b></div><div><span>{t('agreements.agreementTerms.ownerRent')}</span><b>{basisLabel(current.owner_rent_basis)}</b></div>{current.driver_provider!=='none'&&<div><span>{t('agreements.agreementTerms.driverSalary')}</span><b>{basisLabel(current.driver_salary_basis)}</b></div>}
    <div><span>{t('agreements.agreementTerms.customerPaysOn')}</span><b>{describeSpec(current.payment_schedule?.customer)}</b></div><div><span>{t('agreements.agreementTerms.ownerIsPaidOn')}</span><b>{describeSpec(current.payment_schedule?.owner)}</b></div>{current.driver_provider!=='none'&&<div><span>{t('agreements.agreementTerms.driverIsPaidOn')}</span><b>{describeSpec(current.payment_schedule?.driver)}</b></div>}
    {current.overtime_rate&&<div><span>{t('agreements.agreementTerms.overtimeRate')}</span><b>{t('terms.overtimePer',{rate: money(num(current.overtime_rate)), unit: current.overtime_unit||t('terms.unit')})}</b></div>}
@@ -93,7 +93,7 @@ export function AgreementTerms({agreementId}:{agreementId:string}){
 
   <h4 className="detail-subheading">{t('agreements.agreementTerms.driverHistory')}</h4>
   <div className="billing-table terms-table" role="table" aria-label={t('agreements.agreementTerms.driverHistory')}>
-   <div role="row" className="head"><span>{t('common.driver')}</span><span>{t('common.from')}</span><span>To</span><span>{t('agreements.agreementTerms.salaryOverride')}</span></div>
+   <div role="row" className="head"><span>{t('common.driver')}</span><span>{t('common.from')}</span><span>{t('common.to')}</span><span>{t('agreements.agreementTerms.salaryOverride')}</span></div>
    {!detail.driver&&detail.driver_assignments.length===0&&<p className="note">{t('agreements.agreementTerms.thisAgreementHasNo')}</p>}
    {detail.driver&&detail.driver_assignments.length===0&&<div role="row"><span>{detail.driver.name}</span><span>{fmtDay(detail.start_date)}</span><span>{t('agreements.agreementTerms.current')}</span><span>-</span></div>}
    {detail.driver_assignments.map((d,i)=><div role="row" key={i}><span><b>{d.driver}</b></span><span>{fmtDay(d.effective_from)}</span><span>{d.effective_to||t('terms.current')}</span><span>{d.salary_override?<Money value={num(d.salary_override)}/>:'-'}</span></div>)}
@@ -101,7 +101,7 @@ export function AgreementTerms({agreementId}:{agreementId:string}){
 
   <h4 className="detail-subheading">{t('agreements.agreementTerms.ownerHistory')}</h4>
   <div className="billing-table terms-table" role="table" aria-label={t('agreements.agreementTerms.ownerHistory')}>
-   <div role="row" className="head"><span>{t('common.owner')}</span><span>{t('common.from')}</span><span>To</span></div>
+   <div role="row" className="head"><span>{t('common.owner')}</span><span>{t('common.from')}</span><span>{t('common.to')}</span></div>
    {detail.ownerships.map((o,i)=><div role="row" key={i}><span><b>{o.owner}</b></span><span>{fmtDay(o.effective_from)}</span><span>{o.effective_to||t('terms.current')}</span></div>)}
   </div>
 

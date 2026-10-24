@@ -56,7 +56,7 @@ export function AuditLog(){
    <label>{t('audit.auditLog.recordId')}<Input value={targetId} onChange={e=>reset(setTargetId)(e.target.value)}/></label>
    <label>{t('audit.auditLog.userId')}<Input inputMode="numeric" value={actor} onChange={e=>reset(setActor)(e.target.value)}/></label>
    <label>{t('common.from')}<Input type="date" value={from} onChange={e=>reset(setFrom)(e.target.value)}/></label>
-   <label>To<Input type="date" value={to} onChange={e=>reset(setTo)(e.target.value)}/></label>
+   <label>{t('common.to')}<Input type="date" value={to} onChange={e=>reset(setTo)(e.target.value)}/></label>
   </div>
   {error&&<ErrorState message={error}/>}
   {data&&data.items.length===0&&<EmptyState title={t('audit.auditLog.noEventsMatchThese')}/>}
