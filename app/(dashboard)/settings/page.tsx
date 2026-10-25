@@ -23,7 +23,7 @@ const policies=():[string,string][]=>[
  [t('settings.policy.messages'),t('settings.policy.messagesValueDemo')],
 ];
 
-type Workspace={name:string;currency:string;default_expense_threshold:string;month_end:{cutoff_day:number;approval_role:string};message_delivery:'not_connected'|'connected'};
+type Workspace={name:string;currency:string;default_expense_threshold:string;month_end:{cutoff_day:number;approval_role:string};message_delivery:'not_connected'|'partly_connected'|'connected'};
 const taka=(v:string)=>'৳'+fmtNumber(Number(v));
 
 /** API mode: the policies come from the server, so nothing shown here can drift from what the backend really does. */
@@ -39,7 +39,7 @@ function LivePolicies(){
   [t('settings.policy.rentSalary'),t('settings.policy.rentSalaryValue')],
   [t('settings.policy.paymentDays'),t('settings.policy.paymentDaysValue')],
   [t('settings.policy.monthEnd'),t('settings.policy.monthEndValue',{role: roleLabel(w.month_end.approval_role)})],
-  [t('settings.policy.sending'),w.message_delivery==='connected'?t('settings.policy.sendingOn'):t('settings.policy.sendingOff')],
+  [t('settings.policy.sending'),w.message_delivery==='connected'?t('settings.policy.sendingOn'):w.message_delivery==='partly_connected'?t('settings.policy.sendingPartly'):t('settings.policy.sendingOff')],
  ]:[];
  return <Card>
   <SectionHeading title={t('settings.workspacePolicies')} subtitle={t('settings.readFromYourWorkspace')}/>
