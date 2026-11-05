@@ -1,5 +1,5 @@
 import {withBranch} from './branch';
-import {t as tr,tn,fmtNumber,getLanguage,dateLocale} from '@/lib/copy';
+import {t as tr,tn,fmtNumber,serverLanguage,dateLocale} from '@/lib/copy';
 import {fmtDate} from './format';
 /** Downloads that open correctly in Excel and print cleanly to PDF. One table shape feeds both, so a CSV and a PDF of the same screen always agree. */
 export type Cell=string|number;
@@ -28,7 +28,7 @@ export function downloadCsv(t:DownloadTable,filename:string){save(new Blob([tabl
 
 /** API mode: the server's own export (all rows, audit-logged), saved under the name the server suggests. */
 export async function downloadServerCsv(path:string,fallbackName:string){
- const res=await fetch('/backend'+withBranch(path),{credentials:'same-origin',headers:{'Accept-Language':getLanguage()}});
+ const res=await fetch('/backend'+withBranch(path),{credentials:'same-origin',headers:{'Accept-Language':serverLanguage()}});
  if(!res.ok){const e=await res.json().catch(()=>({detail:res.statusText}));throw new Error(e.detail||tr('downloads.downloadFailed', {status: res.status}))}
  const name=/filename="?([^";]+)"?/.exec(res.headers.get('Content-Disposition')||'')?.[1]||fallbackName;
  save(await res.blob(),name);
@@ -50,7 +50,7 @@ export function printHtml(t:DownloadTable,fileName:string){
  const head=t.columns.map(c=>`<th>${esc(c)}</th>`).join('');
  const show=(c:Cell)=>typeof c==='number'?fmtNumber(c):/^\d{4}-\d{2}-\d{2}$/.test(c)?fmtDate(c):c;
  const row=(r:Cell[],cls='')=>`<tr${cls?` class="${cls}"`:''}>${r.map((c,i)=>`<td${numeric(c)&&i>0?' class="n"':''}>${esc(show(c))}</td>`).join('')}</tr>`;
- return `<!doctype html><html lang="${getLanguage()}"><head><meta charset="utf-8"><title>${esc(fileName)}</title><style>
+ return `<!doctype html><html lang="${serverLanguage()}"><head><meta charset="utf-8"><title>${esc(fileName)}</title><style>
 @page{size:A4 ${wide?'landscape':'portrait'};margin:14mm}
 *{box-sizing:border-box}body{font-family:"Segoe UI","Noto Sans Bengali","Nirmala UI",Arial,sans-serif;color:#142b3a;font-size:11px;margin:0}
 h1{font-size:18px;margin:0 0 4px}p{margin:2px 0;color:#4b6470}

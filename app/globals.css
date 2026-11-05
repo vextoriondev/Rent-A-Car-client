@@ -125,3 +125,24 @@
 @media (max-width:640px){.top-actions .language-switch{min-width:0;width:78px;height:34px;padding-inline:8px;font-size:13px}}
 
 .notice-deliveries span{display:block}
+
+
+/* Emphasis (client request): what the user must read first is bold - money, names, balances, and the key words in a sentence. */
+.card [data-slot=table-cell].nums,.card [data-slot=table-cell] .bill-money{font-weight:700;color:#2b4553}
+.card [data-slot=table-cell]:first-child b,.card [data-slot=table-cell] b{font-weight:700}
+.mini-metrics .card span{font-weight:650;color:#4f646d}
+.mini-metrics .card strong{font-weight:800}
+.settlement-top h3{font-weight:750;color:#233b49}
+.settlement-figures span{font-weight:650;color:#5f747c}
+.settlement-figures b{font-weight:800}
+.metric-top{font-weight:700;color:#4f646d}
+.metric strong{font-weight:800}
+.metric small{font-weight:550;color:#7d8d92}
+.inline-alert{font-weight:650}
+.consequence p b,.note b,.settings-copy b,.empty b{font-weight:800;color:#1f3d4b}
+.consequence p{color:#274f5d}
+.empty p{font-weight:700;color:#5d7279;margin:0}
+.activity-title strong,.attention-list strong,.notice strong{font-weight:750}
+.page-intro p,.section-heading p{font-weight:500}
+.policy-row b,.terms b,.statement-lines b,.detail-relations b,.vehicle-card>div b{font-weight:750}
+.policy-row span,.terms span,.statement-lines span,.detail-relations span{font-weight:550}

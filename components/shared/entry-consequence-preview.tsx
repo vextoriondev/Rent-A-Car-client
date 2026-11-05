@@ -1,7 +1,8 @@
 import {Eye} from 'lucide-react';
 import {apiMode} from '@/lib/api';
 import {money,type Agreement,type EntryType} from '@/lib/demo';
-import {t} from '@/lib/copy';
+import {tRaw as t} from '@/lib/copy';
+import {Rich} from '@/components/shared/rich';
 import {partyLabel} from '@/lib/copy/labels';
 
 /** "Balance preview" text shown while recording an entry. Wording is unchanged from the original single-page app. */
@@ -28,5 +29,5 @@ export function EntryConsequencePreview({agreement,type,amount,payer,liable,offs
    :type==='Owner payout'?t('shared.entryConsequencePreview.ownerPayableDecreasesBy', {amount: money(amount)})
    :type==='Salary advance'?t('shared.entryConsequencePreview.driverOutstandingDecreasesBy', {amount: money(amount)})
    :t('shared.entryConsequencePreview.driverOutstandingDecreasesBy2', {amount: money(amount)});
- return <div className="consequence"><strong><Eye size={16}/> {t('shared.entryConsequencePreview.balancePreview')}</strong><p>{text}{type==='Expense'&&amount>=5000?(apiMode?t('shared.entryConsequencePreview.largeExpensesNeedApproval'):t('shared.entryConsequencePreview.expenseRequiresApprovalBefore')):''}</p></div>;
+ return <div className="consequence"><strong><Eye size={16}/> {t('shared.entryConsequencePreview.balancePreview')}</strong><p><Rich text={text+(type==='Expense'&&amount>=5000?(apiMode?t('shared.entryConsequencePreview.largeExpensesNeedApproval'):t('shared.entryConsequencePreview.expenseRequiresApprovalBefore')):'')}/></p></div>;
 }

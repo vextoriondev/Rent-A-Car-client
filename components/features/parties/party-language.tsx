@@ -15,7 +15,7 @@ export function PartyLanguage({orgId,id,language}:{orgId:number;id:number;langua
   catch(e){setNote((e as Error).message)}
  };
  return <div><span>{t('pp.messageLanguage')}</span>
-  <Can action="entry.record"><Select value={value} onValueChange={v=>void change(v)}><SelectTrigger aria-label={t('pp.messageLanguage')}><SelectValue/></SelectTrigger><SelectContent>{LANGUAGES.map(l=><SelectItem key={l.code} value={l.code}>{l.name}</SelectItem>)}</SelectContent></Select></Can>
+  <Can action="entry.record"><Select value={value} onValueChange={v=>void change(v)}><SelectTrigger aria-label={t('pp.messageLanguage')}><SelectValue/></SelectTrigger><SelectContent>{LANGUAGES.filter(l=>l.code!=='std').map(l=><SelectItem key={l.code} value={l.code}>{l.name}</SelectItem>)}</SelectContent></Select></Can>
   {note&&<small className="hint">{note}</small>}
  </div>;
 }

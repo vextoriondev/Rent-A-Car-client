@@ -8,7 +8,7 @@ export function LanguageSwitch(){
  const current=getLanguage();
  const change=async(next:string)=>{
   if(next===current)return;
-  if(apiMode)try{await apiRequest('/me/preferences',{method:'PATCH',body:JSON.stringify({language:next})})}catch{/* the choice still works in this browser */}
+  if(apiMode)try{await apiRequest('/me/preferences',{method:'PATCH',body:JSON.stringify({language:next==='bn'?'bn':'en'})})}catch{/* the choice still works in this browser */}
   switchLanguage(next as Lang);
  };
  return <Select value={current} onValueChange={v=>void change(v)}>
