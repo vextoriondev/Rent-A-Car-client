@@ -8,6 +8,8 @@ export const en={
  'agreements.agreementTerms.billThisMonth': "Bill this month",
  'agreements.agreementTerms.billAllMonthsToNow': "Bill all months up to now",
  'agreements.agreementTerms.billed': "{month} has been billed.",
+ 'agreements.agreementTerms.billedList': "Billed {count} month(s): {months}. Months already billed were kept.",
+ 'agreements.agreementTerms.alreadyUpToDate': "Nothing to bill. Every month up to now is already billed.",
  'agreements.agreementTerms.billedMonths': "{count} month(s) billed. Months already billed were kept.",
  'agreements.newAgreementDialog.billAllMonthsToNow': "Also bill every month from the start date up to now",
  'agreements.agreementTerms.changeEndDate': "Change end date",

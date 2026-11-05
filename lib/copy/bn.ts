@@ -10,6 +10,8 @@ export const bn:Partial<Record<keyof typeof en,string>>={
  'agreements.agreementTerms.billThisMonth': "এই মাসের বিল করুন",
  'agreements.agreementTerms.billAllMonthsToNow': "এখন পর্যন্ত সব মাসের বিল করুন",
  'agreements.agreementTerms.billed': "{month} মাসের বিল করা হয়েছে।",
+ 'agreements.agreementTerms.billedList': "{count}টি মাসের বিল করা হয়েছে: {months}। যে মাসের বিল আগেই হয়েছে তা অপরিবর্তিত।",
+ 'agreements.agreementTerms.alreadyUpToDate': "বিল করার মতো কিছু নেই। এখন পর্যন্ত সব মাসের বিল আগেই হয়েছে।",
  'agreements.agreementTerms.billedMonths': "{count}টি মাসের বিল করা হয়েছে। যে মাসের বিল আগেই হয়েছে তা অপরিবর্তিত।",
  'agreements.newAgreementDialog.billAllMonthsToNow': "শুরুর তারিখ থেকে এখন পর্যন্ত প্রতিটি মাসের বিলও করুন",
  'agreements.agreementTerms.changeEndDate': "শেষের তারিখ বদলান",

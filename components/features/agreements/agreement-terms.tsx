@@ -15,6 +15,7 @@ import type {AgreementDetail} from './terms-types';
 import {Can} from '@/lib/roles';
 import {t} from '@/lib/copy';
 import {fmtDay} from '@/lib/format';
+import {monthLabel} from '@/lib/clock';
 import {statusLabel} from '@/lib/copy/labels';
 
 
@@ -25,6 +26,7 @@ const num=(v:string)=>Number(v||0);
 export function AgreementTerms({agreementId}:{agreementId:string}){
  const rf=useRentflowStore();
  const backend=rf.store.backend;
+ const orgId=backend?.orgId;
  const pk=Number(agreementId.replace('AGR-',''));
  const [detail,setDetail]=useState<AgreementDetail|null>(null);
  const [error,setError]=useState('');
@@ -34,10 +36,11 @@ export function AgreementTerms({agreementId}:{agreementId:string}){
  const [dialog,setDialog]=useState<''|'revise'|'driver'|'owner'|'end'>('');
 
  const load=useCallback(async()=>{
-  if(!backend)return;
-  try{setDetail(await apiRequest(`/orgs/${backend.orgId}/agreements/${pk}`));setError('')}
+  if(orgId==null)return;
+  try{setDetail(await apiRequest(`/orgs/${orgId}/agreements/${pk}`));setError('')}
   catch(e){setError((e as Error).message)}
- },[backend,pk]);
+ },[orgId,pk]);
+ // keyed on the agreement and org only: a data refresh makes a new `backend` object and must not wipe the message
  useEffect(()=>{setDetail(null);setMessage('');if(apiMode)void load()},[load]);
 
  if(!apiMode)return <p className="note">{t('agreements.agreementTerms.apiModeOnlyTerms')}</p>;
@@ -45,25 +48,25 @@ export function AgreementTerms({agreementId}:{agreementId:string}){
  if(!detail)return <p className="note">{t('agreements.agreementTerms.loadingTheAgreementTerms')}</p>;
 
  const current=[...detail.versions].reverse().find(v=>v.status==='active')||detail.versions[detail.versions.length-1];
- const done=async(text:string)=>{setDialog('');await rf.refreshLive();await load();setMessage(text)};
+ const say=(text:string)=>{setMessage(text);rf.setToast(text)};
+ const done=async(text:string)=>{setDialog('');await rf.refreshLive();await load();say(text)};
  const bill=async(path:string,okText:(r:any)=>string)=>{
   if(!backend)return;
   setBusy(true);setMessage('');
   try{const r=await livePost(backend.orgId,`/agreements/${pk}/${path}`,{});await done(okText(r))}
-  catch(e){setMessage((e as Error).message)}finally{setBusy(false)}
+  catch(e){say((e as Error).message)}finally{setBusy(false)}
  };
  const billOne=()=>billMonth?bill(`periods?month=${billMonth}-01`,r=>t('agreements.agreementTerms.billed',{month: r.month.slice(0,7)})):undefined;
- const billAll=()=>bill('periods/catch-up',r=>t('agreements.agreementTerms.billedMonths',{count: String(r.issued.length)}));
+ const billAll=()=>bill('periods/catch-up',r=>r.issued.length?t('agreements.agreementTerms.billedList',{count: String(r.issued.length), months: r.issued.map((m:string)=>monthLabel(m)).join(', ')}):t('agreements.agreementTerms.alreadyUpToDate'));
  const activate=async()=>{
   if(!backend)return;
   setBusy(true);setMessage('');
   try{const r=await livePost(backend.orgId,`/agreements/${pk}/activate`,{});await done(t('terms.activated')+((r.warnings||[]).length?t('terms.warnings')+r.warnings.join(' '):''))}
-  catch(e){setMessage((e as Error).message)}finally{setBusy(false)}
+  catch(e){say((e as Error).message)}finally{setBusy(false)}
  };
 
  return <div className="terms-section">
   <div className="settlement-status"><h3 className="detail-subheading">{t('agreements.agreementTerms.agreementTerms')}</h3><Badge tone={detail.status==='active'?'good':'warn'}>{role(detail.status)}</Badge></div>
-  {message&&<p role="status" className="note">{message}</p>}
   {current&&<div className="terms">
    {current.driver_provider==='none'
     ?<div><span>{t('common.driver')}</span><b>{t('common.noDriverVehicleOnly')}</b></div>
@@ -82,6 +85,7 @@ export function AgreementTerms({agreementId}:{agreementId:string}){
    <Can action="driver.assign"><Button variant="outline" onClick={()=>setDialog('driver')}>{t('common.assignDriver')}</Button></Can>
    <Can action="finance"><Button variant="outline" onClick={()=>setDialog('owner')}>{t('common.transferOwnership')}</Button></Can>
   </div>
+  {message&&<p role="status" className="note" style={{fontWeight:600}}>{message}</p>}
 
   <h4 className="detail-subheading">{t('agreements.agreementTerms.termsHistory')}</h4>
   <div className="billing-table terms-table" role="table" aria-label={t('agreements.agreementTerms.termsHistory')}>
