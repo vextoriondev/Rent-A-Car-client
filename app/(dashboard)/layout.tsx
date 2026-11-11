@@ -2,99 +2,298 @@
 import {Fragment,Suspense,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {usePathname,useRouter} from 'next/navigation';
-import {CarFront,ChevronRight,Menu,X,Search,Bell,Plus,Info,CheckCircle2} from 'lucide-react';
-import {Button} from '@/components/ui/button';
-import {Input} from '@/components/ui/input';
-import {DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuLabel,DropdownMenuRadioGroup,DropdownMenuRadioItem,DropdownMenuSeparator,DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
-import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription,DialogFooter} from '@/components/ui/dialog';
-import {groupLabel,navItems,pageTitle,routeAllowed} from '@/lib/nav';
-import {greeting,initials,monthLabel} from '@/lib/clock';
-import {apiMode} from '@/lib/api';
+import {
+  LayoutDashboard,
+  Building2,
+  CarFront,
+  UserRound,
+  UsersRound,
+  CalendarDays,
+  ReceiptText,
+  Wrench,
+  FileSignature,
+  BookOpen,
+  CircleDollarSign,
+  Search,
+  ChartNoAxesCombined,
+  Bell,
+  Settings2,
+  Menu,
+  X,
+  LogOut,
+  Calendar,
+  ChevronDown,
+  CheckCircle2
+} from 'lucide-react';
 import {RentflowStoreProvider,useRentflowStore} from '@/lib/store-context';
-import {useQueryParam} from '@/lib/use-list-filters';
-import {ErrorState} from '@/components/shared/error-state';
+import {useBackendStatus} from '@/lib/use-backend-status';
 import {SourceDrawer} from '@/components/shared/source-drawer';
 import {RecordEntryDialog} from '@/components/features/entries/record-entry-dialog';
 import {NewAgreementDialog} from '@/components/features/agreements/new-agreement-dialog';
 import {LoadingState} from '@/components/shared/loading-state';
-import {PeriodPicker} from '@/components/shared/period-picker';
-import {usePeriod} from '@/lib/period';
-import {useBranch} from '@/lib/branch';
-import {BranchSwitcher} from '@/components/features/branches/branch-switcher';
-import {Can} from '@/lib/roles';
-import {t,dateLocale} from '@/lib/copy';
-
-import {roleLabel} from '@/lib/copy/labels';
-import {LanguageSwitch} from '@/components/shared/language-switch';
 
 export default function DashboardLayout({children}:{children:React.ReactNode}){
- return <Suspense fallback={<div className="app-shell"><div className="main-shell"><main className="content"><LoadingState/></main></div></div>}><RentflowStoreProvider><DashboardShell>{children}</DashboardShell></RentflowStoreProvider></Suspense>;
+  return (
+    <Suspense fallback={<div className="app-shell"><div className="main-shell"><main className="content"><LoadingState/></main></div></div>}>
+      <RentflowStoreProvider>
+        <DashboardShell>{children}</DashboardShell>
+      </RentflowStoreProvider>
+    </Suspense>
+  );
 }
+
+const MENU_ITEMS = [
+  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { label: 'Owners', href: '/owners', icon: Building2 },
+  { label: 'Vehicles', href: '/vehicles', icon: CarFront },
+  { label: 'Drivers', href: '/drivers', icon: UserRound },
+  { label: 'Clients & Companies', href: '/customers', icon: UsersRound },
+  { label: 'Daily Operations', href: '/duties', icon: CalendarDays },
+  { label: 'Daily Expenses', href: '/expenses', icon: ReceiptText },
+  { label: 'Maintenance & Garage', href: '/maintenance', icon: Wrench },
+  { label: 'Agreements & Documents', href: '/documents', icon: FileSignature },
+  { label: 'Accounts & Transactions', href: '/cashbook', icon: BookOpen },
+  { label: 'Due & Collection', href: '/due-collection', icon: CircleDollarSign },
+  { label: 'Vehicle Search', href: '/vehicle-search', icon: Search },
+  { label: 'Reports & Analytics', href: '/reports', icon: ChartNoAxesCombined },
+  { label: 'Notifications & Alerts', href: '/notifications', icon: Bell, badge: '3' },
+  { label: 'System Settings', href: '/settings', icon: Settings2 },
+];
 
 function DashboardShell({children}:{children:React.ReactNode}){
- const pathname=usePathname();
- const router=useRouter();
- const [mobileMenu,setMobileMenu]=useState(false);
- const rf=useRentflowStore();
- const {store,ready,apiError,toast,setToast}=rf;
- const [q,setQ]=useQueryParam('q');
- const [searchDraft,setSearchDraft]=useState(q);
- const setQRef=useRef(setQ);
- setQRef.current=setQ;
- const searchTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
- useEffect(()=>{if(!searchTimer.current)setSearchDraft(q)},[q]);
- useEffect(()=>()=>{if(searchTimer.current)clearTimeout(searchTimer.current)},[]);
- const changeSearch=(v:string)=>{setSearchDraft(v);if(searchTimer.current)clearTimeout(searchTimer.current);searchTimer.current=setTimeout(()=>{searchTimer.current=null;setQRef.current(v)},250)};
- const title=pageTitle(pathname);
- const period=usePeriod();
- const branch=useBranch();
- const role=apiMode?store.backend?.role:undefined;
- const allowed=routeAllowed(pathname,role);
- let section='';
- const navVisible=navItems.map(n=>{if(n.group)section=n.group;return{...n,section}}).filter(n=>routeAllowed(n.href,role)).map((n,i,all)=>({...n,heading:i===0||all[i-1].section!==n.section?n.section:''}));
- useEffect(()=>{if(ready&&role&&!allowed)router.replace(navItems.find(n=>routeAllowed(n.href,role))?.href||'/')},[ready,role,allowed,router]);
+  const pathname=usePathname();
+  const router=useRouter();
+  const [mobileMenu,setMobileMenu]=useState(false);
+  const {isConnected}=useBackendStatus();
+  const rf=useRentflowStore();
+  const {store,ready,toast,setToast}=rf;
 
- if(!ready)return <div className="app-shell"><div className="main-shell"><main className="content"><LoadingState/></main></div></div>;
+  if(!ready)return <div className="app-shell"><div className="main-shell"><main className="content"><LoadingState/></main></div></div>;
 
- return <div className="app-shell">
-  <aside className={'sidebar '+(mobileMenu?'mobile-open':'')}>
-   <div className="brand"><div className="brand-mark"><CarFront size={23}/></div><div><strong>{t('common.rentflow')}</strong><span>{t('app.operations')}</span></div><button aria-label={t('app.closeMenu')} className="mobile-close" onClick={()=>setMobileMenu(false)}><X size={20}/></button></div>
-   {apiMode?<BranchSwitcher/>:<DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="workspace" aria-label={t('app.switchWorkspace')}><div className="workspace-icon">R</div><div><strong>{t('app.rentflowHq')}</strong><small>{t('app.dhakaMainBranch')}</small></div><ChevronRight size={16}/></button></DropdownMenuTrigger><DropdownMenuContent align="start" className="w-56"><DropdownMenuLabel>{t('app.workspaces')}</DropdownMenuLabel><DropdownMenuRadioGroup value="hq"><DropdownMenuRadioItem value="hq">{t('app.rentflowHqDhaka')}</DropdownMenuRadioItem></DropdownMenuRadioGroup><DropdownMenuSeparator/><DropdownMenuItem disabled>{t('app.addWorkspaceNotAvailable')}</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
-   <nav aria-label={t('app.mainNavigation')}>{navVisible.map(({heading,label,href,icon:Icon})=><div key={href}>{heading&&<div className="nav-group">{groupLabel(heading)}</div>}<Link href={href} className={'nav-link '+(pathname===href?'active':'')} aria-current={pathname===href?'page':undefined} onClick={()=>setMobileMenu(false)}><Icon size={18}/><span>{label}</span>{href==='/notifications'&&store.notices.some(n=>!n.read)&&<i className="nav-dot"/>}</Link></div>)}</nav>
-   <div className="sidebar-foot"><div className="demo-sidebar">{apiMode?t('app.workspaceLive'):t('app.workspaceSample')}<br/><span>{apiMode?t('app.liveData'):t('app.sampleDataNote')}</span></div></div>
-  </aside>
-  <div className="main-shell">
-   <header className="topbar">
-    <button className="menu-button" onClick={()=>setMobileMenu(true)} aria-label={t('app.openMenu')}><Menu size={22}/></button>
-    <div className="breadcrumb">{t('app.workspace')} <ChevronRight size={14}/> <strong>{title}</strong></div>
-    <div className="top-actions"><LanguageSwitch/>
-     <div className="global-search"><Search size={17}/><Input aria-label={t('app.searchAgreementsPeopleOr')} placeholder={t('app.searchAgreementCarPerson')} value={searchDraft} onChange={e=>changeSearch(e.target.value)}/><kbd>⌕</kbd></div>
-     <button className="icon-button" aria-label={t('app.viewNotifications')} onClick={()=>router.push('/notifications')}><Bell size={19}/>{store.notices.some(n=>!n.read)&&<i/>}</button>
-     <span className="top-divider"/>
-     <button className="profile" onClick={()=>router.push('/settings')} aria-label={t('app.openSettings')}><span>{apiMode?initials(store.backend?.userName):'SH'}</span><div><strong>{apiMode?store.backend?.userName||t('app.signedIn'):'Sakib Haider'}</strong><small>{apiMode?roleLabel(store.backend?.role):'Administrator'}</small></div></button>
+  return (
+    <div className="app-shell">
+      {/* Sidebar matching screenshot */}
+      <aside className={'sidebar '+(mobileMenu?'mobile-open':'')} style={{width:250,flex:'0 0 250px'}}>
+        {/* Brand Logo Header */}
+        <div className="brand" style={{display:'flex',alignItems:'center',gap:12,padding:'0 18px',height:80}}>
+          <div style={{width:44,height:44,borderRadius:10,background:'linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%)',display:'grid',placeItems:'center',flexShrink:0,boxShadow:'0 2px 8px rgba(0,0,0,0.3)',border:'1px solid rgba(255,255,255,0.15)'}}>
+            <CarFront size={26} color="#ffffff"/>
+          </div>
+          <div>
+            <div className="brand-title" style={{fontSize:15,fontWeight:800,letterSpacing:'-0.02em',color:'#fff',lineHeight:1.15}}>
+              TASIN ENTERPRISE
+            </div>
+            <div className="brand-sub" style={{fontSize:10,color:'#93c5fd',letterSpacing:'0.04em',marginTop:2}}>
+              Rent-a-Car Solution
+            </div>
+          </div>
+          <button aria-label="Close menu" className="mobile-close" onClick={()=>setMobileMenu(false)} style={{marginLeft:'auto'}}>
+            <X size={20}/>
+          </button>
+        </div>
+
+        {/* Navigation Items */}
+        <nav aria-label="Main navigation" style={{padding:'12px 10px',flex:1,overflowY:'auto'}}>
+          {MENU_ITEMS.map((item)=>{
+            const Icon=item.icon;
+            const isActive=pathname===item.href||(item.href!=='/'&&pathname.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={'nav-link '+(isActive?'active':'')}
+                onClick={()=>setMobileMenu(false)}
+                style={{
+                  display:'flex',
+                  alignItems:'center',
+                  gap:12,
+                  height:40,
+                  borderRadius:8,
+                  padding:'0 14px',
+                  marginBottom:3,
+                  fontSize:12.5,
+                  fontWeight:isActive?700:500,
+                  color:isActive?'#ffffff':'#cbd5e1',
+                  background:isActive?'#1677ff':'transparent',
+                  boxShadow:isActive?'0 4px 12px rgba(22,119,255,0.35)':'none',
+                  textDecoration:'none',
+                }}
+              >
+                <Icon size={18} color={isActive?'#ffffff':'#94a3b8'}/>
+                <span style={{flex:1}}>{item.label}</span>
+                {item.badge&&(
+                  <span style={{
+                    background:'#ef4444',
+                    color:'#ffffff',
+                    fontSize:10,
+                    fontWeight:700,
+                    borderRadius:'999px',
+                    padding:'1px 6px',
+                    lineHeight:1.4
+                  }}>
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Sidebar Footer User Profile */}
+        <div style={{borderTop:'1px solid #1e3557',padding:'12px 16px',background:'#0a192f'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+            <div style={{
+              width:38,
+              height:38,
+              borderRadius:'50%',
+              background:'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+              display:'grid',
+              placeItems:'center',
+              color:'#ffffff',
+              fontWeight:700,
+              fontSize:13,
+              border:'2px solid #60a5fa'
+            }}>
+              TA
+            </div>
+            <div style={{flex:1}}>
+              <strong style={{fontSize:13,color:'#ffffff',display:'block',lineHeight:1.2}}>Admin</strong>
+              <small style={{fontSize:11,color:'#94a3b8',display:'block'}}>Super Admin</small>
+            </div>
+            <ChevronDown size={14} color="#94a3b8"/>
+          </div>
+
+          <button
+            onClick={()=>router.push('/login')}
+            className="sidebar-logout"
+            style={{
+              padding:'6px 0',
+              display:'flex',
+              alignItems:'center',
+              gap:8,
+              color:'#94a3b8',
+              fontSize:12,
+              fontWeight:600,
+              background:'none',
+              border:0,
+              cursor:'pointer',
+            }}
+          >
+            <LogOut size={14}/> Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="main-shell" style={{background:'#f0f4f9'}}>
+        {/* Topbar matching screenshot */}
+        <header className="topbar" style={{height:70,background:'#ffffff',borderBottom:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 28px'}}>
+          <div style={{display:'flex',alignItems:'center',gap:14}}>
+            <button className="menu-button" onClick={()=>setMobileMenu(true)} aria-label="Open menu" style={{border:0,background:'none',color:'#334e68',cursor:'pointer',padding:4}}>
+              <Menu size={22}/>
+            </button>
+            <div className="topbar-title">
+              <h2 style={{fontSize:17,fontWeight:800,color:'#0f172a',margin:0,lineHeight:1.2,letterSpacing:'-0.02em'}}>
+                TASIN ENTERPRISE
+              </h2>
+              <p style={{fontSize:11.5,color:'#64748b',margin:'2px 0 0',fontWeight:500}}>
+                Rent-a-Car Management System
+              </p>
+            </div>
+          </div>
+
+          <div style={{display:'flex',alignItems:'center',gap:14}}>
+            {/* Backend Live Connection Status */}
+            <div
+              title={isConnected ? 'Backend API is connected & live' : 'Running in demo mode (backend offline)'}
+              style={{
+                display:'inline-flex',
+                alignItems:'center',
+                gap:6,
+                padding:'4px 10px',
+                borderRadius:20,
+                fontSize:11.5,
+                fontWeight:700,
+                background:isConnected ? '#ecfdf5' : '#fef3c7',
+                color:isConnected ? '#059669' : '#d97706',
+                border:isConnected ? '1px solid #a7f3d0' : '1px solid #fde68a',
+              }}
+            >
+              <span style={{
+                width:7,
+                height:7,
+                borderRadius:'50%',
+                background:isConnected ? '#10b981' : '#f59e0b',
+                boxShadow:isConnected ? '0 0 6px #10b981' : 'none',
+              }}/>
+              <span>{isConnected ? 'Backend Live' : 'Demo Mode'}</span>
+            </div>
+
+            {/* Date Pill Selector */}
+            <div className="date-pill" style={{display:'flex',alignItems:'center',gap:8,background:'#ffffff',border:'1px solid #cbd5e1',borderRadius:8,padding:'6px 14px',fontSize:12,fontWeight:600,color:'#334155'}}>
+              <Calendar size={15} color="#64748b"/>
+              <span>November 2026</span>
+              <ChevronDown size={14} color="#64748b"/>
+            </div>
+
+            {/* Notification Bell with Badge */}
+            <button
+              onClick={()=>router.push('/notifications')}
+              className="bell-btn"
+              aria-label="Notifications"
+              style={{
+                width:36,
+                height:36,
+                borderRadius:'50%',
+                border:'1px solid #cbd5e1',
+                background:'#ffffff',
+                display:'grid',
+                placeItems:'center',
+                position:'relative',
+                color:'#334155',
+                cursor:'pointer',
+              }}
+            >
+              <Bell size={17}/>
+              <span className="bell-badge" style={{position:'absolute',top:-3,right:-3,background:'#ef4444',color:'#ffffff',fontSize:9,fontWeight:800,borderRadius:'50%',width:16,height:16,display:'grid',placeItems:'center',border:'2px solid #ffffff'}}>
+                3
+              </span>
+            </button>
+
+            {/* User Avatar Circle */}
+            <div
+              onClick={()=>router.push('/settings')}
+              style={{
+                width:36,
+                height:36,
+                borderRadius:'50%',
+                background:'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                display:'grid',
+                placeItems:'center',
+                color:'#ffffff',
+                fontWeight:700,
+                fontSize:12,
+                border:'2px solid #1677ff',
+                cursor:'pointer',
+              }}
+              title="Admin Profile"
+            >
+              TA
+            </div>
+          </div>
+        </header>
+
+        {/* Content Shell */}
+        <main className="content" style={{padding:'20px 24px 60px',maxWidth:1700,margin:'0 auto'}}>
+          {children}
+        </main>
+      </div>
+
+      <SourceDrawer/>
+      <RecordEntryDialog/>
+      <NewAgreementDialog/>
+
+      {toast&&<div className="toast" role="status"><CheckCircle2 size={18}/>{toast}<button onClick={()=>setToast('')} aria-label="Dismiss"><X size={16}/></button></div>}
     </div>
-   </header>
-   <main className="content">
-    <div className="page-intro">
-     <div><div className="eyebrow">{t('app.eyebrow', {title: title.toUpperCase()})}</div><h1>{pathname==='/'?t('app.greeting', {greeting: greeting(), name: apiMode?store.backend?.userName||t('app.greetingNameFallback'):'Sakib'}):title}</h1><p>{pathname==='/'?t('app.hereIsWhereYour'):pathname==='/settlements'?t('app.reviewEveryBalanceBefore'):pathname==='/reports'?t('app.exploreAccountTotalsAnd'):pathname==='/settings'?t('app.policiesAndDemoWorkspace'):`${period.label}${apiMode?'':' · Main branch'}`}</p></div>
-     <div className="intro-actions"><PeriodPicker/>{<Can action="entry.record"><Button onClick={()=>rf.openEntry()} className="primary-action"><Plus size={17}/> {t('app.recordEntry')}</Button></Can>}</div>
-    </div>
-    {period.multiMonth&&<p className="note period-note" role="note">{t('app.periodNote', {from: period.range.from, to: period.range.to, month: new Date((store.backend?.shownMonth??period.lastMonth)+'T12:00:00').toLocaleDateString(dateLocale(),{month:'long',year:'numeric'})})}</p>}
-    <div className="demo-banner"><Info size={17}/><span>{apiMode?<><strong>{t('app.apiMode')}</strong> {t('app.entriesUseDjangoAnd')}</>:<><strong>{t('app.interactiveDemo')}</strong> Sample agreements and entries; changes stay in this browser. No live payments, messages, or accounting posts occur.</>}</span></div>
-    {apiError&&<ErrorState message={t('app.loadError', {error: apiError})} onRetry={()=>location.reload()}/>}
-    <Fragment key={branch??'all'}>{allowed&&!apiError?children:null}</Fragment>
-   </main>
-  </div>
-
-  <SourceDrawer/>
-
-  <RecordEntryDialog/>
-
-  <NewAgreementDialog/>
-
-  <Dialog open={!!rf.confirmClose} onOpenChange={o=>!o&&rf.setConfirmClose(null)}><DialogContent><DialogHeader><DialogTitle>{t('app.closeMonthTitle', {month: apiMode?monthLabel(store.backend?.shownMonth??period.lastMonth):t('app.closeMonthSample')})}</DialogTitle><DialogDescription>{rf.confirmClose} · {apiMode?t('app.thisPreparesApprovesAnd'):t('app.thisMarksTheSample')}</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={()=>rf.setConfirmClose(null)}>{t('app.keepOpen')}</Button><Button onClick={()=>rf.confirmClose&&rf.closeSettlement(rf.confirmClose)}>{t('app.confirmClose')}</Button></DialogFooter></DialogContent></Dialog>
-
-  {toast&&<div className="toast" role="status"><CheckCircle2 size={18}/>{toast}<button onClick={()=>setToast('')} aria-label={t('app.dismiss')}><X size={16}/></button></div>}
- </div>;
+  );
 }
-

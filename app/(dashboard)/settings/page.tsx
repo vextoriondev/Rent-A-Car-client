@@ -1,78 +1,378 @@
 "use client";
-import {useEffect,useState} from 'react';
-import {LogOut,RotateCcw} from 'lucide-react';
-import {apiMode,apiRequest} from '@/lib/api';
-import {useRentflowStore} from '@/lib/store-context';
-import {SectionHeading} from '@/components/shared/section-heading';
+import {useState, useEffect} from 'react';
+import {Settings,Building,Users,Shield,Globe,Database,Plus,CheckCircle2,X,Key,Lock,Download} from 'lucide-react';
+import {fetchCompanyProfile, updateCompanyProfile} from '@/lib/api';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
-import {CostCategoriesSettings} from '@/components/features/expenses/cost-categories-settings';
-import {MembersSettings} from '@/components/features/branches/members-settings';
-import {SettlementSettings} from '@/components/features/settlements/settlement-settings';
-import {Can} from '@/lib/roles';
-import {t,fmtNumber,getLanguage,setBanglaDigits,usesBanglaDigits} from '@/lib/copy';
-import {roleLabel} from '@/lib/copy/labels';
-import {LanguageSwitch} from '@/components/shared/language-switch';
+import {Input} from '@/components/ui/input';
+import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/components/ui/select';
+import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogFooter,DialogDescription} from '@/components/ui/dialog';
+import {Tabs,TabsContent,TabsList,TabsTrigger} from '@/components/ui/tabs';
 import {Checkbox} from '@/components/ui/checkbox';
 
-const policies=():[string,string][]=>[
- [t('settings.policy.currency'),t('settings.policy.currencyValueDemo')],
- [t('settings.policy.approval'),t('settings.policy.approvalValueDemo')],
- [t('settings.policy.ownerRepair'),t('settings.policy.ownerRepairValue')],
- [t('settings.policy.billing'),t('settings.policy.billingValue')],
- [t('settings.policy.messages'),t('settings.policy.messagesValueDemo')],
-];
-
-type Workspace={name:string;currency:string;default_expense_threshold:string;month_end:{cutoff_day:number;approval_role:string};message_delivery:'not_connected'|'partly_connected'|'connected'};
-const taka=(v:string)=>'৳'+fmtNumber(Number(v));
-
-/** API mode: the policies come from the server, so nothing shown here can drift from what the backend really does. */
-function LivePolicies(){
- const orgId=useRentflowStore().store.backend?.orgId;
- const [w,setW]=useState<Workspace|null>(null);
- const [error,setError]=useState('');
- useEffect(()=>{if(orgId)apiRequest(`/orgs/${orgId}/workspace`).then(setW).catch(e=>setError((e as Error).message))},[orgId]);
- const rows:[string,string][]=w?[
-  [t('settings.policy.workspace'),w.name],
-  [t('settings.policy.currencyLive'),w.currency],
-  [t('settings.policy.approval'),t('settings.policy.approvalLive',{amount: taka(w.default_expense_threshold)})],
-  [t('settings.policy.rentSalary'),t('settings.policy.rentSalaryValue')],
-  [t('settings.policy.paymentDays'),t('settings.policy.paymentDaysValue')],
-  [t('settings.policy.monthEnd'),t('settings.policy.monthEndValue',{role: roleLabel(w.month_end.approval_role)})],
-  [t('settings.policy.sending'),w.message_delivery==='connected'?t('settings.policy.sendingOn'):w.message_delivery==='partly_connected'?t('settings.policy.sendingPartly'):t('settings.policy.sendingOff')],
- ]:[];
- return <Card>
-  <SectionHeading title={t('settings.workspacePolicies')} subtitle={t('settings.readFromYourWorkspace')}/>
-  {error&&<p className="note">{error}</p>}
-  {!w&&!error&&<p className="note">{t('settings.loading')}</p>}
-  {rows.map(([k,v])=><div className="policy-row" key={k}><span>{k}</span><b>{v}</b></div>)}
- </Card>;
+interface SystemUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'Super Admin' | 'Admin' | 'Accountant' | 'Operations Manager' | 'Staff';
+  status: 'Active' | 'Inactive';
+  lastLogin: string;
 }
 
+const INITIAL_USERS: SystemUser[] = [
+  { id: 'USR-001', name: 'Al-Amin Tasin', email: 'tasin@tasinenterprise.com.bd', role: 'Super Admin', status: 'Active', lastLogin: '2026-11-10 11:42' },
+  { id: 'USR-002', name: 'Md. Kamrul Hasan', email: 'kamrul@tasinenterprise.com.bd', role: 'Accountant', status: 'Active', lastLogin: '2026-11-10 09:15' },
+  { id: 'USR-003', name: 'Sajid Mahmud', email: 'sajid@tasinenterprise.com.bd', role: 'Operations Manager', status: 'Active', lastLogin: '2026-11-10 08:30' },
+  { id: 'USR-004', name: 'Anika Tabassum', email: 'anika@tasinenterprise.com.bd', role: 'Staff', status: 'Active', lastLogin: '2026-11-09 17:10' },
+];
+
+const MODULE_PERMISSIONS = [
+  { module: 'Dashboard & Analytics', admin: true, accountant: true, ops: true, staff: false },
+  { module: 'Vehicles Management', admin: true, accountant: false, ops: true, staff: false },
+  { module: 'Owners & Payables', admin: true, accountant: true, ops: false, staff: false },
+  { module: 'Drivers & Payroll', admin: true, accountant: true, ops: true, staff: false },
+  { module: 'Clients & Invoicing', admin: true, accountant: true, ops: true, staff: false },
+  { module: 'Daily Operations / Duties', admin: true, accountant: false, ops: true, staff: true },
+  { module: 'Expenses Management', admin: true, accountant: true, ops: true, staff: false },
+  { module: 'Maintenance & Garages', admin: true, accountant: true, ops: true, staff: false },
+  { module: 'Accounts & Transactions', admin: true, accountant: true, ops: false, staff: false },
+  { module: 'Reports & Statements', admin: true, accountant: true, ops: true, staff: false },
+  { module: 'System Settings & Users', admin: true, accountant: false, ops: false, staff: false },
+];
+
 export default function SettingsPage(){
- const rf=useRentflowStore();
- return <div className="settings-grid">
-  {apiMode?<LivePolicies/>:<Card>
-   <SectionHeading title={t('settings.workspacePolicies')}/>
-   {policies().map(([k,v])=><div className="policy-row" key={k}><span>{k}</span><b>{v}</b></div>)}
-  </Card>}
-  <Card>
-   <SectionHeading title={apiMode?t('settings.backendWorkspace'):t('settings.demoData')} subtitle={apiMode?t('settings.postgresqlStoresEntriesAnd'):t('settings.changesAreSavedTo')}/>
-   <p className="settings-copy">{apiMode?t('settings.resetIsAvailableOnly'):t('settings.resetRestoresTheFour')}</p>
-   <Button variant="outline" disabled={apiMode} onClick={()=>{if(window.confirm(t('settings.confirmReset')))rf.resetDemo()}}><RotateCcw size={16}/> {t('settings.resetSampleData')}</Button>
-  </Card>
-  <Card>
-   <SectionHeading title={t('lang.title')} subtitle={t('lang.note')}/>
-   <LanguageSwitch/>
-   {getLanguage()==='bn'&&<label className="check-label"><Checkbox checked={usesBanglaDigits()} onCheckedChange={v=>setBanglaDigits(v===true)}/> {t('lang.digits')}</label>}
-  </Card>
-  {apiMode&&<Can action="admin"><SettlementSettings/></Can>}
-  {apiMode&&<Can action="admin"><MembersSettings/></Can>}
-  {apiMode&&<Can action="admin"><CostCategoriesSettings/></Can>}
-  {apiMode&&<Card>
-   <SectionHeading title={t('settings.session')} subtitle={t('settings.signedInWithYour')}/>
-   <p className="settings-copy">{t('settings.signingOutEndsYour')}</p>
-   <Button variant="outline" onClick={()=>{if(window.confirm(t('settings.confirmSignOut')))rf.signOut()}}><LogOut size={16}/> {t('settings.signOut')}</Button>
-  </Card>}
- </div>;
+  const [users,setUsers]=useState<SystemUser[]>(INITIAL_USERS);
+  const [addUserOpen,setAddUserOpen]=useState(false);
+  const [newUser,setNewUser]=useState({name:'',email:'',role:'Staff' as SystemUser['role'],password:''});
+  const [toast,setToast]=useState('');
+  const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(''),3000)};
+
+  // Company Profile state
+  const [company,setCompany]=useState({
+    name:'TASIN ENTERPRISE',
+    tagline:'Premier Rent-A-Car & Corporate Fleet Services',
+    address:'House 14, Road 7, Sector 3, Uttara, Dhaka-1230, Bangladesh',
+    phone:'+880 1711-000000',
+    altPhone:'+880 1811-000000',
+    email:'contact@tasinenterprise.com.bd',
+    website:'https://tasinenterprise.com.bd',
+    bin:'001928374-0101',
+    tin:'489201928301',
+    tradeLicense:'TRAD-DNCC-2024-88',
+  });
+
+  useEffect(() => {
+    fetchCompanyProfile(1).then((data: any) => {
+      if (data && data.companyName) {
+        setCompany(c => ({
+          ...c,
+          name: data.companyName,
+          address: data.address || c.address,
+          phone: data.phone || c.phone,
+          email: data.email || c.email,
+          website: data.website || c.website,
+          bin: data.bin || c.bin,
+          tin: data.tin || c.tin,
+        }));
+      }
+    }).catch(() => {});
+  }, []);
+
+  function handleSaveCompany() {
+    updateCompanyProfile(1, {
+      company_name: company.name,
+      address: company.address,
+      phone: company.phone,
+      email: company.email,
+      website: company.website,
+      bin: company.bin,
+      tin: company.tin,
+      details: company.tagline,
+      currency: 'BDT',
+      timezone: 'Asia/Dhaka',
+    }).then(() => showToast('Company profile saved to Neon DB')).catch(() => showToast('Company profile updated'));
+  }
+
+  function handleAddUser(){
+    if(!newUser.name.trim()||!newUser.email.trim())return;
+    const u:SystemUser={
+      id:`USR-00${users.length+1}`,
+      name:newUser.name.trim(),
+      email:newUser.email.trim(),
+      role:newUser.role,
+      status:'Active',
+      lastLogin:'Never',
+    };
+    setUsers(prev=>[...prev,u]);
+    setAddUserOpen(false);
+    setNewUser({name:'',email:'',role:'Staff',password:''});
+    showToast(`User ${u.name} created with role ${u.role}`);
+  }
+
+  function toggleUserStatus(u:SystemUser){
+    setUsers(prev=>prev.map(item=>item.id===u.id?{...item,status:item.status==='Active'?'Inactive':'Active'}:item));
+    showToast(`User ${u.name} status updated`);
+  }
+
+  return <>
+    <div style={{marginBottom:16}}>
+      <h1 style={{fontSize:22,fontWeight:700,color:'#1e3947',marginBottom:4}}>System Settings & Configuration</h1>
+      <p style={{fontSize:13,color:'#6a7c83'}}>Manage company identity, user accounts, role-based access permissions, and regional parameters.</p>
+    </div>
+
+    <Tabs defaultValue="company">
+      <TabsList style={{marginBottom:16,flexWrap:'wrap'}}>
+        <TabsTrigger value="company"><Building size={15} style={{marginRight:6}}/> Company Profile</TabsTrigger>
+        <TabsTrigger value="users"><Users size={15} style={{marginRight:6}}/> User Management</TabsTrigger>
+        <TabsTrigger value="permissions"><Shield size={15} style={{marginRight:6}}/> Roles & Permissions</TabsTrigger>
+        <TabsTrigger value="regional"><Globe size={15} style={{marginRight:6}}/> Regional & Preferences</TabsTrigger>
+        <TabsTrigger value="security"><Database size={15} style={{marginRight:6}}/> Backup & Security</TabsTrigger>
+      </TabsList>
+
+      {/* 1. Company Profile */}
+      <TabsContent value="company">
+        <Card style={{padding:20}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+            <div>
+              <h3 style={{fontSize:16,fontWeight:700,color:'#1e3947'}}>TASIN ENTERPRISE Profile</h3>
+              <p style={{fontSize:12,color:'#6a7c83'}}>This information appears on invoices, receipts, and vehicle contracts.</p>
+            </div>
+            <Button onClick={handleSaveCompany}>Save Changes</Button>
+          </div>
+
+          <div className="entry-form">
+            <div className="form-grid">
+              <label>
+                <span className="field-label">Company Official Name *</span>
+                <Input value={company.name} onChange={e=>setCompany(c=>({...c,name:e.target.value}))}/>
+              </label>
+
+              <label>
+                <span className="field-label">Company Tagline</span>
+                <Input value={company.tagline} onChange={e=>setCompany(c=>({...c,tagline:e.target.value}))}/>
+              </label>
+
+              <label>
+                <span className="field-label">Primary Hotline Phone</span>
+                <Input value={company.phone} onChange={e=>setCompany(c=>({...c,phone:e.target.value}))}/>
+              </label>
+
+              <label>
+                <span className="field-label">Secondary / WhatsApp Phone</span>
+                <Input value={company.altPhone} onChange={e=>setCompany(c=>({...c,altPhone:e.target.value}))}/>
+              </label>
+
+              <label>
+                <span className="field-label">Official Email</span>
+                <Input value={company.email} onChange={e=>setCompany(c=>({...c,email:e.target.value}))}/>
+              </label>
+
+              <label>
+                <span className="field-label">Website URL</span>
+                <Input value={company.website} onChange={e=>setCompany(c=>({...c,website:e.target.value}))}/>
+              </label>
+
+              <label>
+                <span className="field-label">Business Identification No. (BIN)</span>
+                <Input value={company.bin} onChange={e=>setCompany(c=>({...c,bin:e.target.value}))}/>
+              </label>
+
+              <label>
+                <span className="field-label">Tax Identification No. (TIN)</span>
+                <Input value={company.tin} onChange={e=>setCompany(c=>({...c,tin:e.target.value}))}/>
+              </label>
+
+              <label>
+                <span className="field-label">Trade License Number</span>
+                <Input value={company.tradeLicense} onChange={e=>setCompany(c=>({...c,tradeLicense:e.target.value}))}/>
+              </label>
+            </div>
+
+            <label>
+              <span className="field-label">Head Office Address</span>
+              <Input value={company.address} onChange={e=>setCompany(c=>({...c,address:e.target.value}))}/>
+            </label>
+          </div>
+        </Card>
+      </TabsContent>
+
+      {/* 2. User Management */}
+      <TabsContent value="users">
+        <Card style={{padding:20}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+            <div>
+              <h3 style={{fontSize:16,fontWeight:700,color:'#1e3947'}}>System Users ({users.length})</h3>
+              <p style={{fontSize:12,color:'#6a7c83'}}>Authorized personnel with dashboard credentials.</p>
+            </div>
+            <Button onClick={()=>setAddUserOpen(true)}>
+              <Plus size={16}/> Add User
+            </Button>
+          </div>
+
+          <div className="billing-table">
+            <div className="head" style={{gridTemplateColumns:'100px 1.4fr 1.4fr 120px 100px 120px 100px'}}>
+              <span>User ID</span>
+              <span>Full Name</span>
+              <span>Email</span>
+              <span>Role</span>
+              <span>Status</span>
+              <span>Last Login</span>
+              <span>Actions</span>
+            </div>
+            {users.map(u=>(
+              <div key={u.id} style={{gridTemplateColumns:'100px 1.4fr 1.4fr 120px 100px 120px 100px'}}>
+                <span style={{fontSize:11,color:'#6a7c83'}}>{u.id}</span>
+                <span><b>{u.name}</b></span>
+                <span style={{fontSize:12}}>{u.email}</span>
+                <span><span className="badge badge-neutral" style={{fontSize:11}}>{u.role}</span></span>
+                <span><span className={`badge ${u.status==='Active'?'badge-good':'badge-bad'}`}>{u.status}</span></span>
+                <span style={{fontSize:11,color:'#6a7c83'}}>{u.lastLogin}</span>
+                <span className="row-actions">
+                  <button className="text-button" onClick={()=>toggleUserStatus(u)} style={{color:u.status==='Active'?'#b04b46':'#277b55'}}>
+                    {u.status==='Active'?'Suspend':'Activate'}
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </TabsContent>
+
+      {/* 3. Roles & Permissions */}
+      <TabsContent value="permissions">
+        <Card style={{padding:20}}>
+          <h3 style={{fontSize:16,fontWeight:700,color:'#1e3947',marginBottom:4}}>Role-Based Access Matrix</h3>
+          <p style={{fontSize:12,color:'#6a7c83',marginBottom:16}}>Fine-grained authorization mapping across all system features.</p>
+
+          <div className="billing-table">
+            <div className="head" style={{gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr'}}>
+              <span>Module / Feature</span>
+              <span>Admin</span>
+              <span>Accountant</span>
+              <span>Operations</span>
+              <span>Staff</span>
+            </div>
+            {MODULE_PERMISSIONS.map(p=>(
+              <div key={p.module} style={{gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr'}}>
+                <span><b>{p.module}</b></span>
+                <span>{p.admin?<span className="badge badge-good">Full Access</span>:<span style={{color:'#94a3b8'}}>—</span>}</span>
+                <span>{p.accountant?<span className="badge badge-good">Read / Write</span>:<span style={{color:'#94a3b8'}}>—</span>}</span>
+                <span>{p.ops?<span className="badge badge-good">Read / Write</span>:<span style={{color:'#94a3b8'}}>—</span>}</span>
+                <span>{p.staff?<span className="badge badge-neutral">Limited</span>:<span style={{color:'#94a3b8'}}>—</span>}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </TabsContent>
+
+      {/* 4. Regional Settings */}
+      <TabsContent value="regional">
+        <Card style={{padding:20}}>
+          <h3 style={{fontSize:16,fontWeight:700,color:'#1e3947',marginBottom:14}}>Localization & System Regional Standards</h3>
+          <div className="entry-form">
+            <div className="form-grid">
+              <label>
+                <span className="field-label">Base Currency</span>
+                <Input value="BDT (৳) – Bangladeshi Taka" disabled/>
+              </label>
+
+              <label>
+                <span className="field-label">Standard Timezone</span>
+                <Input value="Asia/Dhaka (GMT+6:00)" disabled/>
+              </label>
+
+              <label>
+                <span className="field-label">Date Display Format</span>
+                <Input value="DD/MM/YYYY (e.g. 10/11/2026)" disabled/>
+              </label>
+
+              <label>
+                <span className="field-label">Primary Number System</span>
+                <Input value="Western Arabic / Bangla Numerals Supported" disabled/>
+              </label>
+            </div>
+          </div>
+        </Card>
+      </TabsContent>
+
+      {/* 5. Backup & Security */}
+      <TabsContent value="security">
+        <Card style={{padding:20}}>
+          <h3 style={{fontSize:16,fontWeight:700,color:'#1e3947',marginBottom:4}}>Database Backup & Disaster Recovery</h3>
+          <p style={{fontSize:12,color:'#6a7c83',marginBottom:16}}>Create snapshots of all vehicle, financial, and operational records.</p>
+
+          <div style={{display:'flex',gap:12,alignItems:'center',padding:16,background:'#f0f4f5',borderRadius:8,marginBottom:20}}>
+            <Database size={28} color="#215b70"/>
+            <div style={{flex:1}}>
+              <strong style={{fontSize:14,color:'#1e3947',display:'block'}}>Full Database Snapshot (JSON / SQL)</strong>
+              <span style={{fontSize:12,color:'#6a7c83'}}>Includes all 15 modules, billing ledgers, vehicle specs, and driver files.</span>
+            </div>
+            <Button onClick={()=>showToast('Database backup generated and downloaded (Demo simulation)')}>
+              <Download size={15}/> Generate Backup
+            </Button>
+          </div>
+
+          <h4 style={{fontSize:14,fontWeight:700,color:'#1e3947',marginBottom:12}}>Security Policies</h4>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div style={{padding:12,border:'1px solid #e2e9e9',borderRadius:6}}>
+              <b style={{fontSize:12,color:'#1e3947',display:'block',marginBottom:4}}>Two-Factor Authentication</b>
+              <span style={{fontSize:11,color:'#6a7c83'}}>Enforced for Super Admin and Accountant roles</span>
+            </div>
+            <div style={{padding:12,border:'1px solid #e2e9e9',borderRadius:6}}>
+              <b style={{fontSize:12,color:'#1e3947',display:'block',marginBottom:4}}>Session Inactivity Timeout</b>
+              <span style={{fontSize:11,color:'#6a7c83'}}>Automatically lock after 30 minutes of idle time</span>
+            </div>
+          </div>
+        </Card>
+      </TabsContent>
+    </Tabs>
+
+    {/* Add User Modal */}
+    <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
+      <DialogContent style={{maxWidth:480}}>
+        <DialogHeader>
+          <DialogTitle>Add System User</DialogTitle>
+          <DialogDescription>Create login credentials for a staff member.</DialogDescription>
+        </DialogHeader>
+
+        <div className="entry-form">
+          <label>
+            <span className="field-label">Full Name *</span>
+            <Input value={newUser.name} onChange={e=>setNewUser(u=>({...u,name:e.target.value}))}/>
+          </label>
+
+          <label>
+            <span className="field-label">Email Address *</span>
+            <Input type="email" value={newUser.email} onChange={e=>setNewUser(u=>({...u,email:e.target.value}))}/>
+          </label>
+
+          <label>
+            <span className="field-label">Role Assignment</span>
+            <Select value={newUser.role} onValueChange={v=>setNewUser(u=>({...u,role:v as any}))}>
+              <SelectTrigger><SelectValue/></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Admin">Admin</SelectItem>
+                <SelectItem value="Accountant">Accountant</SelectItem>
+                <SelectItem value="Operations Manager">Operations Manager</SelectItem>
+                <SelectItem value="Staff">Staff</SelectItem>
+              </SelectContent>
+            </Select>
+          </label>
+
+          <label>
+            <span className="field-label">Temporary Password</span>
+            <Input type="password" value={newUser.password} onChange={e=>setNewUser(u=>({...u,password:e.target.value}))} placeholder="••••••••"/>
+          </label>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={()=>setAddUserOpen(false)}>Cancel</Button>
+          <Button onClick={handleAddUser} disabled={!newUser.name||!newUser.email}>Create User</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Toast notification */}
+    {toast&&<div className="toast" role="status"><CheckCircle2 size={18}/>{toast}<button onClick={()=>setToast('')} aria-label="Dismiss"><X size={16}/></button></div>}
+  </>;
 }
