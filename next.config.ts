@@ -1,3 +1,12 @@
 import type { NextConfig } from 'next';
-const nextConfig:NextConfig={async rewrites(){return [{source:'/backend/:path*',destination:`${process.env.BACKEND_URL||'http://127.0.0.1:8000'}/api/v1/:path*`}]}};
+const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: '/backend/:path*',
+        destination: `${process.env.BACKEND_URL || 'https://rent-a-car-server-production-fc17.up.railway.app'}/api/v1/:path*`
+      }
+    ];
+  }
+};
 export default nextConfig;

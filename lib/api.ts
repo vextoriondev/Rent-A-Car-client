@@ -3,7 +3,7 @@ import {withBranch} from './branch';
 import {currentMonthRange} from './clock';
 import {serverLanguage,t} from '@/lib/copy';
 
-export const apiMode = process.env.NEXT_PUBLIC_RENTFLOW_API_MODE === '1';
+export const apiMode = process.env.NEXT_PUBLIC_RENTFLOW_API_MODE !== '0';
 
 export type LiveStore = Store & {
   backend: {
