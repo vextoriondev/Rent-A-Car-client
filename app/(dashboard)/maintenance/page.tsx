@@ -70,7 +70,7 @@ export default function MaintenancePage(){
       </div>
 
       {/* ─── Top 4 Metric Cards matching Screenshot 4 ─── */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,minmax(0,1fr))',gap:12}}>
+      <div className="kpi-grid-4">
         {/* 1. Total Vehicles */}
         <Card style={{padding:'14px 18px',background:'#fff',borderRadius:12,border:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:14}}>
           <div style={{width:48,height:48,borderRadius:10,background:'#e6f0ff',display:'grid',placeItems:'center',color:'#1677ff',flexShrink:0}}>
@@ -117,7 +117,7 @@ export default function MaintenancePage(){
       </div>
 
       {/* ─── Row 2: Upcoming Maintenance & Recent Maintenance matching Screenshot 4 ─── */}
-      <div style={{display:'grid',gridTemplateColumns:'1.1fr 1fr',gap:14}}>
+      <div className="split-grid-analytics-2">
         {/* Left: Upcoming Maintenance */}
         <Card style={{padding:16,borderRadius:12,background:'#fff',border:'1px solid #e2e8f0'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
@@ -217,7 +217,7 @@ export default function MaintenancePage(){
       </div>
 
       {/* ─── Row 3: Garage Stock & Service Analytics matching Screenshot 4 ─── */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1.3fr',gap:14}}>
+      <div className="split-grid-analytics-2">
         {/* Left: Garage Stock */}
         <Card style={{padding:16,borderRadius:12,background:'#fff',border:'1px solid #e2e8f0'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
@@ -272,7 +272,7 @@ export default function MaintenancePage(){
             </span>
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'1.5fr 1fr',gap:14,alignItems:'center'}}>
+          <div className="detail-card-layout">
             {/* Donut chart + Legend */}
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <div style={{width:130,height:130,position:'relative'}}>

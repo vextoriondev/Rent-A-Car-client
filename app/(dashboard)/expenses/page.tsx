@@ -171,7 +171,7 @@ export default function ExpensesPage(){
 
   return <>
     {/* KPI Cards */}
-    <div className="metric-grid" style={{gridTemplateColumns:'repeat(5,minmax(0,1fr))'}}>
+    <div className="kpi-grid-5">
       {[
         {label:"Today's Expenses",value:fmt(kpi.today),color:'gold'},
         {label:'Total Fleet Fuel',value:fmt(kpi.fuel),color:'blue'},
@@ -190,13 +190,13 @@ export default function ExpensesPage(){
     </div>
 
     {/* Category Breakdown & Overview */}
-    <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:16,marginBottom:16}}>
+    <div className="split-grid-analytics-2" style={{marginBottom:16}}>
       <Card style={{padding:16}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
           <h3 style={{fontSize:14,fontWeight:700,color:'#1e3947'}}>Expense Category Distribution</h3>
           <span style={{fontSize:11,color:'#6a7c83'}}>All registered expenditures</span>
         </div>
-        <div style={{display:'flex',alignItems:'center',gap:20}}>
+        <div className="detail-card-layout">
           <div style={{width:160,height:140}}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -275,7 +275,7 @@ export default function ExpensesPage(){
 
     {/* Expenses Table */}
     <Card>
-      <div style={{overflowX:'auto'}}>
+      <div className="table-responsive-container">
         <div className="billing-table">
           <div className="head" style={{gridTemplateColumns:'100px 95px 120px 1.4fr 1.2fr 110px 110px 100px 70px'}}>
             <span>Expense ID</span>

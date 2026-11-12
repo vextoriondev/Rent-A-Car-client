@@ -110,7 +110,7 @@ export default function DocumentsPage(){
 
   return <>
     {/* KPI Cards */}
-    <div className="metric-grid" style={{gridTemplateColumns:'repeat(4,minmax(0,1fr))',marginBottom:16}}>
+    <div className="kpi-grid-4" style={{marginBottom:16}}>
       {[
         {label:'Total Active Documents',value:kpi.total,color:'blue',icon:FileText},
         {label:'Valid & Verified',value:kpi.valid,color:'blue',icon:ShieldCheck},
@@ -132,9 +132,9 @@ export default function DocumentsPage(){
 
     {/* Expiry Warning Callout */}
     {kpi.expired>0&&(
-      <div style={{padding:'12px 16px',background:'#fbebeb',border:'1px solid #e8b3b0',borderRadius:8,marginBottom:16,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <div style={{display:'flex',gap:10,alignItems:'center'}}>
-          <AlertTriangle size={18} color="#b04b46"/>
+      <div style={{padding:'12px 16px',background:'#fbebeb',border:'1px solid #e8b3b0',borderRadius:8,marginBottom:16,display:'flex',flexWrap:'wrap',gap:12,justifyContent:'space-between',alignItems:'center'}}>
+        <div style={{display:'flex',gap:10,alignItems:'center',flex:1,minWidth:240}}>
+          <AlertTriangle size={18} color="#b04b46" style={{flexShrink:0}}/>
           <span style={{fontSize:13,color:'#852a25'}}><b>Attention:</b> {kpi.expired} document(s) have expired and require immediate renewal to maintain regulatory compliance.</span>
         </div>
         <Button size="sm" variant="outline" onClick={()=>setStatusF('Expired')} style={{borderColor:'#b04b46',color:'#852a25'}}>
@@ -144,8 +144,8 @@ export default function DocumentsPage(){
     )}
 
     {/* Toolbar */}
-    <div className="toolbar" style={{marginBottom:16,flexWrap:'wrap',gap:10}}>
-      <div className="global-search" style={{width:270}}>
+    <div className="toolbar search-filter-responsive" style={{marginBottom:16,flexWrap:'wrap',gap:10}}>
+      <div className="global-search" style={{flex:'1 1 220px',maxWidth:320}}>
         <Search size={15}/>
         <Input
           placeholder="Search document name, entity, doc no…"
@@ -184,9 +184,9 @@ export default function DocumentsPage(){
 
     {/* Document Table */}
     <Card>
-      <div style={{overflowX:'auto'}}>
+      <div className="table-responsive-container">
         <div className="billing-table">
-          <div className="head" style={{gridTemplateColumns:'100px 1.5fr 130px 1.3fr 120px 100px 100px 100px 100px'}}>
+          <div className="head" style={{gridTemplateColumns:'100px 1.5fr 130px 1.3fr 120px 100px 100px 100px 100px',minWidth:900}}>
             <span>Doc ID</span>
             <span>Document Title</span>
             <span>Category</span>
@@ -201,7 +201,7 @@ export default function DocumentsPage(){
           {filtered.length===0&&<div style={{padding:'40px 0'}}><EmptyState title="No documents found" description="Adjust your filters or upload a new record"/></div>}
 
           {filtered.map(d=>(
-            <div key={d.id} style={{gridTemplateColumns:'100px 1.5fr 130px 1.3fr 120px 100px 100px 100px 100px'}}>
+            <div key={d.id} style={{gridTemplateColumns:'100px 1.5fr 130px 1.3fr 120px 100px 100px 100px 100px',minWidth:900}}>
               <span style={{fontSize:11,color:'#6a7c83'}}>{d.id}</span>
               <span><b style={{fontSize:12,color:'#1e3947'}}>{d.name}</b></span>
               <span><span className="badge badge-neutral" style={{fontSize:10}}>{d.category}</span></span>

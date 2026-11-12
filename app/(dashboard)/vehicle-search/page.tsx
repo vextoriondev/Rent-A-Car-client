@@ -135,9 +135,9 @@ function VehicleDetail({
 
           {/* ── Vehicle Profile ── */}
           <TabsContent value="profile" style={{marginTop: 18}}>
-            <div style={{display: 'grid', gridTemplateColumns: '1fr 220px', gap: 20, alignItems: 'start'}}>
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20, alignItems: 'start'}}>
               <div>
-                <div className="detail-relations" style={{gridTemplateColumns: 'repeat(3, 1fr)', marginTop: 0}}>
+                <div className="detail-relations" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', marginTop: 0}}>
                   <div><span>Vehicle ID</span><b>{vehicle.id}</b></div>
                   <div><span>Category</span><b>{vehicle.category}</b></div>
                   <div><span>Year</span><b>{vehicle.year}</b></div>
@@ -178,7 +178,7 @@ function VehicleDetail({
           <TabsContent value="owner" style={{marginTop: 18}}>
             {owner ? (
               <>
-                <div className="detail-relations" style={{gridTemplateColumns: 'repeat(3, 1fr)', marginTop: 0}}>
+                <div className="detail-relations" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', marginTop: 0}}>
                   <div><span>Owner Name</span><b>{owner.name}</b></div>
                   <div><span>Mobile</span><b style={{display:'flex',alignItems:'center',gap:5}}><Phone size={11}/>{owner.mobile}</b></div>
                   <div><span>Email</span><b style={{display:'flex',alignItems:'center',gap:5}}><Mail size={11}/>{owner.email ?? '—'}</b></div>
@@ -212,7 +212,7 @@ function VehicleDetail({
           <TabsContent value="driver" style={{marginTop: 18}}>
             {driver ? (
               <>
-                <div className="detail-relations" style={{gridTemplateColumns: 'repeat(3, 1fr)', marginTop: 0}}>
+                <div className="detail-relations" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', marginTop: 0}}>
                   <div><span>Driver Name</span><b>{driver.name}</b></div>
                   <div><span>Mobile</span><b style={{display:'flex',alignItems:'center',gap:5}}><Phone size={11}/>{driver.mobile}</b></div>
                   <div><span>License No.</span><b>{driver.licenseNo}</b></div>
@@ -239,7 +239,7 @@ function VehicleDetail({
 
           {/* ── Financial Statement ── */}
           <TabsContent value="financial" style={{marginTop: 18}}>
-            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18}}>
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 18}}>
               <Card style={{padding: 16, background: '#eaf4f0', border: '1px solid #c5e0d6'}}>
                 <div style={{fontSize: 11, color: '#4c8070', fontWeight: 700, display:'flex', alignItems:'center', gap:6}}>
                   <TrendingUp size={13}/> Total Income

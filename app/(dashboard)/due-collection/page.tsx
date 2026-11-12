@@ -369,7 +369,7 @@ function AgingSummary({clients}: {clients: ClientDue[]}) {
   return (
     <Card style={{padding:'18px 20px', marginTop:16}}>
       <SectionHeading title="Due Aging Summary" subtitle="Customer receivables by overdue bracket"/>
-      <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12}}>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(130px, 1fr))', gap:12}}>
         {buckets.map(b => (
           <div key={b.label} style={{background:b.bg, borderRadius:9, padding:'13px 15px'}}>
             <span style={{fontSize:10, fontWeight:700, color:b.fg, letterSpacing:'.06em', display:'block'}}>{b.label}</span>
@@ -805,7 +805,7 @@ export default function DueCollectionPage() {
       </div>
 
       {/* ── Summary Metrics ───────────────────────────────────────────────── */}
-      <div className="metric-grid" style={{gridTemplateColumns:'repeat(5,minmax(0,1fr))'}}>
+      <div className="kpi-grid-5">
         <Card className="metric">
           <div className="metric-top">
             <span>Customer Receivable</span>
@@ -858,7 +858,7 @@ export default function DueCollectionPage() {
 
       {/* ── Tabs ──────────────────────────────────────────────────────────── */}
       <Tabs defaultValue="customer">
-        <TabsList style={{marginBottom:16, width:'100%', justifyContent:'flex-start'}}>
+        <TabsList style={{marginBottom:16, maxWidth:'100%', overflowX:'auto', whiteSpace:'nowrap', display:'flex', justifyContent:'flex-start'}}>
           <TabsTrigger value="customer">
             Customer Receivable
             {customerReceivable > 0 && (

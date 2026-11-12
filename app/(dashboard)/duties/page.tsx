@@ -634,7 +634,7 @@ export default function DutiesPage() {
 
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="content">
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
       {/* Page Header */}
       <div className="page-intro">
         <div>
@@ -654,7 +654,7 @@ export default function DutiesPage() {
       </div>
 
       {/* ── Stat Cards ── */}
-      <div className="metric-grid" style={{gridTemplateColumns:'repeat(6,minmax(0,1fr))'}}>
+      <div className="kpi-grid-6">
         <Card className="metric">
           <div className="metric-top">
             <span>Today's Duties</span>
@@ -759,7 +759,7 @@ export default function DutiesPage() {
 
       {/* ── Table ── */}
       <Card style={{padding:0, overflow:'hidden'}}>
-        <div style={{overflowX:'auto'}}>
+        <div className="table-responsive-container">
           <table style={{width:'100%',borderCollapse:'collapse',minWidth:900}}>
             <thead>
               <tr style={{background:'#f7f9f9'}}>

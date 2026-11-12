@@ -285,7 +285,7 @@ export default function CustomersPage(){
       </div>
 
       {/* ─── Top 5 Metric Cards (Dynamic from Neon DB) ─── */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(5,minmax(0,1fr))',gap:12}}>
+      <div className="kpi-grid-5">
         {/* 1. Total Clients */}
         <Card style={{padding:'14px 18px',background:'#fff',borderRadius:12,border:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:14}}>
           <div style={{width:46,height:46,borderRadius:10,background:'#e6f0ff',display:'grid',placeItems:'center',color:'#1677ff',flexShrink:0}}>
@@ -343,8 +343,8 @@ export default function CustomersPage(){
       </div>
 
       {/* ─── Search & Filter Bar ─── */}
-      <div className="search-filter-card" style={{display:'flex',gap:12,alignItems:'center',background:'#fff',padding:'10px 14px',borderRadius:10,border:'1px solid #e2e8f0',flexWrap:'wrap'}}>
-        <div style={{flex:1,minWidth:240,position:'relative'}}>
+      <div className="search-filter-responsive">
+        <div data-search="true" style={{position:'relative',flex:1,minWidth:200}}>
           <Search size={16} color="#94a3b8" style={{position:'absolute',left:12,top:11}}/>
           <input
             placeholder="Search by Client Name, ID (CLT-xxx), Contact, Phone..."
@@ -355,7 +355,7 @@ export default function CustomersPage(){
         </div>
 
         <Select value={statusF} onValueChange={v=>{setStatusF(v);setPage(1)}}>
-          <SelectTrigger style={{width:140,height:38}}><SelectValue placeholder="All Status"/></SelectTrigger>
+          <SelectTrigger style={{minWidth:130,height:38}}><SelectValue placeholder="All Status"/></SelectTrigger>
           <SelectContent>
             <SelectItem value="All">All Status</SelectItem>
             <SelectItem value="Active">Active</SelectItem>
@@ -365,7 +365,7 @@ export default function CustomersPage(){
         </Select>
 
         <Select value={typeF} onValueChange={v=>{setTypeF(v);setPage(1)}}>
-          <SelectTrigger style={{width:160,height:38}}><SelectValue placeholder="Client Type"/></SelectTrigger>
+          <SelectTrigger style={{minWidth:140,height:38}}><SelectValue placeholder="Client Type"/></SelectTrigger>
           <SelectContent>
             <SelectItem value="All">All Types</SelectItem>
             <SelectItem value="Company">Company</SelectItem>
@@ -381,7 +381,7 @@ export default function CustomersPage(){
 
       {/* ─── Data Table ─── */}
       <Card style={{padding:0,borderRadius:12,overflow:'hidden',background:'#fff',border:'1px solid #e2e8f0'}}>
-        <div style={{overflowX:'auto'}}>
+        <div className="table-responsive-container">
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:12.5,textAlign:'left'}}>
             <thead>
               <tr style={{background:'#f8fafc',borderBottom:'1px solid #e2e8f0',color:'#475569',fontWeight:700,height:42}}>
@@ -525,7 +525,7 @@ export default function CustomersPage(){
       </Card>
 
       {/* ─── Bottom Split Section ─── */}
-      <div style={{display:'grid',gridTemplateColumns:'1.3fr 1.6fr 0.9fr',gap:14}}>
+      <div className="split-grid-owners-3">
         {/* Left: Client Details */}
         <Card style={{padding:0,borderRadius:12,overflow:'hidden',background:'#fff',border:'1px solid #e2e8f0'}}>
           <div className="panel-header-blue">
@@ -533,7 +533,7 @@ export default function CustomersPage(){
           </div>
 
           {activeClient ? (
-            <div style={{padding:16,display:'flex',gap:16}}>
+            <div className="detail-card-layout" style={{padding:16}}>
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
                 <div style={{
                   width:90,
@@ -573,7 +573,7 @@ export default function CustomersPage(){
 
         {/* Middle: Financial Status + Recent Invoices */}
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(95px, 1fr))',gap:8}}>
             <div style={{background:'#fff7ed',border:'1px solid #ffedd5',borderRadius:8,padding:'10px 8px',textAlign:'center'}}>
               <Wallet size={18} color="#f97316" style={{margin:'0 auto 4px'}}/>
               <span style={{fontSize:10,color:'#64748b',display:'block'}}>Total Billed</span>

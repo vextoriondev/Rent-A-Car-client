@@ -121,7 +121,7 @@ export default function SettingsPage(){
     </div>
 
     <Tabs defaultValue="company">
-      <TabsList style={{marginBottom:16,flexWrap:'wrap'}}>
+      <TabsList style={{marginBottom:16,display:'flex',gap:6,overflowX:'auto',maxWidth:'100%',whiteSpace:'nowrap',paddingBottom:4}}>
         <TabsTrigger value="company"><Building size={15} style={{marginRight:6}}/> Company Profile</TabsTrigger>
         <TabsTrigger value="users"><Users size={15} style={{marginRight:6}}/> User Management</TabsTrigger>
         <TabsTrigger value="permissions"><Shield size={15} style={{marginRight:6}}/> Roles & Permissions</TabsTrigger>
@@ -132,7 +132,7 @@ export default function SettingsPage(){
       {/* 1. Company Profile */}
       <TabsContent value="company">
         <Card style={{padding:20}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,marginBottom:16}}>
             <div>
               <h3 style={{fontSize:16,fontWeight:700,color:'#1e3947'}}>TASIN ENTERPRISE Profile</h3>
               <p style={{fontSize:12,color:'#6a7c83'}}>This information appears on invoices, receipts, and vehicle contracts.</p>
@@ -199,7 +199,7 @@ export default function SettingsPage(){
       {/* 2. User Management */}
       <TabsContent value="users">
         <Card style={{padding:20}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,marginBottom:16}}>
             <div>
               <h3 style={{fontSize:16,fontWeight:700,color:'#1e3947'}}>System Users ({users.length})</h3>
               <p style={{fontSize:12,color:'#6a7c83'}}>Authorized personnel with dashboard credentials.</p>
@@ -209,31 +209,33 @@ export default function SettingsPage(){
             </Button>
           </div>
 
-          <div className="billing-table">
-            <div className="head" style={{gridTemplateColumns:'100px 1.4fr 1.4fr 120px 100px 120px 100px'}}>
-              <span>User ID</span>
-              <span>Full Name</span>
-              <span>Email</span>
-              <span>Role</span>
-              <span>Status</span>
-              <span>Last Login</span>
-              <span>Actions</span>
-            </div>
-            {users.map(u=>(
-              <div key={u.id} style={{gridTemplateColumns:'100px 1.4fr 1.4fr 120px 100px 120px 100px'}}>
-                <span style={{fontSize:11,color:'#6a7c83'}}>{u.id}</span>
-                <span><b>{u.name}</b></span>
-                <span style={{fontSize:12}}>{u.email}</span>
-                <span><span className="badge badge-neutral" style={{fontSize:11}}>{u.role}</span></span>
-                <span><span className={`badge ${u.status==='Active'?'badge-good':'badge-bad'}`}>{u.status}</span></span>
-                <span style={{fontSize:11,color:'#6a7c83'}}>{u.lastLogin}</span>
-                <span className="row-actions">
-                  <button className="text-button" onClick={()=>toggleUserStatus(u)} style={{color:u.status==='Active'?'#b04b46':'#277b55'}}>
-                    {u.status==='Active'?'Suspend':'Activate'}
-                  </button>
-                </span>
+          <div className="table-responsive-container">
+            <div className="billing-table">
+              <div className="head" style={{gridTemplateColumns:'100px 1.4fr 1.4fr 120px 100px 120px 100px',minWidth:780}}>
+                <span>User ID</span>
+                <span>Full Name</span>
+                <span>Email</span>
+                <span>Role</span>
+                <span>Status</span>
+                <span>Last Login</span>
+                <span>Actions</span>
               </div>
-            ))}
+              {users.map(u=>(
+                <div key={u.id} style={{gridTemplateColumns:'100px 1.4fr 1.4fr 120px 100px 120px 100px',minWidth:780}}>
+                  <span style={{fontSize:11,color:'#6a7c83'}}>{u.id}</span>
+                  <span><b>{u.name}</b></span>
+                  <span style={{fontSize:12}}>{u.email}</span>
+                  <span><span className="badge badge-neutral" style={{fontSize:11}}>{u.role}</span></span>
+                  <span><span className={`badge ${u.status==='Active'?'badge-good':'badge-bad'}`}>{u.status}</span></span>
+                  <span style={{fontSize:11,color:'#6a7c83'}}>{u.lastLogin}</span>
+                  <span className="row-actions">
+                    <button className="text-button" onClick={()=>toggleUserStatus(u)} style={{color:u.status==='Active'?'#b04b46':'#277b55'}}>
+                      {u.status==='Active'?'Suspend':'Activate'}
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </Card>
       </TabsContent>
@@ -244,23 +246,25 @@ export default function SettingsPage(){
           <h3 style={{fontSize:16,fontWeight:700,color:'#1e3947',marginBottom:4}}>Role-Based Access Matrix</h3>
           <p style={{fontSize:12,color:'#6a7c83',marginBottom:16}}>Fine-grained authorization mapping across all system features.</p>
 
-          <div className="billing-table">
-            <div className="head" style={{gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr'}}>
-              <span>Module / Feature</span>
-              <span>Admin</span>
-              <span>Accountant</span>
-              <span>Operations</span>
-              <span>Staff</span>
-            </div>
-            {MODULE_PERMISSIONS.map(p=>(
-              <div key={p.module} style={{gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr'}}>
-                <span><b>{p.module}</b></span>
-                <span>{p.admin?<span className="badge badge-good">Full Access</span>:<span style={{color:'#94a3b8'}}>—</span>}</span>
-                <span>{p.accountant?<span className="badge badge-good">Read / Write</span>:<span style={{color:'#94a3b8'}}>—</span>}</span>
-                <span>{p.ops?<span className="badge badge-good">Read / Write</span>:<span style={{color:'#94a3b8'}}>—</span>}</span>
-                <span>{p.staff?<span className="badge badge-neutral">Limited</span>:<span style={{color:'#94a3b8'}}>—</span>}</span>
+          <div className="table-responsive-container">
+            <div className="billing-table">
+              <div className="head" style={{gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr',minWidth:620}}>
+                <span>Module / Feature</span>
+                <span>Admin</span>
+                <span>Accountant</span>
+                <span>Operations</span>
+                <span>Staff</span>
               </div>
-            ))}
+              {MODULE_PERMISSIONS.map(p=>(
+                <div key={p.module} style={{gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr',minWidth:620}}>
+                  <span><b>{p.module}</b></span>
+                  <span>{p.admin?<span className="badge badge-good">Full Access</span>:<span style={{color:'#94a3b8'}}>—</span>}</span>
+                  <span>{p.accountant?<span className="badge badge-good">Read / Write</span>:<span style={{color:'#94a3b8'}}>—</span>}</span>
+                  <span>{p.ops?<span className="badge badge-good">Read / Write</span>:<span style={{color:'#94a3b8'}}>—</span>}</span>
+                  <span>{p.staff?<span className="badge badge-neutral">Limited</span>:<span style={{color:'#94a3b8'}}>—</span>}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </Card>
       </TabsContent>
@@ -301,9 +305,9 @@ export default function SettingsPage(){
           <h3 style={{fontSize:16,fontWeight:700,color:'#1e3947',marginBottom:4}}>Database Backup & Disaster Recovery</h3>
           <p style={{fontSize:12,color:'#6a7c83',marginBottom:16}}>Create snapshots of all vehicle, financial, and operational records.</p>
 
-          <div style={{display:'flex',gap:12,alignItems:'center',padding:16,background:'#f0f4f5',borderRadius:8,marginBottom:20}}>
-            <Database size={28} color="#215b70"/>
-            <div style={{flex:1}}>
+          <div style={{display:'flex',flexWrap:'wrap',gap:12,alignItems:'center',padding:16,background:'#f0f4f5',borderRadius:8,marginBottom:20}}>
+            <Database size={28} color="#215b70" style={{flexShrink:0}}/>
+            <div style={{flex:'1 1 220px'}}>
               <strong style={{fontSize:14,color:'#1e3947',display:'block'}}>Full Database Snapshot (JSON / SQL)</strong>
               <span style={{fontSize:12,color:'#6a7c83'}}>Includes all 15 modules, billing ledgers, vehicle specs, and driver files.</span>
             </div>
@@ -313,7 +317,7 @@ export default function SettingsPage(){
           </div>
 
           <h4 style={{fontSize:14,fontWeight:700,color:'#1e3947',marginBottom:12}}>Security Policies</h4>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))',gap:12}}>
             <div style={{padding:12,border:'1px solid #e2e9e9',borderRadius:6}}>
               <b style={{fontSize:12,color:'#1e3947',display:'block',marginBottom:4}}>Two-Factor Authentication</b>
               <span style={{fontSize:11,color:'#6a7c83'}}>Enforced for Super Admin and Accountant roles</span>

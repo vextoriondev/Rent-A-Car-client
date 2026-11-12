@@ -194,7 +194,7 @@ export default function VehiclesPage(){
       </div>
 
       {/* ─── Top 6 Metric Cards (Dynamic from Neon DB) ─── */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(6,minmax(0,1fr))',gap:12}}>
+      <div className="kpi-grid-6">
         {/* 1. Total Vehicles */}
         <Card style={{padding:'14px 18px',background:'#fff',borderRadius:12,border:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:14}}>
           <div style={{width:44,height:44,borderRadius:10,background:'#e6f0ff',display:'grid',placeItems:'center',color:'#1677ff',flexShrink:0}}>
@@ -263,8 +263,8 @@ export default function VehiclesPage(){
       </div>
 
       {/* ─── Search & Filter Bar ─── */}
-      <div className="search-filter-card" style={{display:'flex',gap:12,alignItems:'center',background:'#fff',padding:'10px 14px',borderRadius:10,border:'1px solid #e2e8f0',flexWrap:'wrap'}}>
-        <div style={{flex:1,minWidth:220,position:'relative'}}>
+      <div className="search-filter-responsive">
+        <div data-search="true" style={{position:'relative',flex:1,minWidth:200}}>
           <Search size={16} color="#94a3b8" style={{position:'absolute',left:12,top:11}}/>
           <input
             placeholder="Search by Vehicle Number, Model, Brand..."
@@ -275,7 +275,7 @@ export default function VehiclesPage(){
         </div>
 
         <Select value={ownerF} onValueChange={v=>{setOwnerF(v);setPage(1)}}>
-          <SelectTrigger style={{width:160,height:38}}><SelectValue placeholder="All Owners"/></SelectTrigger>
+          <SelectTrigger style={{minWidth:140,height:38}}><SelectValue placeholder="All Owners"/></SelectTrigger>
           <SelectContent>
             <SelectItem value="All">All Owners</SelectItem>
             {ownerOptions.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}
@@ -283,7 +283,7 @@ export default function VehiclesPage(){
         </Select>
 
         <Select value={statusF} onValueChange={v=>{setStatusF(v);setPage(1)}}>
-          <SelectTrigger style={{width:140,height:38}}><SelectValue placeholder="All Status"/></SelectTrigger>
+          <SelectTrigger style={{minWidth:130,height:38}}><SelectValue placeholder="All Status"/></SelectTrigger>
           <SelectContent>
             <SelectItem value="All">All Status</SelectItem>
             <SelectItem value="On Duty">On Duty</SelectItem>
@@ -294,7 +294,7 @@ export default function VehiclesPage(){
         </Select>
 
         <Select value={driverF} onValueChange={v=>{setDriverF(v);setPage(1)}}>
-          <SelectTrigger style={{width:160,height:38}}><SelectValue placeholder="All Drivers"/></SelectTrigger>
+          <SelectTrigger style={{minWidth:140,height:38}}><SelectValue placeholder="All Drivers"/></SelectTrigger>
           <SelectContent>
             <SelectItem value="All">All Drivers</SelectItem>
             {driverOptions.map(d=><SelectItem key={d} value={d}>{d}</SelectItem>)}
@@ -308,7 +308,7 @@ export default function VehiclesPage(){
 
       {/* ─── Data Table ─── */}
       <Card style={{padding:0,borderRadius:12,overflow:'hidden',background:'#fff',border:'1px solid #e2e8f0'}}>
-        <div style={{overflowX:'auto'}}>
+        <div className="table-responsive-container">
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:12.5,textAlign:'left'}}>
             <thead>
               <tr style={{background:'#f8fafc',borderBottom:'1px solid #e2e8f0',color:'#475569',fontWeight:700,height:42}}>
@@ -447,7 +447,7 @@ export default function VehiclesPage(){
       </Card>
 
       {/* ─── Bottom Split Section ─── */}
-      <div style={{display:'grid',gridTemplateColumns:'1.4fr 1.3fr 1.3fr',gap:14}}>
+      <div className="split-grid-bottom-3">
         {/* Left: Vehicle Details */}
         <Card style={{padding:0,borderRadius:12,overflow:'hidden',background:'#fff',border:'1px solid #e2e8f0'}}>
           <div className="panel-header-blue">
@@ -455,7 +455,7 @@ export default function VehiclesPage(){
           </div>
 
           {activeVeh ? (
-            <div style={{padding:16,display:'flex',gap:16}}>
+            <div className="detail-card-layout" style={{padding:16}}>
               {/* Vehicle image + badge */}
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
                 <div style={{
@@ -577,7 +577,7 @@ export default function VehiclesPage(){
       </div>
 
       {/* ─── Bottom Row ─── */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
+      <div className="split-grid-bottom-3">
         {/* Vehicle History */}
         <Card style={{padding:16,borderRadius:12,background:'#fff',border:'1px solid #e2e8f0'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>

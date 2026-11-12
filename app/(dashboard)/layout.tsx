@@ -72,8 +72,17 @@ function DashboardShell({children}:{children:React.ReactNode}){
 
   return (
     <div className="app-shell">
+      {/* Mobile Backdrop overlay */}
+      {mobileMenu && (
+        <div
+          className="mobile-backdrop"
+          onClick={() => setMobileMenu(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar matching screenshot */}
-      <aside className={'sidebar '+(mobileMenu?'mobile-open':'')} style={{width:250,flex:'0 0 250px'}}>
+      <aside className={'sidebar '+(mobileMenu?'mobile-open':'')}>
         {/* Brand Logo Header */}
         <div className="brand" style={{display:'flex',alignItems:'center',gap:12,padding:'0 18px',height:80}}>
           <div style={{width:44,height:44,borderRadius:10,background:'linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%)',display:'grid',placeItems:'center',flexShrink:0,boxShadow:'0 2px 8px rgba(0,0,0,0.3)',border:'1px solid rgba(255,255,255,0.15)'}}>
@@ -187,22 +196,22 @@ function DashboardShell({children}:{children:React.ReactNode}){
       {/* Main Content Area */}
       <div className="main-shell" style={{background:'#f0f4f9'}}>
         {/* Topbar matching screenshot */}
-        <header className="topbar" style={{height:70,background:'#ffffff',borderBottom:'1px solid #e2e8f0',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 28px'}}>
-          <div style={{display:'flex',alignItems:'center',gap:14}}>
-            <button className="menu-button" onClick={()=>setMobileMenu(true)} aria-label="Open menu" style={{border:0,background:'none',color:'#334e68',cursor:'pointer',padding:4}}>
-              <Menu size={22}/>
+        <header className="topbar">
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <button className="menu-button" onClick={()=>setMobileMenu(true)} aria-label="Open menu">
+              <Menu size={20}/>
             </button>
             <div className="topbar-title">
-              <h2 style={{fontSize:17,fontWeight:800,color:'#0f172a',margin:0,lineHeight:1.2,letterSpacing:'-0.02em'}}>
+              <h2 style={{fontWeight:800,color:'#0f172a',margin:0,lineHeight:1.2,letterSpacing:'-0.02em'}}>
                 TASIN ENTERPRISE
               </h2>
-              <p style={{fontSize:11.5,color:'#64748b',margin:'2px 0 0',fontWeight:500}}>
+              <p className="topbar-subtitle" style={{fontSize:11.5,color:'#64748b',margin:'2px 0 0',fontWeight:500}}>
                 Rent-a-Car Management System
               </p>
             </div>
           </div>
 
-          <div style={{display:'flex',alignItems:'center',gap:14}}>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
             {/* Backend Live Connection Status */}
             <div
               title={isConnected ? 'Backend API is connected & live' : 'Running in demo mode (backend offline)'}
@@ -210,7 +219,7 @@ function DashboardShell({children}:{children:React.ReactNode}){
                 display:'inline-flex',
                 alignItems:'center',
                 gap:6,
-                padding:'4px 10px',
+                padding:'4px 9px',
                 borderRadius:20,
                 fontSize:11.5,
                 fontWeight:700,
@@ -226,11 +235,11 @@ function DashboardShell({children}:{children:React.ReactNode}){
                 background:isConnected ? '#10b981' : '#f59e0b',
                 boxShadow:isConnected ? '0 0 6px #10b981' : 'none',
               }}/>
-              <span>{isConnected ? 'Backend Live' : 'Demo Mode'}</span>
+              <span className="topbar-badge-text">{isConnected ? 'Backend Live' : 'Demo Mode'}</span>
             </div>
 
             {/* Date Pill Selector */}
-            <div className="date-pill" style={{display:'flex',alignItems:'center',gap:8,background:'#ffffff',border:'1px solid #cbd5e1',borderRadius:8,padding:'6px 14px',fontSize:12,fontWeight:600,color:'#334155'}}>
+            <div className="date-pill topbar-date-pill">
               <Calendar size={15} color="#64748b"/>
               <span>November 2026</span>
               <ChevronDown size={14} color="#64748b"/>
@@ -241,21 +250,9 @@ function DashboardShell({children}:{children:React.ReactNode}){
               onClick={()=>router.push('/notifications')}
               className="bell-btn"
               aria-label="Notifications"
-              style={{
-                width:36,
-                height:36,
-                borderRadius:'50%',
-                border:'1px solid #cbd5e1',
-                background:'#ffffff',
-                display:'grid',
-                placeItems:'center',
-                position:'relative',
-                color:'#334155',
-                cursor:'pointer',
-              }}
             >
               <Bell size={17}/>
-              <span className="bell-badge" style={{position:'absolute',top:-3,right:-3,background:'#ef4444',color:'#ffffff',fontSize:9,fontWeight:800,borderRadius:'50%',width:16,height:16,display:'grid',placeItems:'center',border:'2px solid #ffffff'}}>
+              <span className="bell-badge">
                 3
               </span>
             </button>
@@ -263,6 +260,7 @@ function DashboardShell({children}:{children:React.ReactNode}){
             {/* User Avatar Circle */}
             <div
               onClick={()=>router.push('/settings')}
+              className="user-avatar-circle"
               style={{
                 width:36,
                 height:36,
@@ -275,6 +273,7 @@ function DashboardShell({children}:{children:React.ReactNode}){
                 fontSize:12,
                 border:'2px solid #1677ff',
                 cursor:'pointer',
+                flexShrink:0
               }}
               title="Admin Profile"
             >
@@ -284,7 +283,7 @@ function DashboardShell({children}:{children:React.ReactNode}){
         </header>
 
         {/* Content Shell */}
-        <main className="content" style={{padding:'20px 24px 60px',maxWidth:1700,margin:'0 auto'}}>
+        <main className="content" style={{maxWidth:1700,margin:'0 auto'}}>
           {children}
         </main>
       </div>

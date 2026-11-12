@@ -120,7 +120,7 @@ export default function DashboardPage(){
   return (
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
       {/* ─── Top Row: 6 KPI Cards ─── */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(6,minmax(0,1fr))',gap:12}}>
+      <div className="kpi-grid-6">
         {/* 1. Total Vehicles */}
         <Card style={{padding:'14px 16px',background:'#fff',borderRadius:12,border:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:12}}>
           <div style={{width:44,height:44,borderRadius:10,background:'#e6f0ff',display:'grid',placeItems:'center',color:'#1677ff',flexShrink:0}}>
@@ -219,7 +219,7 @@ export default function DashboardPage(){
       </div>
 
       {/* ─── Row 2: Owners & Drivers, Financial Overview, Quick Actions ─── */}
-      <div style={{display:'grid',gridTemplateColumns:'1.1fr 1.6fr 0.8fr',gap:14}}>
+      <div className="split-grid-dashboard-row2">
         {/* 1. Owners & Drivers Overview */}
         <Card style={{padding:16,borderRadius:12,background:'#fff',border:'1px solid #e2e8f0'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
@@ -227,7 +227,7 @@ export default function DashboardPage(){
             <Link href="/owners" style={{fontSize:12,color:'#1677ff',fontWeight:600,textDecoration:'none'}}>View All →</Link>
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(85px, 1fr))',gap:10}}>
             {/* Owners box */}
             <div style={{background:'#eff6ff',borderRadius:10,padding:'14px 10px',textAlign:'center',border:'1px solid #dbeafe'}}>
               <div style={{width:38,height:38,borderRadius:'50%',background:'#dbeafe',display:'grid',placeItems:'center',color:'#1677ff',margin:'0 auto 8px'}}>
@@ -270,7 +270,7 @@ export default function DashboardPage(){
             <Link href="/reports" style={{fontSize:12,color:'#1677ff',fontWeight:600,textDecoration:'none'}}>View Report →</Link>
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(130px, 1fr))',gap:8}}>
             {/* Total Revenue */}
             <div style={{background:'#f0fdf4',border:'1px solid #dcfce7',borderRadius:8,padding:'8px 10px',display:'flex',alignItems:'center',gap:8}}>
               <div style={{width:28,height:28,borderRadius:6,background:'#22c55e',display:'grid',placeItems:'center',color:'#fff',flexShrink:0}}>
@@ -375,7 +375,7 @@ export default function DashboardPage(){
         {/* 3. Quick Actions */}
         <Card style={{padding:16,borderRadius:12,background:'#fff',border:'1px solid #e2e8f0'}}>
           <h3 style={{fontSize:14,fontWeight:750,color:'#0f172a',margin:'0 0 12px'}}>Quick Actions</h3>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(75px, 1fr))',gap:8}}>
             <Link href="/vehicles" style={{textDecoration:'none'}}>
               <div style={{background:'#eff6ff',borderRadius:8,padding:'10px 6px',textAlign:'center',border:'1px solid #dbeafe'}}>
                 <CarFront size={18} color="#1677ff" style={{margin:'0 auto 4px'}}/>
@@ -422,7 +422,7 @@ export default function DashboardPage(){
       </div>
 
       {/* ─── Row 3: Income & Expense Analytics + Outstanding Due ─── */}
-      <div style={{display:'grid',gridTemplateColumns:'1.9fr 1.1fr',gap:14}}>
+      <div className="split-grid-analytics-2">
         {/* Income & Expense Analytics (Connected dynamically to Neon DB) */}
         <Card style={{padding:16,borderRadius:12,background:'#fff',border:'1px solid #e2e8f0'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12,flexWrap:'wrap',gap:8}}>
@@ -454,7 +454,7 @@ export default function DashboardPage(){
             </div>
           </div>
 
-          <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:8,fontSize:11}}>
+          <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:8,fontSize:11,flexWrap:'wrap'}}>
             <span style={{display:'flex',alignItems:'center',gap:4,color:'#334155'}}>
               <span style={{width:8,height:8,borderRadius:'50%',background:'#1677ff'}}/> Income
             </span>
@@ -496,7 +496,7 @@ export default function DashboardPage(){
             <Link href="/due-collection" style={{fontSize:12,color:'#1677ff',fontWeight:600,textDecoration:'none'}}>View All →</Link>
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(110px, 1fr))',gap:10}}>
             {/* Owner Due */}
             <div style={{background:'#fff7ed',borderRadius:10,padding:12,textAlign:'center',border:'1px solid #ffedd5'}}>
               <div style={{width:32,height:32,borderRadius:'50%',background:'#ffedd5',display:'grid',placeItems:'center',color:'#f97316',margin:'0 auto 6px'}}>
@@ -541,7 +541,7 @@ export default function DashboardPage(){
       </div>
 
       {/* ─── Row 4: Daily Operations (Today) + Notifications & Alerts + Recent Transactions ─── */}
-      <div style={{display:'grid',gridTemplateColumns:'1.2fr 1fr 1fr',gap:14}}>
+      <div className="split-grid-today-3">
         {/* Daily Operations (Today) */}
         <Card style={{padding:16,borderRadius:12,background:'#fff',border:'1px solid #e2e8f0'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
@@ -551,7 +551,7 @@ export default function DashboardPage(){
             <Link href="/duties" style={{fontSize:12,color:'#1677ff',fontWeight:600,textDecoration:'none'}}>View Duties →</Link>
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:12}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(65px, 1fr))',gap:8,marginBottom:12}}>
             <div style={{background:'#eff6ff',borderRadius:8,padding:'10px 4px',textAlign:'center'}}>
               <CarFront size={16} color="#1677ff" style={{margin:'0 auto 4px'}}/>
               <span style={{fontSize:10,color:'#64748b',display:'block'}}>Total Duty</span>
@@ -574,7 +574,7 @@ export default function DashboardPage(){
             </div>
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))',gap:8}}>
             <div style={{background:'#f0fdf4',border:'1px solid #dcfce7',borderRadius:8,padding:'8px 10px',display:'flex',alignItems:'center',gap:8}}>
               <div style={{width:28,height:28,borderRadius:6,background:'#22c55e',display:'grid',placeItems:'center',color:'#fff',flexShrink:0}}>
                 <Wallet size={14}/>

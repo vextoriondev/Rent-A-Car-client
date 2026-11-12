@@ -52,7 +52,7 @@ export default function ReportsPage(){
     </div>
 
     {/* Metric Highlights */}
-    <div className="metric-grid" style={{gridTemplateColumns:'repeat(5,minmax(0,1fr))',marginBottom:16}}>
+    <div className="kpi-grid-5" style={{marginBottom:16}}>
       {[
         {label:'Total Revenue',value:fmt(totalRevenue),color:'blue',icon:TrendingUp},
         {label:'Total Expenditure',value:fmt(totalExpense),color:'gold',icon:DollarSign},
@@ -75,7 +75,7 @@ export default function ReportsPage(){
 
     {/* Tabs for Different Report Modules */}
     <Tabs defaultValue="financial">
-      <TabsList style={{marginBottom:16,flexWrap:'wrap'}}>
+      <TabsList style={{marginBottom:16,display:'flex',gap:6,overflowX:'auto',maxWidth:'100%',whiteSpace:'nowrap',paddingBottom:4}}>
         <TabsTrigger value="financial">Financial Overview</TabsTrigger>
         <TabsTrigger value="vehicles">Fleet Performance</TabsTrigger>
         <TabsTrigger value="owners">Owner Statements</TabsTrigger>
@@ -86,7 +86,7 @@ export default function ReportsPage(){
 
       {/* 1. Financial Overview */}
       <TabsContent value="financial">
-        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:16,marginBottom:16}}>
+        <div className="split-grid-analytics-2" style={{marginBottom:16}}>
           <Card style={{padding:16}}>
             <h3 style={{fontSize:14,fontWeight:700,color:'#1e3947',marginBottom:14}}>Monthly Income vs Expense Trend (BDT)</h3>
             <div style={{width:'100%',height:260}}>
@@ -131,23 +131,25 @@ export default function ReportsPage(){
         {/* Bank & Cash Balances */}
         <Card style={{padding:16}}>
           <h3 style={{fontSize:14,fontWeight:700,color:'#1e3947',marginBottom:12}}>Cash & Bank Accounts Status</h3>
-          <div className="billing-table">
-            <div className="head" style={{gridTemplateColumns:'1fr 1fr 1fr 1fr 1fr'}}>
-              <span>Account Name</span>
-              <span>Account Number</span>
-              <span>Account Type</span>
-              <span>Opening Balance</span>
-              <span>Current Balance</span>
-            </div>
-            {demoAccounts.map(a=>(
-              <div key={a.id} style={{gridTemplateColumns:'1fr 1fr 1fr 1fr 1fr'}}>
-                <span><b>{a.name}</b></span>
-                <span style={{fontSize:12,color:'#6a7c83'}}>{a.accountNumber||'—'}</span>
-                <span><span className="badge badge-neutral">{a.type}</span></span>
-                <span className="nums" style={{fontSize:12}}>{fmt(a.openingBalance)}</span>
-                <span className="nums" style={{fontSize:13,fontWeight:700,color:'#236d80'}}>{fmt(a.currentBalance)}</span>
+          <div className="table-responsive-container">
+            <div className="billing-table">
+              <div className="head" style={{gridTemplateColumns:'1fr 1fr 1fr 1fr 1fr',minWidth:600}}>
+                <span>Account Name</span>
+                <span>Account Number</span>
+                <span>Account Type</span>
+                <span>Opening Balance</span>
+                <span>Current Balance</span>
               </div>
-            ))}
+              {demoAccounts.map(a=>(
+                <div key={a.id} style={{gridTemplateColumns:'1fr 1fr 1fr 1fr 1fr',minWidth:600}}>
+                  <span><b>{a.name}</b></span>
+                  <span style={{fontSize:12,color:'#6a7c83'}}>{a.accountNumber||'—'}</span>
+                  <span><span className="badge badge-neutral">{a.type}</span></span>
+                  <span className="nums" style={{fontSize:12}}>{fmt(a.openingBalance)}</span>
+                  <span className="nums" style={{fontSize:13,fontWeight:700,color:'#236d80'}}>{fmt(a.currentBalance)}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </Card>
       </TabsContent>
@@ -156,27 +158,29 @@ export default function ReportsPage(){
       <TabsContent value="vehicles">
         <Card style={{padding:16}}>
           <h3 style={{fontSize:14,fontWeight:700,color:'#1e3947',marginBottom:12}}>Vehicle Fleet Utilization & Rent Summary</h3>
-          <div className="billing-table">
-            <div className="head" style={{gridTemplateColumns:'100px 1.4fr 1.2fr 100px 100px 110px 110px'}}>
-              <span>ID</span>
-              <span>Registration</span>
-              <span>Brand / Model</span>
-              <span>Category</span>
-              <span>Status</span>
-              <span>Monthly Rent</span>
-              <span>YTD Estimated Cost</span>
-            </div>
-            {demoVehicles.map(v=>(
-              <div key={v.id} style={{gridTemplateColumns:'100px 1.4fr 1.2fr 100px 100px 110px 110px'}}>
-                <span style={{fontSize:11,color:'#6a7c83'}}>{v.id}</span>
-                <span><b>{v.registration}</b></span>
-                <span>{v.brand} {v.model} ({v.year})</span>
-                <span>{v.category}</span>
-                <span><span className={`badge ${v.status==='Available'?'badge-good':v.status==='On Duty'?'badge-blue':v.status==='In Garage'?'badge-warn':'badge-bad'}`}>{v.status}</span></span>
-                <span className="nums" style={{fontSize:12,fontWeight:700}}>{fmt(v.monthlyRent)}</span>
-                <span className="nums" style={{fontSize:12}}>{fmt(v.monthlyRent*10)}</span>
+          <div className="table-responsive-container">
+            <div className="billing-table">
+              <div className="head" style={{gridTemplateColumns:'100px 1.4fr 1.2fr 100px 100px 110px 110px',minWidth:760}}>
+                <span>ID</span>
+                <span>Registration</span>
+                <span>Brand / Model</span>
+                <span>Category</span>
+                <span>Status</span>
+                <span>Monthly Rent</span>
+                <span>YTD Estimated Cost</span>
               </div>
-            ))}
+              {demoVehicles.map(v=>(
+                <div key={v.id} style={{gridTemplateColumns:'100px 1.4fr 1.2fr 100px 100px 110px 110px',minWidth:760}}>
+                  <span style={{fontSize:11,color:'#6a7c83'}}>{v.id}</span>
+                  <span><b>{v.registration}</b></span>
+                  <span>{v.brand} {v.model} ({v.year})</span>
+                  <span>{v.category}</span>
+                  <span><span className={`badge ${v.status==='Available'?'badge-good':v.status==='On Duty'?'badge-blue':v.status==='In Garage'?'badge-warn':'badge-bad'}`}>{v.status}</span></span>
+                  <span className="nums" style={{fontSize:12,fontWeight:700}}>{fmt(v.monthlyRent)}</span>
+                  <span className="nums" style={{fontSize:12}}>{fmt(v.monthlyRent*10)}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </Card>
       </TabsContent>
@@ -185,32 +189,34 @@ export default function ReportsPage(){
       <TabsContent value="owners">
         <Card style={{padding:16}}>
           <h3 style={{fontSize:14,fontWeight:700,color:'#1e3947',marginBottom:12}}>Owner Accounts & Payables Summary</h3>
-          <div className="billing-table">
-            <div className="head" style={{gridTemplateColumns:'100px 1.4fr 120px 90px 120px 120px 120px 90px'}}>
-              <span>Owner ID</span>
-              <span>Name</span>
-              <span>Mobile</span>
-              <span>Vehicles</span>
-              <span>Total Payable</span>
-              <span>Total Paid</span>
-              <span>Outstanding Due</span>
-              <span>Status</span>
+          <div className="table-responsive-container">
+            <div className="billing-table">
+              <div className="head" style={{gridTemplateColumns:'100px 1.4fr 120px 90px 120px 120px 120px 90px',minWidth:850}}>
+                <span>Owner ID</span>
+                <span>Name</span>
+                <span>Mobile</span>
+                <span>Vehicles</span>
+                <span>Total Payable</span>
+                <span>Total Paid</span>
+                <span>Outstanding Due</span>
+                <span>Status</span>
+              </div>
+              {demoOwners.map(o=>{
+                const due=o.totalPayable-o.totalPaid;
+                return (
+                  <div key={o.id} style={{gridTemplateColumns:'100px 1.4fr 120px 90px 120px 120px 120px 90px',minWidth:850}}>
+                    <span style={{fontSize:11,color:'#6a7c83'}}>{o.id}</span>
+                    <span><b>{o.name}</b></span>
+                    <span style={{fontSize:12}}>{o.mobile}</span>
+                    <span style={{fontSize:12}}>{o.totalVehicles}</span>
+                    <span className="nums" style={{fontSize:12,fontWeight:700}}>{fmt(o.totalPayable)}</span>
+                    <span className="nums" style={{fontSize:12,color:'#277b55',fontWeight:700}}>{fmt(o.totalPaid)}</span>
+                    <span className="nums" style={{fontSize:12,fontWeight:700,color:due>0?'#a57a2b':'#277b55'}}>{fmt(due)}</span>
+                    <span><span className={`badge ${o.status==='Active'?'badge-good':'badge-bad'}`}>{o.status}</span></span>
+                  </div>
+                );
+              })}
             </div>
-            {demoOwners.map(o=>{
-              const due=o.totalPayable-o.totalPaid;
-              return (
-                <div key={o.id} style={{gridTemplateColumns:'100px 1.4fr 120px 90px 120px 120px 120px 90px'}}>
-                  <span style={{fontSize:11,color:'#6a7c83'}}>{o.id}</span>
-                  <span><b>{o.name}</b></span>
-                  <span style={{fontSize:12}}>{o.mobile}</span>
-                  <span style={{fontSize:12}}>{o.totalVehicles}</span>
-                  <span className="nums" style={{fontSize:12,fontWeight:700}}>{fmt(o.totalPayable)}</span>
-                  <span className="nums" style={{fontSize:12,color:'#277b55',fontWeight:700}}>{fmt(o.totalPaid)}</span>
-                  <span className="nums" style={{fontSize:12,fontWeight:700,color:due>0?'#a57a2b':'#277b55'}}>{fmt(due)}</span>
-                  <span><span className={`badge ${o.status==='Active'?'badge-good':'badge-bad'}`}>{o.status}</span></span>
-                </div>
-              );
-            })}
           </div>
         </Card>
       </TabsContent>
@@ -219,32 +225,34 @@ export default function ReportsPage(){
       <TabsContent value="clients">
         <Card style={{padding:16}}>
           <h3 style={{fontSize:14,fontWeight:700,color:'#1e3947',marginBottom:12}}>Client Receivables & Collection Aging</h3>
-          <div className="billing-table">
-            <div className="head" style={{gridTemplateColumns:'100px 1.4fr 1.2fr 110px 110px 110px 110px 90px'}}>
-              <span>Client ID</span>
-              <span>Company / Client</span>
-              <span>Contact Person</span>
-              <span>Type</span>
-              <span>Total Invoiced</span>
-              <span>Total Collected</span>
-              <span>Outstanding Due</span>
-              <span>Status</span>
+          <div className="table-responsive-container">
+            <div className="billing-table">
+              <div className="head" style={{gridTemplateColumns:'100px 1.4fr 1.2fr 110px 110px 110px 110px 90px',minWidth:860}}>
+                <span>Client ID</span>
+                <span>Company / Client</span>
+                <span>Contact Person</span>
+                <span>Type</span>
+                <span>Total Invoiced</span>
+                <span>Total Collected</span>
+                <span>Outstanding Due</span>
+                <span>Status</span>
+              </div>
+              {demoClients.map(c=>{
+                const due=c.totalReceivable-c.totalCollected;
+                return (
+                  <div key={c.id} style={{gridTemplateColumns:'100px 1.4fr 1.2fr 110px 110px 110px 110px 90px',minWidth:860}}>
+                    <span style={{fontSize:11,color:'#6a7c83'}}>{c.id}</span>
+                    <span><b>{c.name}</b></span>
+                    <span style={{fontSize:12}}>{c.contactPerson}</span>
+                    <span><span className="badge badge-neutral">{c.clientType}</span></span>
+                    <span className="nums" style={{fontSize:12,fontWeight:700}}>{fmt(c.totalReceivable)}</span>
+                    <span className="nums" style={{fontSize:12,color:'#277b55',fontWeight:700}}>{fmt(c.totalCollected)}</span>
+                    <span className="nums" style={{fontSize:12,fontWeight:700,color:due>0?'#a57a2b':'#277b55'}}>{fmt(due)}</span>
+                    <span><span className={`badge ${c.status==='Active'?'badge-good':'badge-bad'}`}>{c.status}</span></span>
+                  </div>
+                );
+              })}
             </div>
-            {demoClients.map(c=>{
-              const due=c.totalReceivable-c.totalCollected;
-              return (
-                <div key={c.id} style={{gridTemplateColumns:'100px 1.4fr 1.2fr 110px 110px 110px 110px 90px'}}>
-                  <span style={{fontSize:11,color:'#6a7c83'}}>{c.id}</span>
-                  <span><b>{c.name}</b></span>
-                  <span style={{fontSize:12}}>{c.contactPerson}</span>
-                  <span><span className="badge badge-neutral">{c.clientType}</span></span>
-                  <span className="nums" style={{fontSize:12,fontWeight:700}}>{fmt(c.totalReceivable)}</span>
-                  <span className="nums" style={{fontSize:12,color:'#277b55',fontWeight:700}}>{fmt(c.totalCollected)}</span>
-                  <span className="nums" style={{fontSize:12,fontWeight:700,color:due>0?'#a57a2b':'#277b55'}}>{fmt(due)}</span>
-                  <span><span className={`badge ${c.status==='Active'?'badge-good':'badge-bad'}`}>{c.status}</span></span>
-                </div>
-              );
-            })}
           </div>
         </Card>
       </TabsContent>
@@ -253,29 +261,31 @@ export default function ReportsPage(){
       <TabsContent value="drivers">
         <Card style={{padding:16}}>
           <h3 style={{fontSize:14,fontWeight:700,color:'#1e3947',marginBottom:12}}>Driver Salaries, Allowances & Advance Statement</h3>
-          <div className="billing-table">
-            <div className="head" style={{gridTemplateColumns:'100px 1.4fr 120px 110px 110px 110px 110px 110px'}}>
-              <span>Driver ID</span>
-              <span>Driver Name</span>
-              <span>License No</span>
-              <span>Monthly Salary</span>
-              <span>Allowance/day</span>
-              <span>Advance Balance</span>
-              <span>Total Paid YTD</span>
-              <span>Net Due</span>
-            </div>
-            {demoDrivers.map(d=>(
-              <div key={d.id} style={{gridTemplateColumns:'100px 1.4fr 120px 110px 110px 110px 110px 110px'}}>
-                <span style={{fontSize:11,color:'#6a7c83'}}>{d.id}</span>
-                <span><b>{d.name}</b></span>
-                <span style={{fontSize:11}}>{d.licenseNo}</span>
-                <span className="nums" style={{fontSize:12}}>{fmt(d.monthlySalary)}</span>
-                <span className="nums" style={{fontSize:12}}>{fmt(d.dailyAllowance)}</span>
-                <span className="nums" style={{fontSize:12,color:'#a57a2b'}}>{fmt(d.advance)}</span>
-                <span className="nums" style={{fontSize:12,color:'#277b55'}}>{fmt(d.totalPaid)}</span>
-                <span className="nums" style={{fontSize:12,fontWeight:700}}>{fmt(d.monthlySalary-d.totalPaid+d.advance)}</span>
+          <div className="table-responsive-container">
+            <div className="billing-table">
+              <div className="head" style={{gridTemplateColumns:'100px 1.4fr 120px 110px 110px 110px 110px 110px',minWidth:860}}>
+                <span>Driver ID</span>
+                <span>Driver Name</span>
+                <span>License No</span>
+                <span>Monthly Salary</span>
+                <span>Allowance/day</span>
+                <span>Advance Balance</span>
+                <span>Total Paid YTD</span>
+                <span>Net Due</span>
               </div>
-            ))}
+              {demoDrivers.map(d=>(
+                <div key={d.id} style={{gridTemplateColumns:'100px 1.4fr 120px 110px 110px 110px 110px 110px',minWidth:860}}>
+                  <span style={{fontSize:11,color:'#6a7c83'}}>{d.id}</span>
+                  <span><b>{d.name}</b></span>
+                  <span style={{fontSize:11}}>{d.licenseNo}</span>
+                  <span className="nums" style={{fontSize:12}}>{fmt(d.monthlySalary)}</span>
+                  <span className="nums" style={{fontSize:12}}>{fmt(d.dailyAllowance)}</span>
+                  <span className="nums" style={{fontSize:12,color:'#a57a2b'}}>{fmt(d.advance)}</span>
+                  <span className="nums" style={{fontSize:12,color:'#277b55'}}>{fmt(d.totalPaid)}</span>
+                  <span className="nums" style={{fontSize:12,fontWeight:700}}>{fmt(d.monthlySalary-d.totalPaid+d.advance)}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </Card>
       </TabsContent>
@@ -284,29 +294,31 @@ export default function ReportsPage(){
       <TabsContent value="maintenance">
         <Card style={{padding:16}}>
           <h3 style={{fontSize:14,fontWeight:700,color:'#1e3947',marginBottom:12}}>Fleet Maintenance Cost & Workshop Ledger</h3>
-          <div className="billing-table">
-            <div className="head" style={{gridTemplateColumns:'100px 1.4fr 1.2fr 100px 110px 100px 100px 100px'}}>
-              <span>ID</span>
-              <span>Vehicle</span>
-              <span>Garage</span>
-              <span>Date</span>
-              <span>Category</span>
-              <span>Labour</span>
-              <span>Parts</span>
-              <span>Total Cost</span>
-            </div>
-            {demoMaintenance.map(m=>(
-              <div key={m.id} style={{gridTemplateColumns:'100px 1.4fr 1.2fr 100px 110px 100px 100px 100px'}}>
-                <span style={{fontSize:11,color:'#6a7c83'}}>{m.id}</span>
-                <span><b>{m.vehicleReg}</b></span>
-                <span>{m.garageName}</span>
-                <span style={{fontSize:11,color:'#6a7c83'}}>{m.date}</span>
-                <span><span className="badge badge-neutral">{m.serviceType}</span></span>
-                <span className="nums" style={{fontSize:12}}>{fmt(m.labourCost)}</span>
-                <span className="nums" style={{fontSize:12}}>{fmt(m.partsCost)}</span>
-                <span className="nums" style={{fontSize:12,fontWeight:700,color:'#b04b46'}}>{fmt(m.totalCost)}</span>
+          <div className="table-responsive-container">
+            <div className="billing-table">
+              <div className="head" style={{gridTemplateColumns:'100px 1.4fr 1.2fr 100px 110px 100px 100px 100px',minWidth:840}}>
+                <span>ID</span>
+                <span>Vehicle</span>
+                <span>Garage</span>
+                <span>Date</span>
+                <span>Category</span>
+                <span>Labour</span>
+                <span>Parts</span>
+                <span>Total Cost</span>
               </div>
-            ))}
+              {demoMaintenance.map(m=>(
+                <div key={m.id} style={{gridTemplateColumns:'100px 1.4fr 1.2fr 100px 110px 100px 100px 100px',minWidth:840}}>
+                  <span style={{fontSize:11,color:'#6a7c83'}}>{m.id}</span>
+                  <span><b>{m.vehicleReg}</b></span>
+                  <span>{m.garageName}</span>
+                  <span style={{fontSize:11,color:'#6a7c83'}}>{m.date}</span>
+                  <span><span className="badge badge-neutral">{m.serviceType}</span></span>
+                  <span className="nums" style={{fontSize:12}}>{fmt(m.labourCost)}</span>
+                  <span className="nums" style={{fontSize:12}}>{fmt(m.partsCost)}</span>
+                  <span className="nums" style={{fontSize:12,fontWeight:700,color:'#b04b46'}}>{fmt(m.totalCost)}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </Card>
       </TabsContent>
