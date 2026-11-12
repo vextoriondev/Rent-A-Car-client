@@ -105,15 +105,15 @@ function sortDuties(arr: Duty[], key: SortKey, dir: SortDir): Duty[] {
 
 // ─── Page Component ───────────────────────────────────────────────────────────
 export default function DutiesPage() {
-  const [duties, setDuties] = useState<Duty[]>(demoDuties);
-  const [clients, setClients] = useState<any[]>(demoClients);
-  const [vehicles, setVehicles] = useState<any[]>(demoVehicles);
-  const [drivers, setDrivers] = useState<any[]>(demoDrivers);
+  const [duties, setDuties] = useState<Duty[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<any[]>([]);
 
   const loadData = () => {
     fetchDuties(1)
       .then((data: any) => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           const mapped: Duty[] = data.map((d: any) => ({
             id: d.dutyId || `DTY-${String(d.id).padStart(3, '0')}`,
             date: d.date,
@@ -145,13 +145,13 @@ export default function DutiesPage() {
       .catch(() => {});
 
     fetchClients(1).then((data: any) => {
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         setClients(data.map((c: any) => ({ id: String(c.id), name: c.name, phone: c.mobile || c.phone })));
       }
     }).catch(() => {});
 
     fetchVehicles(1).then((data: any) => {
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         setVehicles(data.map((v: any) => ({
           id: String(v.id),
           registration: v.registration || v.regNo,
@@ -162,7 +162,7 @@ export default function DutiesPage() {
     }).catch(() => {});
 
     fetchDrivers(1).then((data: any) => {
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         setDrivers(data.map((d: any) => ({
           id: String(d.id),
           name: d.name,

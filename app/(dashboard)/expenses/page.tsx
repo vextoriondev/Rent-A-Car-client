@@ -1,8 +1,8 @@
 "use client";
 import {useState,useMemo,useEffect} from 'react';
 import {Receipt,Plus,Eye,CheckCircle2,X,ChevronLeft,ChevronRight,Search,Filter,PieChart as PieIcon} from 'lucide-react';
-import {fetchExpenses,createExpense,fetchVehicles} from '@/lib/api';
-import {demoExpenses,demoVehicles,demoAccounts,Expense,ExpenseCategory,PaymentMethod,expenseCategoryData} from '@/lib/tasin-data';
+import {fetchExpenses,createExpense,fetchVehicles,fetchFinancialAccounts} from '@/lib/api';
+import {Expense,ExpenseCategory,PaymentMethod} from '@/lib/tasin-data';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
@@ -34,8 +34,9 @@ const BLANK_FORM={
 };
 
 export default function ExpensesPage(){
-  const [expenses,setExpenses]=useState<Expense[]>(demoExpenses);
-  const [vehicles,setVehicles]=useState<any[]>(demoVehicles);
+  const [expenses,setExpenses]=useState<Expense[]>([]);
+  const [vehicles,setVehicles]=useState<any[]>([]);
+  const [accounts,setAccounts]=useState<any[]>([]);
   const [q,setQ]=useState('');
   const [categoryF,setCategoryF]=useState<string>('All');
   const [methodF,setMethodF]=useState<string>('All');
@@ -52,7 +53,7 @@ export default function ExpensesPage(){
   const loadExpenses = () => {
     fetchExpenses(1)
       .then((data: any) => {
-        if(Array.isArray(data) && data.length > 0){
+        if(Array.isArray(data)){
           setExpenses(data.map((e: any) => ({
             id: e.expenseId || `EXP-${String(e.id).padStart(3, '0')}`,
             date: e.date,
@@ -71,12 +72,18 @@ export default function ExpensesPage(){
       .catch(()=>{});
 
     fetchVehicles(1).then((data: any) => {
-      if(Array.isArray(data) && data.length > 0){
+      if(Array.isArray(data)){
         setVehicles(data.map((v: any) => ({
           id: String(v.id),
           registration: v.registration || v.regNo,
           model: v.model
         })));
+      }
+    }).catch(()=>{});
+
+    fetchFinancialAccounts(1).then((data: any) => {
+      if(Array.isArray(data)){
+        setAccounts(data);
       }
     }).catch(()=>{});
   };
@@ -122,6 +129,29 @@ export default function ExpensesPage(){
     });
     return Object.entries(counts).map(([name,value])=>({name,value}));
   },[expenses]);
+
+  function handleExportCSV() {
+    const headers = ['Date', 'Title', 'Category', 'Amount (BDT)', 'Payment Method', 'Paid To', 'Vehicle', 'Reference'];
+    const rows = filtered.map(e => [
+      e.date,
+      `"${e.title.replace(/"/g, '""')}"`,
+      e.category,
+      e.amount,
+      e.paymentMethod,
+      `"${e.paidTo.replace(/"/g, '""')}"`,
+      e.vehicleReg || '',
+      `"${(e.reference || '').replace(/"/g, '""')}"`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `tasin_expenses_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    showToast('Expenses exported to CSV');
+  }
 
   function validate(){
     const e:Record<string,string>={};
@@ -264,12 +294,12 @@ export default function ExpensesPage(){
         <SelectTrigger style={{minWidth:160}}><SelectValue placeholder="Vehicle"/></SelectTrigger>
         <SelectContent>
           <SelectItem value="All">All Vehicles</SelectItem>
-          {demoVehicles.map(v=><SelectItem key={v.id} value={v.id}>{v.registration}</SelectItem>)}
+          {vehicles.map((v: any)=><SelectItem key={v.id} value={v.id}>{v.registration}</SelectItem>)}
         </SelectContent>
       </Select>
 
       <div style={{marginLeft:'auto',display:'flex',gap:8}}>
-        <Button variant="outline" onClick={()=>showToast('Export feature will be available after backend integration')}>Export</Button>
+        <Button variant="outline" onClick={handleExportCSV}>Export CSV</Button>
       </div>
     </div>
 
@@ -380,7 +410,7 @@ export default function ExpensesPage(){
               <Select value={form.account} onValueChange={v=>setForm(f=>({...f,account:v}))}>
                 <SelectTrigger><SelectValue/></SelectTrigger>
                 <SelectContent>
-                  {demoAccounts.map(a=><SelectItem key={a.id} value={a.name}>{a.name} ({fmt(a.currentBalance)})</SelectItem>)}
+                  {accounts.map(a=><SelectItem key={a.id} value={a.name}>{a.name} ({fmt(a.currentBalance)})</SelectItem>)}
                 </SelectContent>
               </Select>
             </label>
@@ -399,7 +429,7 @@ export default function ExpensesPage(){
                 <SelectTrigger><SelectValue placeholder="Office / None"/></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="NONE">— Office / General Expense —</SelectItem>
-                  {demoVehicles.map(v=><SelectItem key={v.id} value={v.id}>{v.registration} ({v.model})</SelectItem>)}
+                  {vehicles.map(v=><SelectItem key={v.id} value={v.id}>{v.registration} ({v.model})</SelectItem>)}
                 </SelectContent>
               </Select>
             </label>

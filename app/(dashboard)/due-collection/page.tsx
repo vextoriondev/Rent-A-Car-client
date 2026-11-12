@@ -1,7 +1,7 @@
 "use client";
 import {useState, useMemo, useEffect} from 'react';
 import {CircleDollarSign, AlertCircle, TrendingDown, Wrench, UserRound, CheckCircle2, ChevronUp, ChevronDown, ChevronsUpDown, ArrowUpRight} from 'lucide-react';
-import {fetchDueCollection, recordClientCollection, recordOwnerPayment, recordDriverPayment} from '@/lib/api';
+import {fetchDueCollection, recordClientCollection, recordOwnerPayment, recordDriverPayment, recordGaragePayment} from '@/lib/api';
 import {demoClients, demoOwners, demoDrivers, demoGarages, demoVehicles} from '@/lib/tasin-data';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
@@ -787,6 +787,8 @@ export default function DueCollectionPage() {
         d.id === modal.row.id ? {...d, totalPaid: d.totalPaid + amount, remaining: d.remaining - amount} : d
       ));
     } else if (modal.kind === 'garage') {
+      recordGaragePayment(1, modal.row.id, { amount, payment_method: 'Cash', note: 'Garage bill payment' })
+        .then(() => loadDues()).catch(() => {});
       setGarages(prev => prev.map(g =>
         g.id === modal.row.id ? {...g, paid: g.paid + amount, remaining: g.remaining - amount} : g
       ));

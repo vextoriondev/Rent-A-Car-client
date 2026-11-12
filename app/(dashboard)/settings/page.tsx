@@ -1,7 +1,7 @@
 "use client";
 import {useState, useEffect} from 'react';
 import {Settings,Building,Users,Shield,Globe,Database,Plus,CheckCircle2,X,Key,Lock,Download} from 'lucide-react';
-import {fetchCompanyProfile, updateCompanyProfile} from '@/lib/api';
+import {fetchCompanyProfile, updateCompanyProfile, fetchUsers, createUser, deleteUser} from '@/lib/api';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
@@ -61,6 +61,23 @@ export default function SettingsPage(){
     tradeLicense:'TRAD-DNCC-2024-88',
   });
 
+  const loadUsers = () => {
+    fetchUsers(1)
+      .then((data: any) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setUsers(data.map((u: any) => ({
+            id: String(u.id),
+            name: u.name || u.username,
+            email: u.email || `${u.username}@tasinenterprise.com.bd`,
+            role: (u.role === 'admin' ? 'Admin' : u.role === 'accountant' ? 'Accountant' : u.role === 'operations' ? 'Operations Manager' : 'Staff') as SystemUser['role'],
+            status: u.isActive ? 'Active' : 'Inactive',
+            lastLogin: u.dateJoined ? u.dateJoined.slice(0, 16).replace('T', ' ') : '2026-11-10 12:00'
+          })));
+        }
+      })
+      .catch(() => {});
+  };
+
   useEffect(() => {
     fetchCompanyProfile(1).then((data: any) => {
       if (data && data.companyName) {
@@ -76,6 +93,7 @@ export default function SettingsPage(){
         }));
       }
     }).catch(() => {});
+    loadUsers();
   }, []);
 
   function handleSaveCompany() {
@@ -93,25 +111,62 @@ export default function SettingsPage(){
     }).then(() => showToast('Company profile saved to Neon DB')).catch(() => showToast('Company profile updated'));
   }
 
-  function handleAddUser(){
+  async function handleAddUser(){
     if(!newUser.name.trim()||!newUser.email.trim())return;
-    const u:SystemUser={
-      id:`USR-00${users.length+1}`,
-      name:newUser.name.trim(),
-      email:newUser.email.trim(),
-      role:newUser.role,
-      status:'Active',
-      lastLogin:'Never',
+    const roleMap: Record<string, 'admin' | 'accountant' | 'operations' | 'viewer' | 'mechanic'> = {
+      'Super Admin': 'admin',
+      'Admin': 'admin',
+      'Accountant': 'accountant',
+      'Operations Manager': 'operations',
+      'Staff': 'viewer'
     };
-    setUsers(prev=>[...prev,u]);
-    setAddUserOpen(false);
-    setNewUser({name:'',email:'',role:'Staff',password:''});
-    showToast(`User ${u.name} created with role ${u.role}`);
+    try {
+      await createUser(1, {
+        username: newUser.email.split('@')[0],
+        email: newUser.email.trim(),
+        password: newUser.password || 'TasinPass2026!',
+        role: roleMap[newUser.role] || 'viewer'
+      });
+      loadUsers();
+      setAddUserOpen(false);
+      setNewUser({name:'',email:'',role:'Staff',password:''});
+      showToast(`User ${newUser.name} saved to database`);
+    } catch {
+      showToast('Error creating user in database');
+    }
   }
 
-  function toggleUserStatus(u:SystemUser){
-    setUsers(prev=>prev.map(item=>item.id===u.id?{...item,status:item.status==='Active'?'Inactive':'Active'}:item));
+  async function handleDeleteUser(id: string, name: string){
+    if(!confirm(`Are you sure you want to remove user "${name}"?`)) return;
+    try {
+      await deleteUser(1, id);
+      loadUsers();
+      showToast(`User ${name} removed`);
+    } catch {
+      showToast('Error removing user');
+    }
+  }
+
+  function toggleUserStatus(u: SystemUser) {
+    setUsers(prev => prev.map(x => x.id === u.id ? { ...x, status: (x.status === 'Active' ? 'Inactive' : 'Active') as 'Active' | 'Inactive' } : x));
     showToast(`User ${u.name} status updated`);
+  }
+
+  function handleBackup() {
+    const snapshot = {
+      organization: "TASIN ENTERPRISE",
+      backupDate: new Date().toISOString(),
+      companyProfile: company,
+      users: users.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role }))
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(snapshot, null, 2));
+    const dlAnchor = document.createElement('a');
+    dlAnchor.setAttribute("href", dataStr);
+    dlAnchor.setAttribute("download", `tasin_enterprise_backup_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(dlAnchor);
+    dlAnchor.click();
+    dlAnchor.remove();
+    showToast('Database snapshot generated and downloaded');
   }
 
   return <>
@@ -228,10 +283,15 @@ export default function SettingsPage(){
                   <span><span className="badge badge-neutral" style={{fontSize:11}}>{u.role}</span></span>
                   <span><span className={`badge ${u.status==='Active'?'badge-good':'badge-bad'}`}>{u.status}</span></span>
                   <span style={{fontSize:11,color:'#6a7c83'}}>{u.lastLogin}</span>
-                  <span className="row-actions">
+                  <span className="row-actions" style={{display:'flex',gap:6}}>
                     <button className="text-button" onClick={()=>toggleUserStatus(u)} style={{color:u.status==='Active'?'#b04b46':'#277b55'}}>
                       {u.status==='Active'?'Suspend':'Activate'}
                     </button>
+                    {u.role !== 'Super Admin' && (
+                      <button className="text-button" onClick={()=>handleDeleteUser(u.id, u.name)} style={{color:'#ef4444'}}>
+                        Remove
+                      </button>
+                    )}
                   </span>
                 </div>
               ))}
@@ -311,7 +371,7 @@ export default function SettingsPage(){
               <strong style={{fontSize:14,color:'#1e3947',display:'block'}}>Full Database Snapshot (JSON / SQL)</strong>
               <span style={{fontSize:12,color:'#6a7c83'}}>Includes all 15 modules, billing ledgers, vehicle specs, and driver files.</span>
             </div>
-            <Button onClick={()=>showToast('Database backup generated and downloaded (Demo simulation)')}>
+            <Button onClick={handleBackup}>
               <Download size={15}/> Generate Backup
             </Button>
           </div>

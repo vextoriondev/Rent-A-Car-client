@@ -1,7 +1,7 @@
 "use client";
 import {useState,useMemo,useEffect} from 'react';
 import Link from 'next/link';
-import {fetchOwners,createOwner} from '@/lib/api';
+import {fetchOwners,createOwner,updateOwner,deleteOwner,recordOwnerPayment} from '@/lib/api';
 import {
   Users,
   UserRound,
@@ -53,6 +53,14 @@ export default function OwnersPage(){
   const [pageSize,setPageSize]=useState(10);
   const [addOpen,setAddOpen]=useState(false);
   const [newOwner,setNewOwner]=useState({name:'',phone:'',cars:1,rent:55000,nid:'',address:'',bank:'',email:''});
+  const [editOpen, setEditOpen] = useState(false);
+  const [editOwner, setEditOwner] = useState<any>(null);
+  const [payOpen, setPayOpen] = useState(false);
+  const [payOwnerTarget, setPayOwnerTarget] = useState<OwnerRecord | null>(null);
+  const [payAmount, setPayAmount] = useState(0);
+  const [payMethod, setPayMethod] = useState('Cash');
+  const [payRef, setPayRef] = useState('');
+  const [payNote, setPayNote] = useState('');
   const [toast,setToast]=useState('');
   const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(''),3000)};
 
@@ -138,6 +146,59 @@ export default function OwnersPage(){
       showToast(`Owner ${payload.name} saved to database`);
     } catch {
       showToast('Error saving owner to database');
+    }
+  }
+
+  async function handleUpdateOwner(){
+    if(!editOwner || !editOwner.name.trim() || !editOwner.phone.trim()) return;
+    try {
+      await updateOwner(1, editOwner.id, {
+        name: editOwner.name.trim(),
+        phone: editOwner.phone.trim(),
+        nid: editOwner.nid || '',
+        present_address: editOwner.address || '',
+        email: editOwner.email || '',
+        bank_name: editOwner.bank || '',
+        status: editOwner.status || 'Active'
+      });
+      loadData();
+      setEditOpen(false);
+      setEditOwner(null);
+      showToast(`Owner ${editOwner.name} updated successfully`);
+    } catch {
+      showToast('Error updating owner in database');
+    }
+  }
+
+  async function handleDeleteOwner(id: string, name: string){
+    if(!confirm(`Are you sure you want to deactivate owner "${name}"?`)) return;
+    try {
+      await deleteOwner(1, id);
+      loadData();
+      showToast(`Owner ${name} deactivated`);
+    } catch {
+      showToast('Error deactivating owner');
+    }
+  }
+
+  async function handleRecordPayout(){
+    if(!payOwnerTarget || payAmount <= 0) return;
+    try {
+      await recordOwnerPayment(1, payOwnerTarget.id, {
+        amount: payAmount,
+        payment_method: payMethod,
+        reference: payRef,
+        note: payNote
+      });
+      loadData();
+      setPayOpen(false);
+      setPayOwnerTarget(null);
+      setPayAmount(0);
+      setPayRef('');
+      setPayNote('');
+      showToast(`Payout of ৳ ${payAmount.toLocaleString()} recorded for ${payOwnerTarget.name}`);
+    } catch {
+      showToast('Error recording payout');
     }
   }
 
@@ -319,10 +380,13 @@ export default function OwnersPage(){
                           <button className="action-btn action-btn-blue" title="View Details" onClick={(e)=>{e.stopPropagation();setSelectedOwner(o)}}>
                             <Eye size={14}/>
                           </button>
-                          <button className="action-btn action-btn-blue" title="Edit" onClick={(e)=>{e.stopPropagation();showToast(`Editing ${o.name}`)}}>
+                          <button className="action-btn action-btn-blue" title="Edit Owner" onClick={(e)=>{e.stopPropagation();setEditOwner({...o});setEditOpen(true);}}>
                             <Edit2 size={14}/>
                           </button>
-                          <button className="action-btn action-btn-red" title="Delete" onClick={(e)=>{e.stopPropagation();showToast(`Cannot delete owner with active agreements`)}}>
+                          <button className="action-btn action-btn-green" title="Record Payout" onClick={(e)=>{e.stopPropagation();setPayOwnerTarget(o);setPayAmount(o.due > 0 ? o.due : 20000);setPayOpen(true);}} style={{background:'#dcfce7',color:'#16a34a',border:'none',borderRadius:4,padding:4,cursor:'pointer'}}>
+                            <Wallet size={14}/>
+                          </button>
+                          <button className="action-btn action-btn-red" title="Deactivate" onClick={(e)=>{e.stopPropagation();handleDeleteOwner(o.id, o.name);}}>
                             <Trash2 size={14}/>
                           </button>
                         </div>
@@ -514,11 +578,121 @@ export default function OwnersPage(){
             <Printer size={18}/> Print Statement
           </button>
 
-          <button onClick={()=>setAddOpen(true)} style={{width:'100%',background:'#f97316',color:'#fff',border:0,borderRadius:8,padding:'11px 16px',display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
-            <Edit2 size={18}/> Add/Edit Owner
+          <button onClick={()=>{ if(activeOwner) { setPayOwnerTarget(activeOwner); setPayAmount(activeOwner.due > 0 ? activeOwner.due : 20000); setPayOpen(true); } }} style={{width:'100%',background:'#10b981',color:'#fff',border:0,borderRadius:8,padding:'11px 16px',display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
+            <Wallet size={18}/> Record Owner Payout
+          </button>
+
+          <button onClick={()=>{ if(activeOwner) { setEditOwner({...activeOwner}); setEditOpen(true); } }} style={{width:'100%',background:'#f97316',color:'#fff',border:0,borderRadius:8,padding:'11px 16px',display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
+            <Edit2 size={18}/> Edit Active Owner
           </button>
         </Card>
       </div>
+
+      {/* Edit Owner Modal */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent style={{maxWidth:560}}>
+          <DialogHeader>
+            <DialogTitle>Edit Owner Particulars</DialogTitle>
+            <DialogDescription>Update contact information, NID, and banking particulars for {editOwner?.name}.</DialogDescription>
+          </DialogHeader>
+
+          {editOwner && (
+            <div className="entry-form">
+              <div className="form-grid">
+                <label>
+                  <span className="field-label">Owner Name *</span>
+                  <Input value={editOwner.name} onChange={e=>setEditOwner((f: any)=>({...f,name:e.target.value}))}/>
+                </label>
+
+                <label>
+                  <span className="field-label">Phone Number *</span>
+                  <Input value={editOwner.phone} onChange={e=>setEditOwner((f: any)=>({...f,phone:e.target.value}))}/>
+                </label>
+
+                <label>
+                  <span className="field-label">National NID</span>
+                  <Input value={editOwner.nid} onChange={e=>setEditOwner((f: any)=>({...f,nid:e.target.value}))}/>
+                </label>
+
+                <label>
+                  <span className="field-label">Bank Name</span>
+                  <Input value={editOwner.bank} onChange={e=>setEditOwner((f: any)=>({...f,bank:e.target.value}))}/>
+                </label>
+
+                <label>
+                  <span className="field-label">Email Address</span>
+                  <Input value={editOwner.email} onChange={e=>setEditOwner((f: any)=>({...f,email:e.target.value}))}/>
+                </label>
+
+                <label>
+                  <span className="field-label">Status</span>
+                  <Select value={editOwner.status || 'Active'} onValueChange={v=>setEditOwner((f: any)=>({...f,status:v}))}>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="Inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </label>
+              </div>
+
+              <label>
+                <span className="field-label">Present Address</span>
+                <Input value={editOwner.address} onChange={e=>setEditOwner((f: any)=>({...f,address:e.target.value}))}/>
+              </label>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={()=>setEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateOwner} disabled={!editOwner?.name||!editOwner?.phone}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record Owner Payout Modal */}
+      <Dialog open={payOpen} onOpenChange={setPayOpen}>
+        <DialogContent style={{maxWidth:500}}>
+          <DialogHeader>
+            <DialogTitle>Record Owner Payment</DialogTitle>
+            <DialogDescription>Submit rent payout to {payOwnerTarget?.name} (Current Due: {fmt(payOwnerTarget?.due ?? 0)}).</DialogDescription>
+          </DialogHeader>
+
+          <div style={{display:'flex',flexDirection:'column',gap:12,padding:'8px 0'}}>
+            <label>
+              <span className="field-label">Payment Amount (৳) *</span>
+              <Input type="number" value={payAmount} onChange={e=>setPayAmount(Number(e.target.value))}/>
+            </label>
+
+            <label>
+              <span className="field-label">Payment Method</span>
+              <Select value={payMethod} onValueChange={setPayMethod}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Cash">Cash (Main Cash Box)</SelectItem>
+                  <SelectItem value="Bank Transfer">Bank Transfer (Dhaka Bank Ltd)</SelectItem>
+                  <SelectItem value="bKash / Nagad">Mobile Banking</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+
+            <label>
+              <span className="field-label">Reference / Voucher No.</span>
+              <Input placeholder="e.g. TR-2026-OWN-01" value={payRef} onChange={e=>setPayRef(e.target.value)}/>
+            </label>
+
+            <label>
+              <span className="field-label">Payment Notes</span>
+              <Input placeholder="Monthly rent disbursement note" value={payNote} onChange={e=>setPayNote(e.target.value)}/>
+            </label>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={()=>setPayOpen(false)}>Cancel</Button>
+            <Button onClick={handleRecordPayout} disabled={payAmount <= 0} style={{background:'#10b981'}}>Confirm Payout</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Owner Modal */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

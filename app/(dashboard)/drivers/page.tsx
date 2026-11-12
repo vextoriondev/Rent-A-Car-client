@@ -1,7 +1,7 @@
 "use client";
 import {useState,useMemo,useEffect} from 'react';
 import Link from 'next/link';
-import {fetchDrivers,createDriver} from '@/lib/api';
+import {fetchDrivers,createDriver,updateDriver,deleteDriver,recordDriverPayment} from '@/lib/api';
 import {
   UserRound,
   CheckCircle2,
@@ -18,7 +18,8 @@ import {
   Trophy,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  Wallet
 } from 'lucide-react';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
@@ -55,6 +56,14 @@ export default function DriversPage(){
   const [page,setPage]=useState(1);
   const [pageSize,setPageSize]=useState(10);
   const [addOpen,setAddOpen]=useState(false);
+  const [editOpen,setEditOpen]=useState(false);
+  const [editDriver,setEditDriver]=useState<any>(null);
+  const [payOpen,setPayOpen]=useState(false);
+  const [payDriverTarget,setPayDriverTarget]=useState<DriverRecord | null>(null);
+  const [payAmount,setPayAmount]=useState(0);
+  const [payMethod,setPayMethod]=useState('Cash');
+  const [payRef,setPayRef]=useState('');
+  const [payNote,setPayNote]=useState('');
   const [newDriver,setNewDriver]=useState({
     name:'',
     phone:'',
@@ -149,6 +158,58 @@ export default function DriversPage(){
       showToast(`Driver ${payload.name} saved to database`);
     } catch {
       showToast('Error saving driver to database');
+    }
+  }
+
+  async function handleUpdateDriver(){
+    if(!editDriver || !editDriver.name.trim() || !editDriver.phone.trim()) return;
+    try {
+      await updateDriver(1, editDriver.id, {
+        name: editDriver.name.trim(),
+        phone: editDriver.phone.trim(),
+        license_no: editDriver.licenseNo || '',
+        license_type: editDriver.licenseType || 'Professional',
+        present_address: editDriver.address || 'Dhaka',
+        status: editDriver.status || 'Active'
+      });
+      loadData();
+      setEditOpen(false);
+      setEditDriver(null);
+      showToast(`Driver ${editDriver.name} updated successfully`);
+    } catch {
+      showToast('Error updating driver in database');
+    }
+  }
+
+  async function handleDeleteDriver(id: string, name: string){
+    if(!confirm(`Are you sure you want to mark driver "${name}" as Inactive?`)) return;
+    try {
+      await deleteDriver(1, id);
+      loadData();
+      showToast(`Driver ${name} deactivated`);
+    } catch {
+      showToast('Error deactivating driver');
+    }
+  }
+
+  async function handleRecordSalaryPayout(){
+    if(!payDriverTarget || payAmount <= 0) return;
+    try {
+      await recordDriverPayment(1, payDriverTarget.id, {
+        amount: payAmount,
+        payment_method: payMethod,
+        reference: payRef,
+        note: payNote
+      });
+      loadData();
+      setPayOpen(false);
+      setPayDriverTarget(null);
+      setPayAmount(0);
+      setPayRef('');
+      setPayNote('');
+      showToast(`Salary payment of ৳ ${payAmount.toLocaleString()} recorded for ${payDriverTarget.name}`);
+    } catch {
+      showToast('Error recording driver salary');
     }
   }
 
@@ -320,10 +381,13 @@ export default function DriversPage(){
                           <button className="action-btn action-btn-blue" title="View Details" onClick={(e)=>{e.stopPropagation();setSelectedDriver(d)}}>
                             <Eye size={14}/>
                           </button>
-                          <button className="action-btn action-btn-blue" title="Edit" onClick={(e)=>{e.stopPropagation();showToast(`Editing ${d.name}`)}}>
+                          <button className="action-btn action-btn-blue" title="Edit Driver" onClick={(e)=>{e.stopPropagation();setEditDriver({...d});setEditOpen(true);}}>
                             <Edit2 size={14}/>
                           </button>
-                          <button className="action-btn action-btn-red" title="Delete" onClick={(e)=>{e.stopPropagation();showToast(`Cannot delete active driver`)}}>
+                          <button className="action-btn action-btn-green" title="Pay Salary" onClick={(e)=>{e.stopPropagation();setPayDriverTarget(d);setPayAmount(18000);setPayOpen(true);}} style={{background:'#dcfce7',color:'#16a34a',border:'none',borderRadius:4,padding:4,cursor:'pointer'}}>
+                            <Wallet size={14}/>
+                          </button>
+                          <button className="action-btn action-btn-red" title="Deactivate" onClick={(e)=>{e.stopPropagation();handleDeleteDriver(d.id, d.name);}}>
                             <Trash2 size={14}/>
                           </button>
                         </div>
@@ -520,17 +584,124 @@ export default function DriversPage(){
             </button>
           </Link>
 
-          <Link href="/due-collection" style={{textDecoration:'none'}}>
-            <button style={{width:'100%',background:'#10b981',color:'#fff',border:0,borderRadius:8,padding:'11px 16px',display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
-              <Trophy size={18}/> Driver Salary / Payments
-            </button>
-          </Link>
+          <button onClick={()=>{ if(activeDriver) { setPayDriverTarget(activeDriver); setPayAmount(18000); setPayOpen(true); } }} style={{width:'100%',background:'#10b981',color:'#fff',border:0,borderRadius:8,padding:'11px 16px',display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
+            <Wallet size={18}/> Pay Driver Salary
+          </button>
 
-          <button onClick={()=>setAddOpen(true)} style={{width:'100%',background:'#f97316',color:'#fff',border:0,borderRadius:8,padding:'11px 16px',display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
-            <Edit2 size={18}/> Add/Edit Driver
+          <button onClick={()=>{ if(activeDriver) { setEditDriver({...activeDriver}); setEditOpen(true); } }} style={{width:'100%',background:'#f97316',color:'#fff',border:0,borderRadius:8,padding:'11px 16px',display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
+            <Edit2 size={18}/> Edit Driver
           </button>
         </Card>
       </div>
+
+      {/* Edit Driver Modal */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent style={{maxWidth:560}}>
+          <DialogHeader>
+            <DialogTitle>Edit Driver Particulars</DialogTitle>
+            <DialogDescription>Update contact information, license, and employment status for {editDriver?.name}.</DialogDescription>
+          </DialogHeader>
+
+          {editDriver && (
+            <div className="entry-form">
+              <div className="form-grid">
+                <label>
+                  <span className="field-label">Driver Name *</span>
+                  <Input value={editDriver.name} onChange={e=>setEditDriver((f: any)=>({...f,name:e.target.value}))}/>
+                </label>
+
+                <label>
+                  <span className="field-label">Phone Number *</span>
+                  <Input value={editDriver.phone} onChange={e=>setEditDriver((f: any)=>({...f,phone:e.target.value}))}/>
+                </label>
+
+                <label>
+                  <span className="field-label">Driving License No.</span>
+                  <Input value={editDriver.licenseNo} onChange={e=>setEditDriver((f: any)=>({...f,licenseNo:e.target.value}))}/>
+                </label>
+
+                <label>
+                  <span className="field-label">License Type</span>
+                  <Select value={editDriver.licenseType || 'Professional'} onValueChange={v=>setEditDriver((f: any)=>({...f,licenseType:v}))}>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Professional">Professional</SelectItem>
+                      <SelectItem value="Commercial">Commercial</SelectItem>
+                      <SelectItem value="Non-Professional">Non-Professional</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </label>
+
+                <label>
+                  <span className="field-label">Status</span>
+                  <Select value={editDriver.status || 'Active'} onValueChange={v=>setEditDriver((f: any)=>({...f,status:v}))}>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="On Leave">On Leave</SelectItem>
+                      <SelectItem value="Inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </label>
+              </div>
+
+              <label>
+                <span className="field-label">Present Address</span>
+                <Input value={editDriver.address} onChange={e=>setEditDriver((f: any)=>({...f,address:e.target.value}))}/>
+              </label>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={()=>setEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateDriver} disabled={!editDriver?.name||!editDriver?.phone}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pay Driver Modal */}
+      <Dialog open={payOpen} onOpenChange={setPayOpen}>
+        <DialogContent style={{maxWidth:500}}>
+          <DialogHeader>
+            <DialogTitle>Disburse Driver Salary / Advance</DialogTitle>
+            <DialogDescription>Submit salary payment for driver {payDriverTarget?.name}.</DialogDescription>
+          </DialogHeader>
+
+          <div style={{display:'flex',flexDirection:'column',gap:12,padding:'8px 0'}}>
+            <label>
+              <span className="field-label">Payment Amount (৳) *</span>
+              <Input type="number" value={payAmount} onChange={e=>setPayAmount(Number(e.target.value))}/>
+            </label>
+
+            <label>
+              <span className="field-label">Payment Method</span>
+              <Select value={payMethod} onValueChange={setPayMethod}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Cash">Cash (Main Cash Box)</SelectItem>
+                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="bKash / Nagad">Mobile Banking</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+
+            <label>
+              <span className="field-label">Reference / Voucher No.</span>
+              <Input placeholder="e.g. SL-2026-DRV-01" value={payRef} onChange={e=>setPayRef(e.target.value)}/>
+            </label>
+
+            <label>
+              <span className="field-label">Payment Notes</span>
+              <Input placeholder="Monthly salary disbursement note" value={payNote} onChange={e=>setPayNote(e.target.value)}/>
+            </label>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={()=>setPayOpen(false)}>Cancel</Button>
+            <Button onClick={handleRecordSalaryPayout} disabled={payAmount <= 0} style={{background:'#10b981'}}>Confirm Salary Disbursement</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Driver Modal */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

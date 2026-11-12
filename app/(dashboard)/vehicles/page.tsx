@@ -1,7 +1,7 @@
 "use client";
 import {useState,useMemo,useEffect} from 'react';
 import Link from 'next/link';
-import {fetchVehicles,createVehicle} from '@/lib/api';
+import {fetchVehicles,createVehicle,updateVehicle,deleteVehicle,fetchVehicleStatement} from '@/lib/api';
 import {
   CarFront,
   CheckCircle2,
@@ -43,12 +43,15 @@ interface VehicleRecord {
   status: 'On Duty' | 'Available' | 'In Garage' | 'Inactive';
   monthlyRent: number;
   joiningDate: string;
+  mobilCount?: number;
+  lastMobilDate?: string;
 }
 
 export default function VehiclesPage(){
   const [vehicles,setVehicles]=useState<VehicleRecord[]>([]);
   const [loading,setLoading]=useState(true);
   const [selectedVeh,setSelectedVeh]=useState<VehicleRecord | null>(null);
+  const [statement,setStatement]=useState<any>(null);
   const [q,setQ]=useState('');
   const [ownerF,setOwnerF]=useState('All');
   const [statusF,setStatusF]=useState('All');
@@ -56,6 +59,8 @@ export default function VehiclesPage(){
   const [page,setPage]=useState(1);
   const [pageSize,setPageSize]=useState(10);
   const [addOpen,setAddOpen]=useState(false);
+  const [editOpen,setEditOpen]=useState(false);
+  const [editVeh,setEditVeh]=useState<any>(null);
   const [newVeh,setNewVeh]=useState({
     regNo:'',
     model:'Axio',
@@ -85,6 +90,8 @@ export default function VehiclesPage(){
             status: (['On Duty','Available','In Garage','Inactive'].includes(v.status) ? v.status : 'Available') as VehicleRecord['status'],
             monthlyRent: Number(v.monthlyRent) || 50000,
             joiningDate: v.registrationDate || '15 Jan 2022',
+            mobilCount: Number(v.mobilCount) || 0,
+            lastMobilDate: v.lastMobilDate || '',
           }));
           setVehicles(mapped);
           if (mapped.length > 0) {
@@ -99,6 +106,47 @@ export default function VehiclesPage(){
   useEffect(()=>{
     loadData();
   }, []);
+
+  const activeVeh = (selectedVeh && vehicles.find(v => v.id === selectedVeh.id)) || vehicles[0] || null;
+
+  useEffect(()=>{
+    if(activeVeh?.id){
+      fetchVehicleStatement(1, activeVeh.id)
+        .then(res => setStatement(res))
+        .catch(() => setStatement(null));
+    }
+  }, [activeVeh?.id]);
+
+  async function handleUpdateVehicle(){
+    if(!editVeh || !editVeh.regNo.trim()) return;
+    try {
+      await updateVehicle(1, editVeh.id, {
+        registration: editVeh.regNo.trim(),
+        model: editVeh.model,
+        brand: editVeh.brand,
+        year: Number(editVeh.year) || 2022,
+        status: editVeh.status,
+        monthly_rent: Number(editVeh.monthlyRent) || 50000
+      });
+      loadData();
+      setEditOpen(false);
+      setEditVeh(null);
+      showToast(`Vehicle ${editVeh.regNo} updated successfully`);
+    } catch {
+      showToast('Error updating vehicle in database');
+    }
+  }
+
+  async function handleDeleteVehicle(id: string, reg: string){
+    if(!confirm(`Are you sure you want to mark vehicle "${reg}" as Inactive?`)) return;
+    try {
+      await deleteVehicle(1, id);
+      loadData();
+      showToast(`Vehicle ${reg} deactivated`);
+    } catch {
+      showToast('Error deactivating vehicle');
+    }
+  }
 
   // Distinct options for filters
   const ownerOptions = useMemo(()=>{
@@ -128,8 +176,6 @@ export default function VehiclesPage(){
   const startIdx = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const endIdx = Math.min(currentPage * pageSize, totalItems);
   const paged = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  const activeVeh = (selectedVeh && filtered.find(v => v.id === selectedVeh.id)) || filtered[0] || null;
 
   // Real-time aggregates directly from database vehicles
   const totalVehiclesCount = vehicles.length;
@@ -368,10 +414,10 @@ export default function VehiclesPage(){
                           <button className="action-btn action-btn-blue" title="View Details" onClick={(e)=>{e.stopPropagation();setSelectedVeh(v)}}>
                             <Eye size={14}/>
                           </button>
-                          <button className="action-btn action-btn-blue" title="Edit" onClick={(e)=>{e.stopPropagation();showToast(`Editing ${v.regNo}`)}}>
+                          <button className="action-btn action-btn-blue" title="Edit Vehicle" onClick={(e)=>{e.stopPropagation();setEditVeh({...v});setEditOpen(true);}}>
                             <Edit2 size={14}/>
                           </button>
-                          <button className="action-btn action-btn-red" title="Delete" onClick={(e)=>{e.stopPropagation();showToast(`Cannot delete active vehicle`)}}>
+                          <button className="action-btn action-btn-red" title="Deactivate" onClick={(e)=>{e.stopPropagation();handleDeleteVehicle(v.id, v.regNo);}}>
                             <Trash2 size={14}/>
                           </button>
                         </div>
@@ -486,6 +532,8 @@ export default function VehiclesPage(){
                 <span style={{color:'#64748b'}}>Owner</span><span>:</span><span style={{color:'#0f172a'}}>{activeVeh.owner}</span>
                 <span style={{color:'#64748b'}}>Driver</span><span>:</span><span style={{color:'#0f172a'}}>{activeVeh.driver}</span>
                 <span style={{color:'#64748b'}}>Monthly Rent</span><span>:</span><b style={{color:'#0f172a'}}>{fmt(activeVeh.monthlyRent)}</b>
+                <span style={{color:'#64748b'}}>Mobil Count</span><span>:</span><b style={{color:'#1677ff'}}>{activeVeh.mobilCount ?? 0} Times</b>
+                <span style={{color:'#64748b'}}>Last Mobil</span><span>:</span><span style={{color:'#0f172a'}}>{activeVeh.lastMobilDate || 'N/A'}</span>
                 <span style={{color:'#64748b'}}>Joining Date</span><span>:</span><span style={{color:'#0f172a'}}>{activeVeh.joiningDate}</span>
               </div>
             </div>
@@ -494,36 +542,31 @@ export default function VehiclesPage(){
           )}
         </Card>
 
-        {/* Middle: Financial Summary */}
+        {/* Middle: Financial Summary (Live from Neon DB Statement) */}
         <Card style={{padding:16,borderRadius:12,background:'#fff',border:'1px solid #e2e8f0'}}>
           <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:12,color:'#16a34a',fontWeight:750,fontSize:14}}>
-            <span>💰</span> Financial Summary
+            <span>💰</span> Financial Summary (Live)
           </div>
 
           <div style={{display:'flex',flexDirection:'column',gap:9,fontSize:12.5}}>
             <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #f1f5f9',paddingBottom:5}}>
-              <span style={{color:'#64748b'}}>Monthly Rent</span>
-              <strong style={{color:'#0f172a'}}>{fmt(activeVeh?.monthlyRent ?? 50000)}</strong>
+              <span style={{color:'#64748b'}}>Total Duty Income</span>
+              <strong style={{color:'#16a34a',fontWeight:700}}>{fmt(statement?.financials?.totalIncome ?? 0)}</strong>
             </div>
 
             <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #f1f5f9',paddingBottom:5}}>
-              <span style={{color:'#64748b'}}>Total Paid</span>
-              <strong style={{color:'#0f172a'}}>{fmt((activeVeh?.monthlyRent ?? 50000) * 0.85)}</strong>
+              <span style={{color:'#64748b'}}>Owner Monthly Rent</span>
+              <strong style={{color:'#0f172a'}}>{fmt(statement?.financials?.ownerRent ?? activeVeh?.monthlyRent ?? 50000)}</strong>
             </div>
 
             <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #f1f5f9',paddingBottom:5}}>
-              <span style={{color:'#ef4444',fontWeight:700}}>Owner Due</span>
-              <strong style={{color:'#ef4444',fontWeight:800}}>{fmt((activeVeh?.monthlyRent ?? 50000) * 0.15)}</strong>
-            </div>
-
-            <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #f1f5f9',paddingBottom:5}}>
-              <span style={{color:'#64748b'}}>Estimated Maintenance</span>
-              <strong style={{color:'#0f172a'}}>৳ 4,500</strong>
+              <span style={{color:'#ef4444',fontWeight:700}}>Maintenance Cost</span>
+              <strong style={{color:'#ef4444',fontWeight:800}}>{fmt(statement?.financials?.maintenanceCost ?? 0)}</strong>
             </div>
 
             <div style={{display:'flex',justifyContent:'space-between',paddingTop:3}}>
-              <span style={{color:'#16a34a',fontWeight:700}}>Net Margin</span>
-              <strong style={{color:'#16a34a',fontWeight:800,fontSize:14}}>৳ 18,500</strong>
+              <span style={{color:(statement?.financials?.netProfit ?? 0) >= 0 ? '#16a34a' : '#ef4444',fontWeight:700}}>Net Profit / Margin</span>
+              <strong style={{color:(statement?.financials?.netProfit ?? 0) >= 0 ? '#16a34a' : '#ef4444',fontWeight:800,fontSize:14}}>{fmt(statement?.financials?.netProfit ?? 0)}</strong>
             </div>
           </div>
         </Card>
@@ -542,9 +585,9 @@ export default function VehiclesPage(){
               </div>
             </Link>
 
-            <button onClick={()=>setAddOpen(true)} style={{background:'#eff6ff',border:'1px solid #dbeafe',borderRadius:8,padding:'10px 4px',textAlign:'center',cursor:'pointer'}}>
+            <button onClick={()=>{ if(activeVeh){ setEditVeh({...activeVeh}); setEditOpen(true); } }} style={{background:'#eff6ff',border:'1px solid #dbeafe',borderRadius:8,padding:'10px 4px',textAlign:'center',cursor:'pointer'}}>
               <Edit2 size={18} color="#1677ff" style={{margin:'0 auto 4px'}}/>
-              <span style={{fontSize:10.5,fontWeight:700,color:'#1e293b',display:'block'}}>Add/Edit</span>
+              <span style={{fontSize:10.5,fontWeight:700,color:'#1e293b',display:'block'}}>Edit Vehicle</span>
             </button>
 
             <Link href="/expenses" style={{textDecoration:'none'}}>
@@ -582,7 +625,7 @@ export default function VehiclesPage(){
         <Card style={{padding:16,borderRadius:12,background:'#fff',border:'1px solid #e2e8f0'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
             <h4 style={{fontSize:13,fontWeight:750,color:'#0f172a',margin:0,display:'flex',alignItems:'center',gap:6}}>
-              <Calendar size={15} color="#1677ff"/> Vehicle History
+              <Calendar size={15} color="#1677ff"/> Vehicle History (Live)
             </h4>
             <Link href="/duties" style={{fontSize:11.5,color:'#1677ff',fontWeight:600,textDecoration:'none'}}>View All →</Link>
           </div>
@@ -591,16 +634,26 @@ export default function VehiclesPage(){
             <div style={{display:'grid',gridTemplateColumns:'85px 85px 1fr',fontWeight:700,color:'#64748b',borderBottom:'1px solid #f1f5f9',paddingBottom:4}}>
               <span>Date</span><span>Event</span><span>Details</span>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'85px 85px 1fr',color:'#334155'}}>
-              <span style={{color:'#64748b'}}>01 Nov 2026</span>
-              <span>Daily Duty</span>
-              <span>Dhaka - Airport</span>
-            </div>
-            <div style={{display:'grid',gridTemplateColumns:'85px 85px 1fr',color:'#334155'}}>
-              <span style={{color:'#64748b'}}>15 Oct 2026</span>
-              <span>Maintenance</span>
-              <span>Engine Oil Change</span>
-            </div>
+            {statement?.dutyHistory && statement.dutyHistory.length > 0 ? (
+              statement.dutyHistory.slice(0, 3).map((d: any, i: number) => (
+                <div key={i} style={{display:'grid',gridTemplateColumns:'85px 85px 1fr',color:'#334155'}}>
+                  <span style={{color:'#64748b'}}>{d.date}</span>
+                  <span>Duty</span>
+                  <span>{d.client} ({fmt(d.amount)})</span>
+                </div>
+              ))
+            ) : (
+              <div style={{color:'#94a3b8',padding:'4px 0'}}>No recent duty records for this car</div>
+            )}
+            {statement?.maintenanceHistory && statement.maintenanceHistory.length > 0 && (
+              statement.maintenanceHistory.slice(0, 2).map((m: any, i: number) => (
+                <div key={'m'+i} style={{display:'grid',gridTemplateColumns:'85px 85px 1fr',color:'#334155'}}>
+                  <span style={{color:'#64748b'}}>{m.date}</span>
+                  <span>Maintenance</span>
+                  <span>{m.service} ({fmt(m.cost)})</span>
+                </div>
+              ))
+            )}
           </div>
         </Card>
 
@@ -608,30 +661,38 @@ export default function VehiclesPage(){
         <Card style={{padding:16,borderRadius:12,background:'#fff',border:'1px solid #e2e8f0'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
             <h4 style={{fontSize:13,fontWeight:750,color:'#0f172a',margin:0,display:'flex',alignItems:'center',gap:6}}>
-              <span style={{color:'#f59e0b'}}>🔔</span> Upcoming Alerts
+              <span style={{color:'#f59e0b'}}>🔔</span> Upcoming Expiry Alerts
             </h4>
             <Link href="/documents" style={{fontSize:11.5,color:'#1677ff',fontWeight:600,textDecoration:'none'}}>View All →</Link>
           </div>
 
           <div style={{display:'flex',flexDirection:'column',gap:8,fontSize:11.5}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <span style={{display:'flex',alignItems:'center',gap:6,color:'#334155'}}>
-                <span style={{width:7,height:7,borderRadius:'50%',background:'#f97316'}}/> Fitness Expiry
-              </span>
-              <span style={{color:'#64748b',fontSize:11}}>15 Dec 2026</span>
-            </div>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <span style={{display:'flex',alignItems:'center',gap:6,color:'#334155'}}>
-                <span style={{width:7,height:7,borderRadius:'50%',background:'#f97316'}}/> Insurance Expiry
-              </span>
-              <span style={{color:'#64748b',fontSize:11}}>20 Jan 2027</span>
-            </div>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <span style={{display:'flex',alignItems:'center',gap:6,color:'#334155'}}>
-                <span style={{width:7,height:7,borderRadius:'50%',background:'#ef4444'}}/> Tax Token Expiry
-              </span>
-              <span style={{color:'#64748b',fontSize:11}}>10 Feb 2027</span>
-            </div>
+            {statement?.papers && statement.papers.length > 0 ? (
+              statement.papers.map((p: any, i: number) => (
+                <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <span style={{display:'flex',alignItems:'center',gap:6,color:'#334155',textTransform:'capitalize'}}>
+                    <span style={{width:7,height:7,borderRadius:'50%',background:p.status==='Valid'?'#16a34a':'#ef4444'}}/>
+                    {p.type?.replace('_', ' ')}
+                  </span>
+                  <span style={{color:'#64748b',fontSize:11}}>{p.expiry || 'Active'}</span>
+                </div>
+              ))
+            ) : (
+              <>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <span style={{display:'flex',alignItems:'center',gap:6,color:'#334155'}}>
+                    <span style={{width:7,height:7,borderRadius:'50%',background:'#16a34a'}}/> Fitness Token
+                  </span>
+                  <span style={{color:'#64748b',fontSize:11}}>Valid</span>
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <span style={{display:'flex',alignItems:'center',gap:6,color:'#334155'}}>
+                    <span style={{width:7,height:7,borderRadius:'50%',background:'#16a34a'}}/> Tax Token
+                  </span>
+                  <span style={{color:'#64748b',fontSize:11}}>Valid</span>
+                </div>
+              </>
+            )}
           </div>
         </Card>
 
@@ -715,6 +776,65 @@ export default function VehiclesPage(){
           <DialogFooter>
             <Button variant="outline" onClick={()=>setAddOpen(false)}>Cancel</Button>
             <Button onClick={handleAddVehicle} disabled={!newVeh.regNo.trim()}>Save Vehicle</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Vehicle Modal */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent style={{maxWidth:560}}>
+          <DialogHeader>
+            <DialogTitle>Edit Vehicle Details</DialogTitle>
+            <DialogDescription>Modify parameters for {editVeh?.regNo} in Neon DB.</DialogDescription>
+          </DialogHeader>
+
+          {editVeh && (
+            <div className="entry-form">
+              <div className="form-grid">
+                <label>
+                  <span className="field-label">Registration No. *</span>
+                  <Input value={editVeh.regNo} onChange={e=>setEditVeh((f: any)=>({...f,regNo:e.target.value}))}/>
+                </label>
+
+                <label>
+                  <span className="field-label">Model Name</span>
+                  <Input value={editVeh.model} onChange={e=>setEditVeh((f: any)=>({...f,model:e.target.value}))}/>
+                </label>
+
+                <label>
+                  <span className="field-label">Brand</span>
+                  <Input value={editVeh.brand} onChange={e=>setEditVeh((f: any)=>({...f,brand:e.target.value}))}/>
+                </label>
+
+                <label>
+                  <span className="field-label">Manufacturing Year</span>
+                  <Input type="number" value={editVeh.year} onChange={e=>setEditVeh((f: any)=>({...f,year:Number(e.target.value)}))}/>
+                </label>
+
+                <label>
+                  <span className="field-label">Monthly Rent (BDT)</span>
+                  <Input type="number" value={editVeh.monthlyRent} onChange={e=>setEditVeh((f: any)=>({...f,monthlyRent:Number(e.target.value)}))}/>
+                </label>
+
+                <label>
+                  <span className="field-label">Status</span>
+                  <Select value={editVeh.status} onValueChange={(v: VehicleRecord['status'])=>setEditVeh((f: any)=>({...f,status:v}))}>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Available">Available</SelectItem>
+                      <SelectItem value="On Duty">On Duty</SelectItem>
+                      <SelectItem value="In Garage">In Garage</SelectItem>
+                      <SelectItem value="Inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </label>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={()=>setEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateVehicle} disabled={!editVeh?.regNo?.trim()}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

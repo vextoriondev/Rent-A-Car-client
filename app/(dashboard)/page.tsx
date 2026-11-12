@@ -74,10 +74,11 @@ export default function DashboardPage(){
   const netProfit = fmt(kpis?.financials?.netProfit ?? 0);
   const ownerPayable = fmt(kpis?.financials?.ownerPayable ?? 0);
   const customerReceivable = fmt(kpis?.financials?.customerReceivable ?? 0);
-  const totalCollection = fmt(kpis?.financials?.customerReceivable ? Math.round((kpis.financials.totalRevenue || 0) * 0.73) : (kpis?.financials?.totalRevenue ?? 0));
-  const ownerPayment = fmt(kpis?.financials?.ownerPayable ? Math.round((kpis.financials.totalExpenses || 0) * 0.88) : (kpis?.financials?.totalExpenses ?? 0));
+  const totalCollection = fmt(kpis?.financials?.totalCollection ?? kpis?.financials?.totalRevenue ?? 0);
+  const ownerPayment = fmt(kpis?.financials?.totalOwnerPayment ?? kpis?.financials?.totalExpenses ?? 0);
   const cashBalance = fmt(kpis?.financials?.cashBalance ?? 0);
   const bankBalance = fmt(kpis?.financials?.bankBalance ?? 0);
+  const comparison = kpis?.comparison;
 
   // Dynamic Chart Data from Neon DB for Daily, Weekly, Monthly, or Yearly periods
   const rawChart = kpis?.monthlyChart || kpis?.chartData || [];
@@ -267,7 +268,24 @@ export default function DashboardPage(){
             <h3 style={{fontSize:14,fontWeight:750,color:'#0f172a',margin:0,display:'flex',alignItems:'center',gap:6}}>
               <span style={{color:'#1677ff'}}>❖</span> Financial Overview (Live Neon DB)
             </h3>
-            <Link href="/reports" style={{fontSize:12,color:'#1677ff',fontWeight:600,textDecoration:'none'}}>View Report →</Link>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              {comparison && (
+                <span style={{
+                  fontSize:11,
+                  padding:'3px 8px',
+                  borderRadius:12,
+                  fontWeight:700,
+                  background: comparison.trend === 'up' ? '#dcfce7' : '#fee2e2',
+                  color: comparison.trend === 'up' ? '#16a34a' : '#ef4444',
+                  display:'inline-flex',
+                  alignItems:'center',
+                  gap:3
+                }}>
+                  {comparison.trend === 'up' ? '↑' : '↓'} {comparison.revenuePct}% vs prev month
+                </span>
+              )}
+              <Link href="/reports" style={{fontSize:12,color:'#1677ff',fontWeight:600,textDecoration:'none'}}>View Report →</Link>
+            </div>
           </div>
 
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(130px, 1fr))',gap:8}}>

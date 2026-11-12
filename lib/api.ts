@@ -198,6 +198,10 @@ export async function recordOwnerPayment(orgId: number = 1, ownerId: number | st
   return apiRequest(`/orgs/${orgId}/tasin-owners/${ownerId}/payments`, { method: 'POST', body: JSON.stringify(data) });
 }
 
+export async function deleteOwner(orgId: number = 1, ownerId: number | string) {
+  return apiRequest(`/orgs/${orgId}/tasin-owners/${ownerId}`, { method: 'DELETE' });
+}
+
 export async function fetchVehicles(orgId: number = 1) {
   return apiRequest(`/orgs/${orgId}/tasin-vehicles`);
 }
@@ -208,6 +212,10 @@ export async function createVehicle(orgId: number = 1, data: unknown) {
 
 export async function updateVehicle(orgId: number = 1, vehicleId: number | string, data: unknown) {
   return apiRequest(`/orgs/${orgId}/tasin-vehicles/${vehicleId}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteVehicle(orgId: number = 1, vehicleId: number | string) {
+  return apiRequest(`/orgs/${orgId}/tasin-vehicles/${vehicleId}`, { method: 'DELETE' });
 }
 
 export async function fetchVehiclePapers(orgId: number = 1, vehicleId: number | string) {
@@ -232,6 +240,10 @@ export async function updateDriver(orgId: number = 1, driverId: number | string,
 
 export async function recordDriverPayment(orgId: number = 1, driverId: number | string, data: unknown) {
   return apiRequest(`/orgs/${orgId}/tasin-drivers/${driverId}/payments`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function deleteDriver(orgId: number = 1, driverId: number | string) {
+  return apiRequest(`/orgs/${orgId}/tasin-drivers/${driverId}`, { method: 'DELETE' });
 }
 
 export async function fetchClients(orgId: number = 1) {
@@ -286,12 +298,28 @@ export async function createGarage(orgId: number = 1, data: unknown) {
   return apiRequest(`/orgs/${orgId}/tasin-garages`, { method: 'POST', body: JSON.stringify(data) });
 }
 
+export async function recordGaragePayment(orgId: number = 1, garageId: number | string, data: unknown) {
+  return apiRequest(`/orgs/${orgId}/tasin-garages/${garageId}/payments`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function deleteGarage(orgId: number = 1, garageId: number | string) {
+  return apiRequest(`/orgs/${orgId}/tasin-garages/${garageId}`, { method: 'DELETE' });
+}
+
 export async function fetchMaintenance(orgId: number = 1) {
   return apiRequest(`/orgs/${orgId}/tasin-maintenance`);
 }
 
 export async function createMaintenance(orgId: number = 1, data: unknown) {
   return apiRequest(`/orgs/${orgId}/tasin-maintenance`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateMaintenance(orgId: number = 1, mntId: number | string, data: unknown) {
+  return apiRequest(`/orgs/${orgId}/tasin-maintenance/${mntId}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteMaintenance(orgId: number = 1, mntId: number | string) {
+  return apiRequest(`/orgs/${orgId}/tasin-maintenance/${mntId}`, { method: 'DELETE' });
 }
 
 export async function fetchFinancialAccounts(orgId: number = 1) {
@@ -336,4 +364,16 @@ export async function fetchCompanyProfile(orgId: number = 1) {
 
 export async function updateCompanyProfile(orgId: number = 1, data: unknown) {
   return apiRequest(`/orgs/${orgId}/tasin-settings/company`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function fetchUsers(orgId: number = 1) {
+  return apiRequest(`/orgs/${orgId}/tasin-settings/users`);
+}
+
+export async function createUser(orgId: number = 1, data: unknown) {
+  return apiRequest(`/orgs/${orgId}/tasin-settings/users`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function deleteUser(orgId: number = 1, userId: number | string) {
+  return apiRequest(`/orgs/${orgId}/tasin-settings/users/${userId}`, { method: 'DELETE' });
 }

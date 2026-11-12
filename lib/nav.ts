@@ -23,7 +23,7 @@ export const navItems:NavItem[]=[
  {group:'',label:'Owner Payables',href:'/owner-payables',icon:HandCoins},
  {group:'',label:'Payroll',href:'/payroll',icon:Banknote},
  {group:'',label:'Due & Collection',href:'/due-collection',icon:CircleDollarSign},
- {group:'',label:'Accounts',href:'/cashbook',icon:BookOpen},
+ {group:'',label:'Accounts',href:'/accounts',icon:BookOpen},
  {group:'',label:'Settlements',href:'/settlements',icon:Layers3},
  {group:'',label:'Vehicle Search',href:'/vehicle-search',icon:Search},
  {group:'',label:'Reports',href:'/reports',icon:ChartNoAxesCombined},
