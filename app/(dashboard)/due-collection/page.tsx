@@ -2,7 +2,6 @@
 import {useState, useMemo, useEffect} from 'react';
 import {CircleDollarSign, AlertCircle, TrendingDown, Wrench, UserRound, CheckCircle2, ChevronUp, ChevronDown, ChevronsUpDown, ArrowUpRight} from 'lucide-react';
 import {fetchDueCollection, recordClientCollection, recordOwnerPayment, recordDriverPayment, recordGaragePayment} from '@/lib/api';
-import {demoClients, demoOwners, demoDrivers, demoGarages, demoVehicles} from '@/lib/tasin-data';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
@@ -78,84 +77,6 @@ type ModalTarget =
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function getOverdueDays(id: string): number {
-  const seed: Record<string, number> = {
-    'CLT-001': 42, 'CLT-002': 0, 'CLT-003': 25, 'CLT-004': 60, 'CLT-005': 0,
-  };
-  return seed[id] ?? 0;
-}
-
-function getClientStatus(remaining: number, overdueDays: number): 'overdue' | 'partial' | 'paid' {
-  if (remaining === 0) return 'paid';
-  if (overdueDays > 30) return 'overdue';
-  return 'partial';
-}
-
-// ─── Build initial rows from mock data ───────────────────────────────────────
-
-function buildClientRows(): ClientDue[] {
-  return demoClients.map(c => {
-    const remaining = c.totalReceivable - c.totalCollected;
-    const overdueDays = getOverdueDays(c.id);
-    return {
-      id: c.id,
-      name: c.name,
-      contactPerson: c.contactPerson,
-      mobile: c.mobile,
-      totalInvoice: c.totalReceivable,
-      paid: c.totalCollected,
-      remaining,
-      overdueDays,
-      status: getClientStatus(remaining, overdueDays),
-    };
-  });
-}
-
-function buildOwnerRows(): OwnerDue[] {
-  return demoOwners.map(o => ({
-    id: o.id,
-    name: o.name,
-    mobile: o.mobile,
-    vehicleCount: o.totalVehicles,
-    totalPayable: o.totalPayable,
-    paid: o.totalPaid,
-    remaining: o.totalPayable - o.totalPaid,
-  }));
-}
-
-function buildDriverRows(): DriverDue[] {
-  return demoDrivers.map(d => {
-    const vehicle = d.assignedVehicleId
-      ? demoVehicles.find(v => v.id === d.assignedVehicleId)
-      : undefined;
-    const remaining = d.monthlySalary + d.advance - d.totalPaid;
-    return {
-      id: d.id,
-      name: d.name,
-      mobile: d.mobile,
-      vehicleReg: vehicle?.registration ?? '—',
-      salary: d.monthlySalary,
-      allowance: d.dailyAllowance,
-      advance: d.advance,
-      totalPaid: d.totalPaid,
-      remaining: Math.max(0, remaining),
-    };
-  });
-}
-
-function buildGarageRows(): GarageDue[] {
-  return demoGarages.map(g => ({
-    id: g.id,
-    name: g.name,
-    contactPerson: g.contactPerson,
-    mobile: g.mobile,
-    garageType: g.garageType,
-    totalBill: g.totalBill,
-    paid: g.totalPaid,
-    remaining: g.totalBill - g.totalPaid,
-  }));
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -733,22 +654,27 @@ function GarageTab({rows, onAction}: {rows: GarageDue[]; onAction: (row: GarageD
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DueCollectionPage() {
-  // Mutable local state mirroring mock data
-  const [clients,  setClients]  = useState<ClientDue[]>(buildClientRows);
-  const [owners,   setOwners]   = useState<OwnerDue[]>(buildOwnerRows);
-  const [drivers,  setDrivers]  = useState<DriverDue[]>(buildDriverRows);
-  const [garages,  setGarages]  = useState<GarageDue[]>(buildGarageRows);
+  const [clients,  setClients]  = useState<ClientDue[]>([]);
+  const [owners,   setOwners]   = useState<OwnerDue[]>([]);
+  const [drivers,  setDrivers]  = useState<DriverDue[]>([]);
+  const [garages,  setGarages]  = useState<GarageDue[]>([]);
+  const [loading,  setLoading]  = useState(true);
   const [modal,    setModal]    = useState<ModalTarget>(null);
 
   const loadDues = () => {
+    setLoading(true);
     fetchDueCollection(1).then((data: any) => {
       if (data) {
-        if (Array.isArray(data.clients) && data.clients.length > 0) setClients(data.clients);
-        if (Array.isArray(data.owners) && data.owners.length > 0) setOwners(data.owners);
-        if (Array.isArray(data.drivers) && data.drivers.length > 0) setDrivers(data.drivers);
-        if (Array.isArray(data.garages) && data.garages.length > 0) setGarages(data.garages);
+        setClients(Array.isArray(data.clients) ? data.clients : []);
+        setOwners(Array.isArray(data.owners) ? data.owners : []);
+        setDrivers(Array.isArray(data.drivers) ? data.drivers : []);
+        setGarages(Array.isArray(data.garages) ? data.garages : []);
       }
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error('Failed to load dues:', err);
+    }).finally(() => {
+      setLoading(false);
+    });
   };
 
   useEffect(() => {

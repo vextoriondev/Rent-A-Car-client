@@ -377,3 +377,58 @@ export async function createUser(orgId: number = 1, data: unknown) {
 export async function deleteUser(orgId: number = 1, userId: number | string) {
   return apiRequest(`/orgs/${orgId}/tasin-settings/users/${userId}`, { method: 'DELETE' });
 }
+
+// ─── MODULE 05 & 06: INVOICING & CLIENT PROFILES ─────────────────────────────
+
+export async function fetchClientProfile(orgId: number = 1, clientId: number | string) {
+  return apiRequest(`/orgs/${orgId}/tasin-clients/${clientId}/profile`);
+}
+
+export async function fetchInvoices(orgId: number = 1, clientId?: number | string, status?: string) {
+  let url = `/orgs/${orgId}/tasin-invoices`;
+  const params: string[] = [];
+  if (clientId) params.push(`client_id=${clientId}`);
+  if (status) params.push(`status=${encodeURIComponent(status)}`);
+  if (params.length) url += `?${params.join('&')}`;
+  return apiRequest(url);
+}
+
+export async function createInvoice(orgId: number = 1, data: unknown) {
+  return apiRequest(`/orgs/${orgId}/tasin-invoices`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function fetchInvoice(orgId: number = 1, invoiceId: number | string) {
+  return apiRequest(`/orgs/${orgId}/tasin-invoices/${invoiceId}`);
+}
+
+export async function recordInvoicePayment(orgId: number = 1, invoiceId: number | string, data: unknown) {
+  return apiRequest(`/orgs/${orgId}/tasin-invoices/${invoiceId}/payments`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+// ─── MODULE 14: ADVANCED REPORTS ─────────────────────────────────────────────
+
+export async function fetchVehicleProfitability(orgId: number = 1, startDate?: string, endDate?: string) {
+  let url = `/orgs/${orgId}/tasin-reports/vehicle-profitability`;
+  const params: string[] = [];
+  if (startDate) params.push(`start_date=${startDate}`);
+  if (endDate) params.push(`end_date=${endDate}`);
+  if (params.length) url += `?${params.join('&')}`;
+  return apiRequest(url);
+}
+
+export async function fetchDocumentExpiriesReport(orgId: number = 1, filter?: string) {
+  let url = `/orgs/${orgId}/tasin-reports/document-expiries`;
+  if (filter) url += `?filter=${encodeURIComponent(filter)}`;
+  return apiRequest(url);
+}
+
+export async function fetchAccountLedgerReport(orgId: number = 1, accountId?: number | string, startDate?: string, endDate?: string) {
+  let url = `/orgs/${orgId}/tasin-reports/account-ledger`;
+  const params: string[] = [];
+  if (accountId) params.push(`account_id=${accountId}`);
+  if (startDate) params.push(`start_date=${startDate}`);
+  if (endDate) params.push(`end_date=${endDate}`);
+  if (params.length) url += `?${params.join('&')}`;
+  return apiRequest(url);
+}
+

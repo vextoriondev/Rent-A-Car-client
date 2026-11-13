@@ -15,6 +15,11 @@ import {
   Wrench,
   DollarSign,
   CheckCircle2,
+  AlertTriangle,
+  Clock,
+  ShieldAlert,
+  ArrowUpRight,
+  ArrowDownRight,
   X
 } from 'lucide-react';
 import {
@@ -24,42 +29,58 @@ import {
   fetchClients,
   fetchDrivers,
   fetchMaintenance,
-  fetchFinancialAccounts
+  fetchFinancialAccounts,
+  fetchVehicleProfitability,
+  fetchDocumentExpiriesReport,
+  fetchAccountLedgerReport
 } from '@/lib/api';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
-import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/components/ui/select';
-import {Tabs,TabsContent,TabsList,TabsTrigger} from '@/components/ui/tabs';
-import {ResponsiveContainer,BarChart,Bar,XAxis,YAxis,Tooltip,Legend,PieChart,Pie,Cell} from 'recharts';
+import {Input} from '@/components/ui/input';
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
+import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
+import {ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend} from 'recharts';
 
-const fmt=(n:number)=>'৳'+(Number(n)||0).toLocaleString('en-US');
-const COLORS=['#236d80','#d4a971','#529e72','#a869a8','#e07a5f','#3d5a80'];
+const fmt = (n: number) => '৳' + (Number(n) || 0).toLocaleString('en-US');
+const COLORS = ['#236d80', '#d4a971', '#529e72', '#a869a8', '#e07a5f', '#3d5a80'];
 
-export default function ReportsPage(){
-  const [periodF,setPeriodF]=useState<'Daily'|'Weekly'|'Monthly'|'Yearly'>('Monthly');
-  const [activeTab,setActiveTab]=useState('financial');
-  const [kpis,setKpis]=useState<any>(null);
-  const [vehicles,setVehicles]=useState<any[]>([]);
-  const [owners,setOwners]=useState<any[]>([]);
-  const [clients,setClients]=useState<any[]>([]);
-  const [drivers,setDrivers]=useState<any[]>([]);
-  const [maintenance,setMaintenance]=useState<any[]>([]);
-  const [accounts,setAccounts]=useState<any[]>([]);
-  const [loading,setLoading]=useState(true);
-  const [toast,setToast]=useState('');
-  const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(''),3000)};
+export default function ReportsPage() {
+  const [periodF, setPeriodF] = useState<'Daily' | 'Weekly' | 'Monthly' | 'Yearly'>('Monthly');
+  const [activeTab, setActiveTab] = useState('profitability');
+  const [kpis, setKpis] = useState<any>(null);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [owners, setOwners] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [maintenance, setMaintenance] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  
+  // Specific financial and operational reports
+  const [profitData, setProfitData] = useState<{ vehicles: any[]; totals: any }>({ vehicles: [], totals: {} });
+  const [expiryData, setExpiryData] = useState<{ documents: any[]; summary: any }>({ documents: [], summary: {} });
+  const [expiryFilter, setExpiryFilter] = useState('all');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+  const [ledgerData, setLedgerData] = useState<any>(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState('');
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
   const loadAllReports = async () => {
     setLoading(true);
     try {
-      const [kRes, vRes, oRes, cRes, dRes, mRes, aRes] = await Promise.all([
-        fetchDashboardKpis(1, periodF),
-        fetchVehicles(1),
-        fetchOwners(1),
-        fetchClients(1),
-        fetchDrivers(1),
-        fetchMaintenance(1),
-        fetchFinancialAccounts(1)
+      const [kRes, vRes, oRes, cRes, dRes, mRes, aRes, pRes, eRes] = await Promise.all([
+        fetchDashboardKpis(1, periodF).catch(() => null),
+        fetchVehicles(1).catch(() => []),
+        fetchOwners(1).catch(() => []),
+        fetchClients(1).catch(() => []),
+        fetchDrivers(1).catch(() => []),
+        fetchMaintenance(1).catch(() => []),
+        fetchFinancialAccounts(1).catch(() => []),
+        fetchVehicleProfitability(1, startDate, endDate).catch(() => ({ vehicles: [], totals: {} })),
+        fetchDocumentExpiriesReport(1, expiryFilter).catch(() => ({ documents: [], summary: {} })),
       ]);
       if (kRes) setKpis(kRes);
       if (Array.isArray(vRes)) setVehicles(vRes);
@@ -67,7 +88,14 @@ export default function ReportsPage(){
       if (Array.isArray(cRes)) setClients(cRes);
       if (Array.isArray(dRes)) setDrivers(dRes);
       if (Array.isArray(mRes)) setMaintenance(mRes);
-      if (Array.isArray(aRes)) setAccounts(aRes);
+      if (Array.isArray(aRes)) {
+        setAccounts(aRes);
+        if (aRes.length > 0 && !selectedAccountId) {
+          setSelectedAccountId(String(aRes[0].id));
+        }
+      }
+      if (pRes) setProfitData(pRes);
+      if (eRes) setExpiryData(eRes);
     } catch {
       // ignore
     } finally {
@@ -75,15 +103,35 @@ export default function ReportsPage(){
     }
   };
 
-  useEffect(()=>{
+  useEffect(() => {
     loadAllReports();
   }, [periodF]);
+
+  useEffect(() => {
+    fetchVehicleProfitability(1, startDate, endDate)
+      .then(res => res && setProfitData(res))
+      .catch(() => {});
+  }, [startDate, endDate]);
+
+  useEffect(() => {
+    fetchDocumentExpiriesReport(1, expiryFilter)
+      .then(res => res && setExpiryData(res))
+      .catch(() => {});
+  }, [expiryFilter]);
+
+  useEffect(() => {
+    if (selectedAccountId) {
+      fetchAccountLedgerReport(1, selectedAccountId, startDate, endDate)
+        .then(res => setLedgerData(res))
+        .catch(() => {});
+    }
+  }, [selectedAccountId, startDate, endDate]);
 
   const totalRevenue = kpis?.financials?.totalRevenue || 0;
   const totalExpense = kpis?.financials?.totalExpenses || 0;
   const netProfit = kpis?.financials?.netProfit || (totalRevenue - totalExpense);
-  const customerReceivable = kpis?.financials?.customerReceivable || clients.reduce((s,c)=>s+(c.due||0),0);
-  const ownerPayable = kpis?.financials?.ownerPayable || owners.reduce((s,o)=>s+(o.due||0),0);
+  const customerReceivable = kpis?.financials?.customerReceivable || clients.reduce((s, c) => s + (c.due || 0), 0);
+  const ownerPayable = kpis?.financials?.ownerPayable || owners.reduce((s, o) => s + (o.due || 0), 0);
 
   const rawChart = kpis?.monthlyChart || kpis?.chartData || [];
   const chartData = rawChart.map((m: any) => ({
@@ -94,10 +142,28 @@ export default function ReportsPage(){
   }));
 
   const handleExportCSV = () => {
-    let filename = `report_${activeTab}_${periodF}.csv`;
+    let filename = `report_${activeTab}_${new Date().toISOString().slice(0, 10)}.csv`;
     let content = "";
 
-    if (activeTab === 'financial') {
+    if (activeTab === 'profitability') {
+      content = "Registration,Model,Owner,DutyIncome,Maintenance,FuelMobil,DriverAllowance,OwnerRent,TotalExpense,NetProfit,MarginPct\n" +
+        (profitData.vehicles || []).map(v =>
+          `"${v.registration}","${v.model}","${v.owner_name}",${v.duty_income},${v.maintenance_cost},${v.fuel_mobil_cost},${v.driver_allowance},${v.owner_rent},${v.total_expense},${v.net_profit},${v.margin_pct}%`
+        ).join("\n");
+    } else if (activeTab === 'expiries') {
+      content = "Entity,Name,Identifier,DocumentType,ExpiryDate,DaysRemaining,Status\n" +
+        (expiryData.documents || []).map(d =>
+          `"${d.entity_type}","${d.entity_name}","${d.identifier}","${d.document_type}","${d.expiry_date}",${d.days_remaining},"${d.status}"`
+        ).join("\n");
+    } else if (activeTab === 'ledger') {
+      content = `Ledger: ${ledgerData?.account?.name || 'Account'} (${ledgerData?.account?.type || ''})\n` +
+        `Opening Balance: ${ledgerData?.opening_balance || 0}\n` +
+        `Closing Balance: ${ledgerData?.closing_balance || 0}\n\n` +
+        "Date,Type,Category,Description,Reference,Debit(Outflow),Credit(Inflow),Balance\n" +
+        (ledgerData?.transactions || []).map((t: any) =>
+          `"${t.date}","${t.type}","${t.category}","${t.description}","${t.reference}",${t.debit},${t.credit},${t.balance}`
+        ).join("\n");
+    } else if (activeTab === 'financial') {
       content = "Month,Income,Expense,Profit\n" +
         chartData.map((c: any) => `${c.month},${c.income},${c.expenses},${c.profit}`).join("\n");
     } else if (activeTab === 'vehicles') {
@@ -132,13 +198,13 @@ export default function ReportsPage(){
       {/* Page Header */}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16,flexWrap:'wrap',gap:12}}>
         <div>
-          <h1 style={{fontSize:22,fontWeight:700,color:'#1e3947',marginBottom:4}}>Reports & Analytics</h1>
-          <p style={{fontSize:13,color:'#6a7c83'}}>Comprehensive financial, operational, and fleet performance reporting from Neon DB.</p>
+          <h1 style={{fontSize:22,fontWeight:700,color:'#1e3947',marginBottom:4}}>Reports &amp; Analytics</h1>
+          <p style={{fontSize:13,color:'#6a7c83'}}>Operational metrics, vehicle profitability, compliance expiries, and account ledgers.</p>
         </div>
 
-        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+        <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
           <Select value={periodF} onValueChange={(v: any) => setPeriodF(v)}>
-            <SelectTrigger style={{minWidth:140}}><SelectValue/></SelectTrigger>
+            <SelectTrigger style={{minWidth:120}}><SelectValue/></SelectTrigger>
             <SelectContent>
               <SelectItem value="Daily">Daily</SelectItem>
               <SelectItem value="Weekly">Weekly</SelectItem>
@@ -147,28 +213,25 @@ export default function ReportsPage(){
             </SelectContent>
           </Select>
 
-          <Button variant="outline" onClick={() => window.print()}>
-            <Download size={15}/> PDF
-          </Button>
           <Button variant="outline" onClick={handleExportCSV}>
             <FileSpreadsheet size={15}/> Excel / CSV
           </Button>
-          <Button variant="outline" onClick={()=>window.print()}>
-            <Printer size={15}/> Print
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer size={15}/> Print / PDF
           </Button>
         </div>
       </div>
 
-      {/* Metric Highlights (Live from Neon DB) */}
+      {/* Metric Highlights */}
       <div className="kpi-grid-5" style={{marginBottom:16}}>
         {[
-          {label:'Total Revenue',value:fmt(totalRevenue),color:'blue',icon:TrendingUp},
-          {label:'Total Expenditure',value:fmt(totalExpense),color:'gold',icon:DollarSign},
-          {label:'Net Operating Profit',value:fmt(netProfit),color:'blue',icon:TrendingUp},
-          {label:'Customer Receivables',value:fmt(customerReceivable),color:'gold',icon:Briefcase},
-          {label:'Owner Payables Due',value:fmt(ownerPayable),color:'purple',icon:Building2},
-        ].map(c=>{
-          const Icon=c.icon;
+          {label:'Total Revenue', value:fmt(totalRevenue), color:'blue', icon:TrendingUp},
+          {label:'Total Expenses', value:fmt(totalExpense), color:'gold', icon:DollarSign},
+          {label:'Net Profit', value:fmt(netProfit), color: netProfit >= 0 ? 'blue' : 'gold', icon:TrendingUp},
+          {label:'Client Receivables', value:fmt(customerReceivable), color:'gold', icon:Briefcase},
+          {label:'Owner Payables', value:fmt(ownerPayable), color:'purple', icon:Building2},
+        ].map(c => {
+          const Icon = c.icon;
           return (
             <Card key={c.label} className="metric">
               <div className="metric-top">
@@ -184,19 +247,359 @@ export default function ReportsPage(){
       {/* Tabs for Different Report Modules */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList style={{marginBottom:16,display:'flex',gap:6,overflowX:'auto',maxWidth:'100%',whiteSpace:'nowrap',paddingBottom:4}}>
+          <TabsTrigger value="profitability">Vehicle Profitability</TabsTrigger>
+          <TabsTrigger value="expiries">Document Expiries</TabsTrigger>
+          <TabsTrigger value="ledger">Cash &amp; Bank Ledger</TabsTrigger>
           <TabsTrigger value="financial">Financial Overview</TabsTrigger>
           <TabsTrigger value="vehicles">Fleet Performance ({vehicles.length})</TabsTrigger>
           <TabsTrigger value="owners">Owner Statements ({owners.length})</TabsTrigger>
-          <TabsTrigger value="clients">Client Invoicing & Due ({clients.length})</TabsTrigger>
+          <TabsTrigger value="clients">Client Receivables ({clients.length})</TabsTrigger>
           <TabsTrigger value="drivers">Driver Payroll ({drivers.length})</TabsTrigger>
-          <TabsTrigger value="maintenance">Maintenance & Garages ({maintenance.length})</TabsTrigger>
+          <TabsTrigger value="maintenance">Maintenance ({maintenance.length})</TabsTrigger>
         </TabsList>
 
-        {/* 1. Financial Overview */}
+        {/* 1. Vehicle Profitability Report */}
+        <TabsContent value="profitability">
+          <Card style={{padding:16}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,flexWrap:'wrap',gap:10}}>
+              <div>
+                <h3 style={{fontSize:15,fontWeight:750,color:'#1e3947'}}>Vehicle Profitability Analysis</h3>
+                <p style={{fontSize:12,color:'#64748b',margin:0}}>
+                  Net Profit = Duty Income - (Maintenance + Fuel/CNG + Mobil + Driver Allowance + Owner Rent)
+                </p>
+              </div>
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                  style={{width:140,fontSize:12}}
+                  placeholder="From"
+                />
+                <span style={{fontSize:12,color:'#64748b'}}>to</span>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  style={{width:140,fontSize:12}}
+                  placeholder="To"
+                />
+                {(startDate || endDate) && (
+                  <Button size="sm" variant="ghost" onClick={() => { setStartDate(''); setEndDate(''); }}>
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Profitability Summary KPI Row */}
+            {profitData.totals && (
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(130px, 1fr))',gap:10,marginBottom:16,background:'#f8fafc',padding:12,borderRadius:8,border:'1px solid #e2e8f0'}}>
+                <div>
+                  <small style={{fontSize:10,color:'#64748b',fontWeight:700}}>TOTAL INCOME</small>
+                  <strong style={{fontSize:16,color:'#0f172a',display:'block'}}>{fmt(profitData.totals.duty_income || 0)}</strong>
+                </div>
+                <div>
+                  <small style={{fontSize:10,color:'#64748b',fontWeight:700}}>MAINTENANCE</small>
+                  <strong style={{fontSize:16,color:'#e11d48',display:'block'}}>{fmt(profitData.totals.maintenance_cost || 0)}</strong>
+                </div>
+                <div>
+                  <small style={{fontSize:10,color:'#64748b',fontWeight:700}}>FUEL / MOBIL</small>
+                  <strong style={{fontSize:16,color:'#d97706',display:'block'}}>{fmt(profitData.totals.fuel_mobil_cost || 0)}</strong>
+                </div>
+                <div>
+                  <small style={{fontSize:10,color:'#64748b',fontWeight:700}}>DRIVER ALLOWANCE</small>
+                  <strong style={{fontSize:16,color:'#7c3aed',display:'block'}}>{fmt(profitData.totals.driver_allowance || 0)}</strong>
+                </div>
+                <div>
+                  <small style={{fontSize:10,color:'#64748b',fontWeight:700}}>OWNER RENT</small>
+                  <strong style={{fontSize:16,color:'#2563eb',display:'block'}}>{fmt(profitData.totals.owner_rent || 0)}</strong>
+                </div>
+                <div>
+                  <small style={{fontSize:10,color:'#64748b',fontWeight:700}}>NET PROFIT</small>
+                  <strong style={{fontSize:16,color: (profitData.totals.net_profit || 0) >= 0 ? '#16a34a' : '#ef4444',display:'block'}}>
+                    {fmt(profitData.totals.net_profit || 0)}
+                  </strong>
+                </div>
+              </div>
+            )}
+
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,textAlign:'left'}}>
+                <thead>
+                  <tr style={{borderBottom:'1px solid #e2e8f0',color:'#64748b',fontWeight:700,height:38,background:'#f8fafc'}}>
+                    <th style={{padding:'6px 10px'}}>Vehicle</th>
+                    <th style={{padding:'6px 10px'}}>Owner</th>
+                    <th style={{padding:'6px 10px',textAlign:'right'}}>Duty Income</th>
+                    <th style={{padding:'6px 10px',textAlign:'right'}}>Maintenance</th>
+                    <th style={{padding:'6px 10px',textAlign:'right'}}>Fuel / Mobil</th>
+                    <th style={{padding:'6px 10px',textAlign:'right'}}>Allowance</th>
+                    <th style={{padding:'6px 10px',textAlign:'right'}}>Owner Rent</th>
+                    <th style={{padding:'6px 10px',textAlign:'right'}}>Total Expenses</th>
+                    <th style={{padding:'6px 10px',textAlign:'right'}}>Net Profit</th>
+                    <th style={{padding:'6px 10px',textAlign:'right'}}>Margin</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(profitData.vehicles || []).map((v: any, idx: number) => {
+                    const isProfit = (v.net_profit || 0) >= 0;
+                    return (
+                      <tr key={v.vehicle_id || idx} style={{borderBottom:'1px solid #f1f5f9',height:42}}>
+                        <td style={{padding:'6px 10px'}}>
+                          <strong style={{color:'#1e3947'}}>{v.registration}</strong>
+                          <span style={{fontSize:10,color:'#64748b',display:'block'}}>{v.model}</span>
+                        </td>
+                        <td style={{padding:'6px 10px',color:'#475569'}}>{v.owner_name}</td>
+                        <td style={{padding:'6px 10px',textAlign:'right',fontWeight:700,color:'#0f172a'}}>{fmt(v.duty_income)}</td>
+                        <td style={{padding:'6px 10px',textAlign:'right',color:'#dc2626'}}>{fmt(v.maintenance_cost)}</td>
+                        <td style={{padding:'6px 10px',textAlign:'right',color:'#d97706'}}>{fmt(v.fuel_mobil_cost)}</td>
+                        <td style={{padding:'6px 10px',textAlign:'right',color:'#7c3aed'}}>{fmt(v.driver_allowance)}</td>
+                        <td style={{padding:'6px 10px',textAlign:'right',color:'#2563eb'}}>{fmt(v.owner_rent)}</td>
+                        <td style={{padding:'6px 10px',textAlign:'right',fontWeight:600}}>{fmt(v.total_expense)}</td>
+                        <td style={{padding:'6px 10px',textAlign:'right',fontWeight:800,color: isProfit ? '#16a34a' : '#ef4444'}}>
+                          {fmt(v.net_profit)}
+                        </td>
+                        <td style={{padding:'6px 10px',textAlign:'right'}}>
+                          <span className={isProfit ? 'badge badge-good' : 'badge badge-bad'}>
+                            {v.margin_pct}%
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {(!profitData.vehicles || profitData.vehicles.length === 0) && (
+                    <tr>
+                      <td colSpan={10} style={{padding:24,textAlign:'center',color:'#94a3b8'}}>
+                        No vehicle profitability data found for the selected period.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* 2. Document Expiry Report */}
+        <TabsContent value="expiries">
+          <Card style={{padding:16}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,flexWrap:'wrap',gap:10}}>
+              <div>
+                <h3 style={{fontSize:15,fontWeight:750,color:'#1e3947'}}>Document &amp; Compliance Expiry Tracker</h3>
+                <p style={{fontSize:12,color:'#64748b',margin:0}}>
+                  Fitness, Tax Token, Route Permit, Insurance, and Driving License expiries.
+                </p>
+              </div>
+
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <Select value={expiryFilter} onValueChange={setExpiryFilter}>
+                  <SelectTrigger style={{minWidth:140}}><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Documents</SelectItem>
+                    <SelectItem value="expired">Expired Only</SelectItem>
+                    <SelectItem value="7d">Expiring in 7 Days</SelectItem>
+                    <SelectItem value="15d">Expiring in 15 Days</SelectItem>
+                    <SelectItem value="30d">Expiring in 30 Days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Summary Cards */}
+            {expiryData.summary && (
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(130px, 1fr))',gap:10,marginBottom:16}}>
+                <div style={{background:'#fee2e2',padding:10,borderRadius:8}}>
+                  <small style={{fontSize:10,color:'#991b1b',fontWeight:700}}>EXPIRED</small>
+                  <strong style={{fontSize:18,color:'#991b1b',display:'block'}}>{expiryData.summary.expired || 0}</strong>
+                </div>
+                <div style={{background:'#ffedd5',padding:10,borderRadius:8}}>
+                  <small style={{fontSize:10,color:'#9a3412',fontWeight:700}}>URGENT (&le; 7 DAYS)</small>
+                  <strong style={{fontSize:18,color:'#9a3412',display:'block'}}>{expiryData.summary.urgent_7d || 0}</strong>
+                </div>
+                <div style={{background:'#fef9c3',padding:10,borderRadius:8}}>
+                  <small style={{fontSize:10,color:'#854d0e',fontWeight:700}}>WARNING (&le; 15 DAYS)</small>
+                  <strong style={{fontSize:18,color:'#854d0e',display:'block'}}>{expiryData.summary.warning_15d || 0}</strong>
+                </div>
+                <div style={{background:'#e0f2fe',padding:10,borderRadius:8}}>
+                  <small style={{fontSize:10,color:'#075985',fontWeight:700}}>NOTICE (&le; 30 DAYS)</small>
+                  <strong style={{fontSize:18,color:'#075985',display:'block'}}>{expiryData.summary.notice_30d || 0}</strong>
+                </div>
+                <div style={{background:'#dcfce7',padding:10,borderRadius:8}}>
+                  <small style={{fontSize:10,color:'#166534',fontWeight:700}}>VALID (&gt; 30 DAYS)</small>
+                  <strong style={{fontSize:18,color:'#166534',display:'block'}}>{expiryData.summary.valid || 0}</strong>
+                </div>
+              </div>
+            )}
+
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,textAlign:'left'}}>
+                <thead>
+                  <tr style={{borderBottom:'1px solid #e2e8f0',color:'#64748b',fontWeight:700,height:38,background:'#f8fafc'}}>
+                    <th style={{padding:'6px 10px'}}>Type</th>
+                    <th style={{padding:'6px 10px'}}>Entity Name</th>
+                    <th style={{padding:'6px 10px'}}>Reg / License</th>
+                    <th style={{padding:'6px 10px'}}>Document Type</th>
+                    <th style={{padding:'6px 10px'}}>Expiry Date</th>
+                    <th style={{padding:'6px 10px',textAlign:'right'}}>Days Left</th>
+                    <th style={{padding:'6px 10px',textAlign:'center'}}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(expiryData.documents || []).map((d: any, idx: number) => {
+                    let badgeClass = 'badge-good';
+                    if (d.status === 'expired') badgeClass = 'badge-bad';
+                    else if (d.status === 'urgent_7d') badgeClass = 'badge-bad';
+                    else if (d.status === 'warning_15d') badgeClass = 'badge-warn';
+                    else if (d.status === 'notice_30d') badgeClass = 'badge-blue';
+
+                    return (
+                      <tr key={d.id || idx} style={{borderBottom:'1px solid #f1f5f9',height:40}}>
+                        <td style={{padding:'6px 10px'}}>
+                          <span style={{fontSize:11,textTransform:'capitalize',color:'#475569'}}>{d.entity_type}</span>
+                        </td>
+                        <td style={{padding:'6px 10px',fontWeight:600,color:'#1e3947'}}>{d.entity_name}</td>
+                        <td style={{padding:'6px 10px',color:'#0284c7',fontWeight:600}}>{d.identifier}</td>
+                        <td style={{padding:'6px 10px',fontWeight:700}}>{d.document_type}</td>
+                        <td style={{padding:'6px 10px'}}>{d.expiry_date}</td>
+                        <td style={{padding:'6px 10px',textAlign:'right',fontWeight:700,color: d.days_remaining <= 0 ? '#ef4444' : d.days_remaining <= 7 ? '#ea580c' : '#0f172a'}}>
+                          {d.days_remaining <= 0 ? `${Math.abs(d.days_remaining)}d ago` : `${d.days_remaining}d`}
+                        </td>
+                        <td style={{padding:'6px 10px',textAlign:'center'}}>
+                          <span className={`badge ${badgeClass}`} style={{textTransform:'uppercase',fontSize:10}}>
+                            {d.status.replace('_', ' ')}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {(!expiryData.documents || expiryData.documents.length === 0) && (
+                    <tr>
+                      <td colSpan={7} style={{padding:24,textAlign:'center',color:'#94a3b8'}}>
+                        No document records found matching filter.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* 3. Cash & Bank Ledger */}
+        <TabsContent value="ledger">
+          <Card style={{padding:16}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,flexWrap:'wrap',gap:10}}>
+              <div>
+                <h3 style={{fontSize:15,fontWeight:750,color:'#1e3947'}}>Cash &amp; Bank Account Ledger</h3>
+                <p style={{fontSize:12,color:'#64748b',margin:0}}>
+                  Audit trail of receipts, payments, and running balance for financial accounts.
+                </p>
+              </div>
+
+              <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                  <SelectTrigger style={{minWidth:180}}><SelectValue placeholder="Select Account"/></SelectTrigger>
+                  <SelectContent>
+                    {accounts.map(a => (
+                      <SelectItem key={a.id} value={String(a.id)}>
+                        {a.name} ({a.type})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                  style={{width:130,fontSize:12}}
+                />
+                <span style={{fontSize:12,color:'#64748b'}}>to</span>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  style={{width:130,fontSize:12}}
+                />
+              </div>
+            </div>
+
+            {ledgerData && (
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))',gap:10,marginBottom:16,background:'#f8fafc',padding:12,borderRadius:8,border:'1px solid #e2e8f0'}}>
+                <div>
+                  <small style={{fontSize:10,color:'#64748b',fontWeight:700}}>OPENING BALANCE</small>
+                  <strong style={{fontSize:16,color:'#0f172a',display:'block'}}>{fmt(ledgerData.opening_balance || 0)}</strong>
+                </div>
+                <div>
+                  <small style={{fontSize:10,color:'#64748b',fontWeight:700}}>TOTAL RECEIPTS (CREDITS)</small>
+                  <strong style={{fontSize:16,color:'#16a34a',display:'block'}}>{fmt(ledgerData.total_inflow || 0)}</strong>
+                </div>
+                <div>
+                  <small style={{fontSize:10,color:'#64748b',fontWeight:700}}>TOTAL PAYMENTS (DEBITS)</small>
+                  <strong style={{fontSize:16,color:'#ef4444',display:'block'}}>{fmt(ledgerData.total_outflow || 0)}</strong>
+                </div>
+                <div>
+                  <small style={{fontSize:10,color:'#64748b',fontWeight:700}}>CLOSING BALANCE</small>
+                  <strong style={{fontSize:16,color:'#2563eb',display:'block'}}>{fmt(ledgerData.closing_balance || 0)}</strong>
+                </div>
+              </div>
+            )}
+
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,textAlign:'left'}}>
+                <thead>
+                  <tr style={{borderBottom:'1px solid #e2e8f0',color:'#64748b',fontWeight:700,height:38,background:'#f8fafc'}}>
+                    <th style={{padding:'6px 10px'}}>Date</th>
+                    <th style={{padding:'6px 10px'}}>Type</th>
+                    <th style={{padding:'6px 10px'}}>Category</th>
+                    <th style={{padding:'6px 10px'}}>Description</th>
+                    <th style={{padding:'6px 10px'}}>Reference</th>
+                    <th style={{padding:'6px 10px',textAlign:'right'}}>Debit (Outflow)</th>
+                    <th style={{padding:'6px 10px',textAlign:'right'}}>Credit (Inflow)</th>
+                    <th style={{padding:'6px 10px',textAlign:'right'}}>Running Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(ledgerData?.transactions || []).map((t: any, idx: number) => (
+                    <tr key={idx} style={{borderBottom:'1px solid #f1f5f9',height:40}}>
+                      <td style={{padding:'6px 10px',color:'#64748b'}}>{t.date}</td>
+                      <td style={{padding:'6px 10px'}}>
+                        <span className={`badge ${t.type === 'INFLOW' ? 'badge-good' : 'badge-warn'}`} style={{fontSize:10}}>
+                          {t.type}
+                        </span>
+                      </td>
+                      <td style={{padding:'6px 10px',fontWeight:600}}>{t.category}</td>
+                      <td style={{padding:'6px 10px',color:'#334155'}}>{t.description}</td>
+                      <td style={{padding:'6px 10px',color:'#64748b',fontSize:11}}>{t.reference || '—'}</td>
+                      <td style={{padding:'6px 10px',textAlign:'right',color: t.debit > 0 ? '#ef4444' : '#94a3b8'}}>
+                        {t.debit > 0 ? fmt(t.debit) : '—'}
+                      </td>
+                      <td style={{padding:'6px 10px',textAlign:'right',color: t.credit > 0 ? '#16a34a' : '#94a3b8',fontWeight:600}}>
+                        {t.credit > 0 ? fmt(t.credit) : '—'}
+                      </td>
+                      <td style={{padding:'6px 10px',textAlign:'right',fontWeight:700,color:'#0f172a'}}>
+                        {fmt(t.balance)}
+                      </td>
+                    </tr>
+                  ))}
+                  {(!ledgerData?.transactions || ledgerData.transactions.length === 0) && (
+                    <tr>
+                      <td colSpan={8} style={{padding:24,textAlign:'center',color:'#94a3b8'}}>
+                        No ledger transactions found for this account.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* 4. Financial Overview */}
         <TabsContent value="financial">
           <div className="split-grid-analytics-2" style={{marginBottom:16}}>
             <Card style={{padding:16}}>
-              <h3 style={{fontSize:14,fontWeight:750,color:'#1e3947',marginBottom:14}}>Period Income vs Expense Trend (Live Neon DB)</h3>
+              <h3 style={{fontSize:14,fontWeight:750,color:'#1e3947',marginBottom:14}}>Period Income vs Expense Trend</h3>
               <div style={{width:'100%',height:260}}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
@@ -228,16 +631,16 @@ export default function ReportsPage(){
           </div>
         </TabsContent>
 
-        {/* 2. Vehicles Fleet Performance */}
+        {/* 5. Vehicles Fleet Performance */}
         <TabsContent value="vehicles">
           <Card style={{padding:16}}>
-            <h3 style={{fontSize:14,fontWeight:750,color:'#1e3947',marginBottom:12}}>Fleet Roster & Status ({vehicles.length} Vehicles)</h3>
+            <h3 style={{fontSize:14,fontWeight:750,color:'#1e3947',marginBottom:12}}>Fleet Roster &amp; Status ({vehicles.length} Vehicles)</h3>
             <div style={{overflowX:'auto'}}>
               <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,textAlign:'left'}}>
                 <thead>
                   <tr style={{borderBottom:'1px solid #f1f5f9',color:'#64748b',fontWeight:700,height:36}}>
                     <th style={{padding:'0 8px'}}>Reg No</th>
-                    <th style={{padding:'0 8px'}}>Brand & Model</th>
+                    <th style={{padding:'0 8px'}}>Brand &amp; Model</th>
                     <th style={{padding:'0 8px'}}>Owner</th>
                     <th style={{padding:'0 8px'}}>Driver</th>
                     <th style={{padding:'0 8px'}}>Status</th>
@@ -261,10 +664,10 @@ export default function ReportsPage(){
           </Card>
         </TabsContent>
 
-        {/* 3. Owner Statements */}
+        {/* 6. Owner Statements */}
         <TabsContent value="owners">
           <Card style={{padding:16}}>
-            <h3 style={{fontSize:14,fontWeight:750,color:'#1e3947',marginBottom:12}}>Owner Payables & Dues ({owners.length} Owners)</h3>
+            <h3 style={{fontSize:14,fontWeight:750,color:'#1e3947',marginBottom:12}}>Owner Payables &amp; Dues ({owners.length} Owners)</h3>
             <div style={{overflowX:'auto'}}>
               <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,textAlign:'left'}}>
                 <thead>
@@ -294,7 +697,7 @@ export default function ReportsPage(){
           </Card>
         </TabsContent>
 
-        {/* 4. Client Invoicing & Due */}
+        {/* 7. Client Receivables */}
         <TabsContent value="clients">
           <Card style={{padding:16}}>
             <h3 style={{fontSize:14,fontWeight:750,color:'#1e3947',marginBottom:12}}>Client Receivables ({clients.length} Clients)</h3>
@@ -327,7 +730,7 @@ export default function ReportsPage(){
           </Card>
         </TabsContent>
 
-        {/* 5. Driver Payroll */}
+        {/* 8. Driver Payroll */}
         <TabsContent value="drivers">
           <Card style={{padding:16}}>
             <h3 style={{fontSize:14,fontWeight:750,color:'#1e3947',marginBottom:12}}>Driver Payroll Roster ({drivers.length} Drivers)</h3>
@@ -360,7 +763,7 @@ export default function ReportsPage(){
           </Card>
         </TabsContent>
 
-        {/* 6. Maintenance & Garages */}
+        {/* 9. Maintenance & Garages */}
         <TabsContent value="maintenance">
           <Card style={{padding:16}}>
             <h3 style={{fontSize:14,fontWeight:750,color:'#1e3947',marginBottom:12}}>Maintenance Logs ({maintenance.length} Records)</h3>
@@ -395,7 +798,12 @@ export default function ReportsPage(){
       </Tabs>
 
       {/* Toast notification */}
-      {toast&&<div className="toast" role="status"><CheckCircle2 size={18}/>{toast}<button onClick={()=>setToast('')} aria-label="Dismiss"><X size={16}/></button></div>}
+      {toast && (
+        <div className="toast" role="status">
+          <CheckCircle2 size={18}/>{toast}
+          <button onClick={() => setToast('')} aria-label="Dismiss"><X size={16}/></button>
+        </div>
+      )}
     </>
   );
 }

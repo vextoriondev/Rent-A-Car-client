@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import {fetchDuties, createDuty, updateDutyStatus, fetchClients, fetchVehicles, fetchDrivers} from '@/lib/api';
 import {
-  demoDuties, demoClients, demoVehicles, demoDrivers,
   Duty, DutyStatus, DutyType,
 } from '@/lib/tasin-data';
 import {Card} from '@/components/ui/card';

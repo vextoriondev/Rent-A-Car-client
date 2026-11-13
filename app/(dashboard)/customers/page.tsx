@@ -443,9 +443,9 @@ export default function CustomersPage(){
                       </td>
                       <td style={{padding:'0 16px'}}>
                         <div style={{display:'flex',justifyContent:'center',gap:6}}>
-                          <button className="action-btn action-btn-blue" title="View Details" onClick={(e)=>{e.stopPropagation();setSelectedClient(c)}}>
+                          <Link href={`/customers/${c.id}`} className="action-btn action-btn-blue" title="View Full Profile" onClick={(e)=>e.stopPropagation()}>
                             <Eye size={14}/>
-                          </button>
+                          </Link>
                           <button className="action-btn action-btn-blue" title="Edit Client" onClick={(e)=>{e.stopPropagation();openEditModal(c)}}>
                             <Edit2 size={14}/>
                           </button>
@@ -635,6 +635,12 @@ export default function CustomersPage(){
           >
             <HandCoins size={18}/> Collect Due Payment
           </button>
+
+          <Link href={activeClient ? `/customers/${activeClient.id}` : '#'} style={{textDecoration:'none'}}>
+            <button style={{width:'100%',background:'#1677ff',color:'#fff',border:0,borderRadius:8,padding:'11px 16px',display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
+              <Eye size={18}/> View Full Profile & Invoices
+            </button>
+          </Link>
 
           <Link href="/duties" style={{textDecoration:'none'}}>
             <button style={{width:'100%',background:'#0ea5e9',color:'#fff',border:0,borderRadius:8,padding:'11px 16px',display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
