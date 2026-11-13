@@ -32,7 +32,8 @@ import {
   fetchFinancialAccounts,
   fetchVehicleProfitability,
   fetchDocumentExpiriesReport,
-  fetchAccountLedgerReport
+  fetchAccountLedgerReport,
+  buildCustomReport
 } from '@/lib/api';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
@@ -63,6 +64,37 @@ export default function ReportsPage() {
   const [ledgerData, setLedgerData] = useState<any>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  // Custom Report Builder state
+  const [builderModule, setBuilderModule] = useState<'duties' | 'invoices' | 'expenses' | 'maintenance' | 'parties'>('duties');
+  const [builderDateFrom, setBuilderDateFrom] = useState('');
+  const [builderDateTo, setBuilderDateTo] = useState('');
+  const [builderStatus, setBuilderStatus] = useState('all');
+  const [builderLoading, setBuilderLoading] = useState(false);
+  const [builderResult, setBuilderResult] = useState<any>(null);
+
+  const handleRunReportBuilder = async () => {
+    setBuilderLoading(true);
+    try {
+      const res = await buildCustomReport(1, {
+        module: builderModule,
+        start_date: builderDateFrom || undefined,
+        end_date: builderDateTo || undefined,
+        status_filter: builderStatus !== 'all' ? builderStatus : undefined,
+        filters: {
+          date_from: builderDateFrom || undefined,
+          date_to: builderDateTo || undefined,
+          status: builderStatus !== 'all' ? builderStatus : undefined,
+        }
+      });
+      setBuilderResult(res);
+      showToast(`Generated custom report: ${res?.total_count ?? 0} records found`);
+    } catch {
+      showToast('Error generating custom report');
+    } finally {
+      setBuilderLoading(false);
+    }
+  };
 
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState('');
@@ -256,6 +288,7 @@ export default function ReportsPage() {
           <TabsTrigger value="clients">Client Receivables ({clients.length})</TabsTrigger>
           <TabsTrigger value="drivers">Driver Payroll ({drivers.length})</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance ({maintenance.length})</TabsTrigger>
+          <TabsTrigger value="builder" style={{color:'#1677ff',fontWeight:700}}>Custom Report Builder</TabsTrigger>
         </TabsList>
 
         {/* 1. Vehicle Profitability Report */}
@@ -792,6 +825,111 @@ export default function ReportsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* 10. Custom Report Builder */}
+        <TabsContent value="builder">
+          <Card style={{padding:16}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16,flexWrap:'wrap',gap:12}}>
+              <div>
+                <h3 style={{fontSize:15,fontWeight:750,color:'#1e3947'}}>Custom Report Query Builder</h3>
+                <p style={{fontSize:12,color:'#64748b',margin:'2px 0 0'}}>
+                  Generate tailored analytical views across duties, billing invoices, fleet maintenance, and ledger expenses.
+                </p>
+              </div>
+
+              <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                <Select value={builderModule} onValueChange={(v: any) => setBuilderModule(v)}>
+                  <SelectTrigger style={{minWidth:140,fontSize:12}}><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="duties">Duties &amp; Trips</SelectItem>
+                    <SelectItem value="invoices">Billing Invoices</SelectItem>
+                    <SelectItem value="expenses">Operating Expenses</SelectItem>
+                    <SelectItem value="maintenance">Maintenance Records</SelectItem>
+                    <SelectItem value="parties">Client &amp; Vendor Parties</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Input
+                  type="date"
+                  value={builderDateFrom}
+                  onChange={e => setBuilderDateFrom(e.target.value)}
+                  style={{width:135,fontSize:12}}
+                  placeholder="Date From"
+                />
+                <Input
+                  type="date"
+                  value={builderDateTo}
+                  onChange={e => setBuilderDateTo(e.target.value)}
+                  style={{width:135,fontSize:12}}
+                  placeholder="Date To"
+                />
+
+                <Button
+                  size="sm"
+                  onClick={handleRunReportBuilder}
+                  disabled={builderLoading}
+                  style={{background:'#1677ff',color:'#fff',height:36}}
+                >
+                  {builderLoading ? 'Executing Query...' : 'Generate Report'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Builder Output KPI summary */}
+            {builderResult && (
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))',gap:12,marginBottom:16,background:'#f8fafc',padding:12,borderRadius:8,border:'1px solid #e2e8f0'}}>
+                <div>
+                  <small style={{fontSize:11,color:'#64748b',fontWeight:700,textTransform:'uppercase'}}>TARGET MODULE</small>
+                  <strong style={{fontSize:18,color:'#1677ff',display:'block'}}>{builderResult.module?.toUpperCase()}</strong>
+                </div>
+                <div>
+                  <small style={{fontSize:11,color:'#64748b',fontWeight:700,textTransform:'uppercase'}}>RECORDS RETURNED</small>
+                  <strong style={{fontSize:18,color:'#0f172a',display:'block'}}>{builderResult.total_count}</strong>
+                </div>
+                <div>
+                  <small style={{fontSize:11,color:'#64748b',fontWeight:700,textTransform:'uppercase'}}>AGGREGATE FINANCIAL SUM</small>
+                  <strong style={{fontSize:18,color:'#10b981',display:'block'}}>{fmt(builderResult.aggregations?.total_amount || 0)}</strong>
+                </div>
+              </div>
+            )}
+
+            {/* Dynamic Results Table */}
+            <div style={{overflowX:'auto'}}>
+              {builderLoading ? (
+                <div style={{padding:'40px 0',textAlign:'center',color:'#94a3b8',fontSize:13}}>Querying database...</div>
+              ) : !builderResult ? (
+                <div style={{padding:'40px 0',textAlign:'center',color:'#94a3b8',fontSize:13}}>
+                  Configure query parameters above and click &quot;Generate Report&quot; to build a custom dataset.
+                </div>
+              ) : builderResult.rows?.length === 0 ? (
+                <div style={{padding:'40px 0',textAlign:'center',color:'#94a3b8',fontSize:13}}>No records match your query filters.</div>
+              ) : (
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,textAlign:'left'}}>
+                  <thead>
+                    <tr style={{borderBottom:'1px solid #f1f5f9',color:'#64748b',fontWeight:700,height:36}}>
+                      {Object.keys(builderResult.rows[0]).map(col => (
+                        <th key={col} style={{padding:'0 10px',textTransform:'capitalize'}}>
+                          {col.replace(/_/g, ' ')}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {builderResult.rows.map((row: any, i: number) => (
+                      <tr key={i} style={{borderBottom:'1px solid #f8fafc',height:38}}>
+                        {Object.entries(row).map(([k, val]: [string, any], ci: number) => (
+                          <td key={ci} style={{padding:'0 10px',color: k.includes('amount') || k.includes('cost') || k.includes('total') ? '#0f172a' : '#475569', fontWeight: k.includes('amount') || k.includes('id') ? 700 : 400}}>
+                            {typeof val === 'number' && (k.includes('amount') || k.includes('cost') || k.includes('total') || k.includes('rent')) ? fmt(val) : String(val ?? '—')}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </Card>
         </TabsContent>

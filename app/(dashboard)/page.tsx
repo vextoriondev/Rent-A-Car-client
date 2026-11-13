@@ -79,6 +79,7 @@ export default function DashboardPage(){
   const cashBalance = fmt(kpis?.financials?.cashBalance ?? 0);
   const bankBalance = fmt(kpis?.financials?.bankBalance ?? 0);
   const comparison = kpis?.comparison;
+  const prevMonth = kpis?.prev_month_comparison;
 
   // Dynamic Chart Data from Neon DB for Daily, Weekly, Monthly, or Yearly periods
   const rawChart = kpis?.monthlyChart || kpis?.chartData || [];
@@ -269,19 +270,19 @@ export default function DashboardPage(){
               <span style={{color:'#1677ff'}}>❖</span> Financial Overview (Live Neon DB)
             </h3>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
-              {comparison && (
+              {prevMonth && (
                 <span style={{
                   fontSize:11,
                   padding:'3px 8px',
                   borderRadius:12,
                   fontWeight:700,
-                  background: comparison.trend === 'up' ? '#dcfce7' : '#fee2e2',
-                  color: comparison.trend === 'up' ? '#16a34a' : '#ef4444',
+                  background: (prevMonth.revenue_delta_pct >= 0) ? '#dcfce7' : '#fee2e2',
+                  color: (prevMonth.revenue_delta_pct >= 0) ? '#16a34a' : '#ef4444',
                   display:'inline-flex',
                   alignItems:'center',
                   gap:3
                 }}>
-                  {comparison.trend === 'up' ? '↑' : '↓'} {comparison.revenuePct}% vs prev month
+                  {prevMonth.revenue_delta_pct >= 0 ? '↑' : '↓'} {Math.abs(prevMonth.revenue_delta_pct)}% vs prev month
                 </span>
               )}
               <Link href="/reports" style={{fontSize:12,color:'#1677ff',fontWeight:600,textDecoration:'none'}}>View Report →</Link>

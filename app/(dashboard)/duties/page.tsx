@@ -4,9 +4,9 @@ import {useState, useMemo, useEffect} from 'react';
 import {
   CalendarDays, Plus, Play, CheckCircle, XCircle, Edit2, Printer,
   Filter, Car, Users, TrendingUp, AlertCircle, Clock, CheckCheck,
-  ChevronUp, ChevronDown, ChevronsUpDown, X, Search,
+  ChevronUp, ChevronDown, ChevronsUpDown, X, Search, Send, Smartphone,
 } from 'lucide-react';
-import {fetchDuties, createDuty, updateDutyStatus, fetchClients, fetchVehicles, fetchDrivers} from '@/lib/api';
+import {fetchDuties, createDuty, updateDutyStatus, fetchClients, fetchVehicles, fetchDrivers, dispatchTripSheet} from '@/lib/api';
 import {
   Duty, DutyStatus, DutyType,
 } from '@/lib/tasin-data';
@@ -113,8 +113,9 @@ export default function DutiesPage() {
     fetchDuties(1)
       .then((data: any) => {
         if (Array.isArray(data)) {
-          const mapped: Duty[] = data.map((d: any) => ({
+          const mapped: (Duty & { rawId?: number })[] = data.map((d: any) => ({
             id: d.dutyId || `DTY-${String(d.id).padStart(3, '0')}`,
+            rawId: d.id,
             date: d.date,
             clientId: String(d.clientId || ''),
             clientName: d.clientName,
@@ -193,6 +194,11 @@ export default function DutiesPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Duty | null>(null);
   const [confirmAction, setConfirmAction] = useState<{type: 'start'|'complete'|'cancel'; duty: Duty} | null>(null);
+  const [dispatchDuty, setDispatchDuty] = useState<(Duty & { rawId?: number }) | null>(null);
+  const [dispatchChannel, setDispatchChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
+  const [dispatchPhone, setDispatchPhone] = useState('');
+  const [dispatchNotes, setDispatchNotes] = useState('');
+  const [dispatchLoading, setDispatchLoading] = useState(false);
 
   // ── Toast ──
   const [toast, setToast] = useState<string | null>(null);
@@ -463,6 +469,33 @@ export default function DutiesPage() {
     w.document.close();
     w.focus();
     setTimeout(() => w.print(), 400);
+  };
+
+  // ─── Dispatch Trip Sheet handler ──────────────────────────────────────────────
+  const openDispatch = (duty: Duty & { rawId?: number }) => {
+    setDispatchDuty(duty);
+    setDispatchChannel('whatsapp');
+    setDispatchPhone(duty.customerContact || '');
+    setDispatchNotes(`Duty Assignment ${duty.id}: Route ${duty.pickupLocation} -> ${duty.destination}. Vehicle: ${duty.vehicleReg}. Driver: ${duty.driverName}. Agreed Rent: ${formatMoney(duty.agreedRent)}.`);
+  };
+
+  const handleSendDispatch = async () => {
+    if (!dispatchDuty) return;
+    setDispatchLoading(true);
+    try {
+      const dutyNumericId = dispatchDuty.rawId || parseInt(dispatchDuty.id.replace(/\D/g, '')) || 1;
+      await dispatchTripSheet(1, dutyNumericId, {
+        channel: dispatchChannel,
+        recipient_phone: dispatchPhone,
+        notes: dispatchNotes,
+      });
+      showToast(`✓ Trip sheet dispatched to ${dispatchPhone} via ${dispatchChannel.toUpperCase()}`);
+      setDispatchDuty(null);
+    } catch (err: any) {
+      showToast(`❌ Dispatch failed: ${err.message || 'Error sending'}`);
+    } finally {
+      setDispatchLoading(false);
+    }
   };
 
   // ─── Shared form renderer ─────────────────────────────────────────────────────
@@ -852,6 +885,11 @@ export default function DutiesPage() {
                         onClick={()=>handlePrint(duty)}>
                         <Printer size={14}/>
                       </button>
+                      <button title="Dispatch Trip Sheet (SMS/WhatsApp)"
+                        style={{border:0,background:'none',color:'#2e7f96',cursor:'pointer',padding:'2px 4px'}}
+                        onClick={()=>openDispatch(duty)}>
+                        <Send size={14}/>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -973,6 +1011,87 @@ export default function DutiesPage() {
               {confirmAction?.type === 'start'    && 'Yes, Start Duty'}
               {confirmAction?.type === 'complete' && 'Yes, Mark Complete'}
               {confirmAction?.type === 'cancel'   && 'Yes, Cancel Duty'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          Dispatch Trip Sheet Dialog
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Dialog open={!!dispatchDuty} onOpenChange={o=>{if(!o)setDispatchDuty(null);}}>
+        <DialogContent style={{maxWidth:480}}>
+          <DialogHeader>
+            <DialogTitle style={{display:'flex',alignItems:'center',gap:8}}>
+              <Send size={18} style={{color:'#2e7f96'}}/> Dispatch Trip Sheet – {dispatchDuty?.id}
+            </DialogTitle>
+            <DialogDescription>
+              Transmit verified duty slip and driver dispatch instructions via WhatsApp or SMS.
+            </DialogDescription>
+          </DialogHeader>
+
+          {dispatchDuty && (
+            <div style={{display:'grid',gap:12,paddingTop:8}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                <label style={{fontSize:12,fontWeight:600,display:'flex',flexDirection:'column',gap:4}}>
+                  Dispatch Channel
+                  <Select value={dispatchChannel} onValueChange={(v:any)=>setDispatchChannel(v)}>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="whatsapp">WhatsApp Message</SelectItem>
+                      <SelectItem value="sms">SMS Text Alert</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </label>
+                <label style={{fontSize:12,fontWeight:600,display:'flex',flexDirection:'column',gap:4}}>
+                  Recipient Phone
+                  <Input
+                    placeholder="017XXXXXXXX"
+                    value={dispatchPhone}
+                    onChange={e=>setDispatchPhone(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              <div style={{background:'#f7f9f9',border:'1px solid var(--border)',borderRadius:8,padding:10,fontSize:12}}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                  <span style={{color:'#6a7c83'}}>Client:</span>
+                  <b>{dispatchDuty.clientName}</b>
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                  <span style={{color:'#6a7c83'}}>Vehicle:</span>
+                  <b>{dispatchDuty.vehicleReg}</b>
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                  <span style={{color:'#6a7c83'}}>Driver:</span>
+                  <b>{dispatchDuty.driverName}</b>
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between'}}>
+                  <span style={{color:'#6a7c83'}}>Route:</span>
+                  <span style={{fontWeight:500}}>{dispatchDuty.pickupLocation} → {dispatchDuty.destination}</span>
+                </div>
+              </div>
+
+              <label style={{fontSize:12,fontWeight:600,display:'flex',flexDirection:'column',gap:4}}>
+                Dispatch Note / Instructions
+                <textarea
+                  rows={3}
+                  value={dispatchNotes}
+                  onChange={e=>setDispatchNotes(e.target.value)}
+                  style={{
+                    width:'100%',padding:'8px 10px',borderRadius:6,
+                    border:'1px solid var(--border)',fontSize:12,fontFamily:'inherit',
+                    resize:'none'
+                  }}
+                />
+              </label>
+            </div>
+          )}
+
+          <DialogFooter style={{marginTop:8}}>
+            <Button variant="outline" onClick={()=>setDispatchDuty(null)} disabled={dispatchLoading}>Cancel</Button>
+            <Button onClick={handleSendDispatch} disabled={dispatchLoading || !dispatchPhone}>
+              {dispatchLoading ? 'Dispatching...' : `Send via ${dispatchChannel.toUpperCase()}`}
             </Button>
           </DialogFooter>
         </DialogContent>

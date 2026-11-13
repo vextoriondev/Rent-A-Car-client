@@ -1,7 +1,7 @@
 "use client";
 import {useState, useMemo, useEffect} from 'react';
-import {CircleDollarSign, AlertCircle, TrendingDown, Wrench, UserRound, CheckCircle2, ChevronUp, ChevronDown, ChevronsUpDown, ArrowUpRight} from 'lucide-react';
-import {fetchDueCollection, recordClientCollection, recordOwnerPayment, recordDriverPayment, recordGaragePayment} from '@/lib/api';
+import {CircleDollarSign, AlertCircle, TrendingDown, Wrench, UserRound, CheckCircle2, ChevronUp, ChevronDown, ChevronsUpDown, ArrowUpRight, PhoneCall, History} from 'lucide-react';
+import {fetchDueCollection, recordClientCollection, recordOwnerPayment, recordDriverPayment, recordGaragePayment, fetchDueFollowUps, createDueFollowUp} from '@/lib/api';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
@@ -316,10 +316,11 @@ function AgingSummary({clients}: {clients: ClientDue[]}) {
 // ─── Tab 1: Customer Receivable ───────────────────────────────────────────────
 
 function CustomerTab({
-  rows, onAction,
+  rows, onAction, onFollowUp,
 }: {
   rows: ClientDue[];
   onAction: (row: ClientDue) => void;
+  onFollowUp?: (row: ClientDue, kind: string) => void;
 }) {
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -407,14 +408,25 @@ function CustomerTab({
                   <StatusBadge status={row.status} days={row.overdueDays}/>
                 </td>
                 <td data-slot="table-cell" style={{textAlign:'right'}}>
-                  <Button
-                    size="sm"
-                    disabled={row.remaining === 0}
-                    onClick={() => onAction(row)}
-                    style={{fontSize:11, height:28, background: row.remaining > 0 ? '#215b70' : undefined}}
-                  >
-                    <ArrowUpRight size={12}/> Receive Payment
-                  </Button>
+                  <div style={{display:'flex',justifyContent:'flex-end',gap:6}}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onFollowUp?.(row, 'client')}
+                      style={{fontSize:11, height:28}}
+                      title="Follow-up Call / Notes"
+                    >
+                      <PhoneCall size={12}/> Follow-up
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={row.remaining === 0}
+                      onClick={() => onAction(row)}
+                      style={{fontSize:11, height:28, background: row.remaining > 0 ? '#215b70' : undefined}}
+                    >
+                      <ArrowUpRight size={12}/> Receive Payment
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -427,7 +439,7 @@ function CustomerTab({
 
 // ─── Tab 2: Owner Payable ─────────────────────────────────────────────────────
 
-function OwnerTab({rows, onAction}: {rows: OwnerDue[]; onAction: (row: OwnerDue) => void}) {
+function OwnerTab({rows, onAction, onFollowUp}: {rows: OwnerDue[]; onAction: (row: OwnerDue) => void; onFollowUp?: (row: OwnerDue, kind: string) => void}) {
   const [q, setQ] = useState('');
   const sort = useSortState('name');
 
@@ -483,14 +495,25 @@ function OwnerTab({rows, onAction}: {rows: OwnerDue[]; onAction: (row: OwnerDue)
                   }
                 </td>
                 <td data-slot="table-cell" style={{textAlign:'right'}}>
-                  <Button
-                    size="sm"
-                    disabled={row.remaining === 0}
-                    onClick={() => onAction(row)}
-                    style={{fontSize:11, height:28, background: row.remaining > 0 ? '#215b70' : undefined}}
-                  >
-                    Make Payment
-                  </Button>
+                  <div style={{display:'flex',justifyContent:'flex-end',gap:6}}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onFollowUp?.(row, 'owner')}
+                      style={{fontSize:11, height:28}}
+                      title="Follow-up Call / Notes"
+                    >
+                      <PhoneCall size={12}/> Follow-up
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={row.remaining === 0}
+                      onClick={() => onAction(row)}
+                      style={{fontSize:11, height:28, background: row.remaining > 0 ? '#215b70' : undefined}}
+                    >
+                      Make Payment
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -503,7 +526,7 @@ function OwnerTab({rows, onAction}: {rows: OwnerDue[]; onAction: (row: OwnerDue)
 
 // ─── Tab 3: Driver Payable ────────────────────────────────────────────────────
 
-function DriverTab({rows, onAction}: {rows: DriverDue[]; onAction: (row: DriverDue) => void}) {
+function DriverTab({rows, onAction, onFollowUp}: {rows: DriverDue[]; onAction: (row: DriverDue) => void; onFollowUp?: (row: DriverDue, kind: string) => void}) {
   const [q, setQ] = useState('');
   const sort = useSortState('name');
 
@@ -554,14 +577,25 @@ function DriverTab({rows, onAction}: {rows: DriverDue[]; onAction: (row: DriverD
                   {row.remaining > 0 ? `৳${row.remaining.toLocaleString('en-US')}` : <span style={{color:'#9aa6a9'}}>—</span>}
                 </td>
                 <td data-slot="table-cell" style={{textAlign:'right'}}>
-                  <Button
-                    size="sm"
-                    disabled={row.remaining === 0}
-                    onClick={() => onAction(row)}
-                    style={{fontSize:11, height:28, background: row.remaining > 0 ? '#215b70' : undefined}}
-                  >
-                    Pay Salary
-                  </Button>
+                  <div style={{display:'flex',justifyContent:'flex-end',gap:6}}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onFollowUp?.(row, 'driver')}
+                      style={{fontSize:11, height:28}}
+                      title="Follow-up Call / Notes"
+                    >
+                      <PhoneCall size={12}/> Follow-up
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={row.remaining === 0}
+                      onClick={() => onAction(row)}
+                      style={{fontSize:11, height:28, background: row.remaining > 0 ? '#215b70' : undefined}}
+                    >
+                      Pay Salary
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -574,7 +608,7 @@ function DriverTab({rows, onAction}: {rows: DriverDue[]; onAction: (row: DriverD
 
 // ─── Tab 4: Garage Payable ────────────────────────────────────────────────────
 
-function GarageTab({rows, onAction}: {rows: GarageDue[]; onAction: (row: GarageDue) => void}) {
+function GarageTab({rows, onAction, onFollowUp}: {rows: GarageDue[]; onAction: (row: GarageDue) => void; onFollowUp?: (row: GarageDue, kind: string) => void}) {
   const [q, setQ] = useState('');
   const sort = useSortState('name');
 
@@ -633,14 +667,25 @@ function GarageTab({rows, onAction}: {rows: GarageDue[]; onAction: (row: GarageD
                   }
                 </td>
                 <td data-slot="table-cell" style={{textAlign:'right'}}>
-                  <Button
-                    size="sm"
-                    disabled={row.remaining === 0}
-                    onClick={() => onAction(row)}
-                    style={{fontSize:11, height:28, background: row.remaining > 0 ? '#215b70' : undefined}}
-                  >
-                    Pay Garage
-                  </Button>
+                  <div style={{display:'flex',justifyContent:'flex-end',gap:6}}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onFollowUp?.(row, 'garage')}
+                      style={{fontSize:11, height:28}}
+                      title="Follow-up Call / Notes"
+                    >
+                      <PhoneCall size={12}/> Follow-up
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={row.remaining === 0}
+                      onClick={() => onAction(row)}
+                      style={{fontSize:11, height:28, background: row.remaining > 0 ? '#215b70' : undefined}}
+                    >
+                      Pay Garage
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -660,6 +705,15 @@ export default function DueCollectionPage() {
   const [garages,  setGarages]  = useState<GarageDue[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [modal,    setModal]    = useState<ModalTarget>(null);
+
+  // ── Follow-up Modal State ──
+  const [followUpTarget, setFollowUpTarget] = useState<{ id: string; name: string; kind: string } | null>(null);
+  const [followUpsList, setFollowUpsList] = useState<any[]>([]);
+  const [followUpLoading, setFollowUpLoading] = useState(false);
+  const [newNote, setNewNote] = useState('');
+  const [nextReminder, setNextReminder] = useState('');
+  const [followUpStatus, setFollowUpStatus] = useState('pending');
+  const [submittingFollowUp, setSubmittingFollowUp] = useState(false);
 
   const loadDues = () => {
     setLoading(true);
@@ -718,6 +772,46 @@ export default function DueCollectionPage() {
       setGarages(prev => prev.map(g =>
         g.id === modal.row.id ? {...g, paid: g.paid + amount, remaining: g.remaining - amount} : g
       ));
+    }
+  }
+
+  // ── Follow-up Handlers ──────────────────────────────────────────────────────
+  async function handleOpenFollowUp(row: any, kind: string) {
+    setFollowUpTarget({ id: row.id, name: row.name, kind });
+    setNewNote('');
+    setNextReminder('');
+    setFollowUpStatus('pending');
+    setFollowUpLoading(true);
+    try {
+      const partyNumericId = parseInt(String(row.id).replace(/\D/g, '')) || 1;
+      const res = await fetchDueFollowUps(1, partyNumericId);
+      setFollowUpsList(Array.isArray(res) ? res : []);
+    } catch {
+      setFollowUpsList([]);
+    } finally {
+      setFollowUpLoading(false);
+    }
+  }
+
+  async function handleSaveFollowUp() {
+    if (!followUpTarget || !newNote.trim()) return;
+    setSubmittingFollowUp(true);
+    try {
+      const partyNumericId = parseInt(String(followUpTarget.id).replace(/\D/g, '')) || 1;
+      await createDueFollowUp(1, {
+        party_id: partyNumericId,
+        notes: newNote,
+        status: followUpStatus,
+        next_reminder_date: nextReminder || null,
+      });
+      const res = await fetchDueFollowUps(1, partyNumericId);
+      setFollowUpsList(Array.isArray(res) ? res : []);
+      setNewNote('');
+      setNextReminder('');
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setSubmittingFollowUp(false);
     }
   }
 
@@ -825,6 +919,7 @@ export default function DueCollectionPage() {
           <CustomerTab
             rows={clients}
             onAction={row => setModal({kind:'client', row})}
+            onFollowUp={handleOpenFollowUp}
           />
           <AgingSummary clients={clients}/>
         </TabsContent>
@@ -833,6 +928,7 @@ export default function DueCollectionPage() {
           <OwnerTab
             rows={owners}
             onAction={row => setModal({kind:'owner', row})}
+            onFollowUp={handleOpenFollowUp}
           />
         </TabsContent>
 
@@ -840,6 +936,7 @@ export default function DueCollectionPage() {
           <DriverTab
             rows={drivers}
             onAction={row => setModal({kind:'driver', row})}
+            onFollowUp={handleOpenFollowUp}
           />
         </TabsContent>
 
@@ -847,6 +944,7 @@ export default function DueCollectionPage() {
           <GarageTab
             rows={garages}
             onAction={row => setModal({kind:'garage', row})}
+            onFollowUp={handleOpenFollowUp}
           />
         </TabsContent>
       </Tabs>
@@ -857,6 +955,98 @@ export default function DueCollectionPage() {
         onClose={() => setModal(null)}
         onConfirm={handlePayment}
       />
+
+      {/* ── Due Follow-up Dialog ───────────────────────────────────────────── */}
+      <Dialog open={!!followUpTarget} onOpenChange={o => { if (!o) setFollowUpTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle style={{display:'flex',alignItems:'center',gap:8}}>
+              <PhoneCall size={18} style={{color:'#1677ff'}}/> Due Follow-up & Call Log
+            </DialogTitle>
+            <p style={{fontSize:12,color:'#78898e',margin:0}}>
+              {followUpTarget?.name} ({followUpTarget?.kind?.toUpperCase()})
+            </p>
+          </DialogHeader>
+
+          <div style={{display:'flex',flexDirection:'column',gap:12,paddingTop:4}}>
+            {/* History list */}
+            <div>
+              <span style={{fontSize:11,fontWeight:700,color:'#64748b',textTransform:'uppercase',letterSpacing:.5,display:'block',marginBottom:6}}>
+                Previous Follow-ups & Notes ({followUpsList.length})
+              </span>
+              <div style={{maxHeight:160,overflowY:'auto',display:'flex',flexDirection:'column',gap:6,border:'1px solid #e2e8f0',borderRadius:8,padding:8,background:'#f8fafc'}}>
+                {followUpLoading ? (
+                  <div style={{padding:12,textAlign:'center',fontSize:12,color:'#94a3b8'}}>Loading follow-ups...</div>
+                ) : followUpsList.length === 0 ? (
+                  <div style={{padding:12,textAlign:'center',fontSize:12,color:'#94a3b8'}}>No follow-up notes logged yet.</div>
+                ) : (
+                  followUpsList.map((f: any, idx: number) => (
+                    <div key={f.id || idx} style={{padding:8,borderRadius:6,background:'#fff',border:'1px solid #f1f5f9',fontSize:12}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
+                        <span style={{fontWeight:700,color:'#0f172a'}}>{f.followup_date || 'Recent'}</span>
+                        <span style={{
+                          fontSize:10,fontWeight:700,padding:'1px 6px',borderRadius:4,
+                          background: f.status === 'resolved' ? '#e6f9f0' : f.status === 'escalated' ? '#fee4e2' : '#eff6ff',
+                          color: f.status === 'resolved' ? '#10b981' : f.status === 'escalated' ? '#ef4444' : '#1677ff',
+                        }}>
+                          {f.status?.toUpperCase()}
+                        </span>
+                      </div>
+                      <p style={{margin:0,color:'#475569',fontSize:11.5}}>{f.notes}</p>
+                      {f.next_reminder_date && (
+                        <small style={{color:'#f79009',display:'block',marginTop:2}}>Reminder: {f.next_reminder_date}</small>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* New Follow-up entry form */}
+            <div style={{display:'flex',flexDirection:'column',gap:8,borderTop:'1px solid #e2e8f0',paddingTop:10}}>
+              <span style={{fontSize:11,fontWeight:700,color:'#0f172a'}}>Log New Follow-up Call / Visit</span>
+              <textarea
+                rows={2}
+                placeholder="Client promised payment by Thursday..."
+                value={newNote}
+                onChange={e => setNewNote(e.target.value)}
+                style={{
+                  width:'100%',padding:'8px 10px',borderRadius:6,
+                  border:'1px solid #cbd5e1',fontSize:12,fontFamily:'inherit',resize:'none'
+                }}
+              />
+
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                <label style={{fontSize:11,fontWeight:600,color:'#475569',display:'flex',flexDirection:'column',gap:3}}>
+                  Status
+                  <Select value={followUpStatus} onValueChange={setFollowUpStatus}>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="escalated">Escalated</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </label>
+
+                <label style={{fontSize:11,fontWeight:600,color:'#475569',display:'flex',flexDirection:'column',gap:3}}>
+                  Next Reminder Date
+                  <Input type="date" value={nextReminder} onChange={e => setNextReminder(e.target.value)}/>
+                </label>
+              </div>
+
+              <Button
+                size="sm"
+                onClick={handleSaveFollowUp}
+                disabled={submittingFollowUp || !newNote.trim()}
+                style={{marginTop:4,background:'#1677ff'}}
+              >
+                {submittingFollowUp ? 'Saving...' : 'Save Follow-up'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

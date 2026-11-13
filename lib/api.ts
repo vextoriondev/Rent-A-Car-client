@@ -432,3 +432,162 @@ export async function fetchAccountLedgerReport(orgId: number = 1, accountId?: nu
   return apiRequest(url);
 }
 
+// ─── RBAC & PERMISSIONS ───────────────────────────────────────────────────────
+
+export async function fetchUserPermissions(orgId: number = 1) {
+  return apiRequest(`/orgs/${orgId}/rbac/permissions`);
+}
+
+// ─── MODULE 04: DRIVER ATTENDANCE ─────────────────────────────────────────────
+
+export async function fetchDriverAttendance(orgId: number = 1, year?: number, month?: number) {
+  let url = `/orgs/${orgId}/driver-attendance`;
+  const params: string[] = [];
+  if (year) params.push(`year=${year}`);
+  if (month) params.push(`month=${month}`);
+  if (params.length) url += `?${params.join('&')}`;
+  return apiRequest(url);
+}
+
+export async function recordDriverAttendance(orgId: number = 1, payload: { driver_id: number; date: string; status: string; duty_id?: number; notes?: string }) {
+  return apiRequest(`/orgs/${orgId}/driver-attendance`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+// ─── MODULE 06: TRIP DISPATCH (SMS/WHATSAPP) ─────────────────────────────────
+
+export async function dispatchTripSheet(orgId: number = 1, dutyId: number | string, channelOrPayload: 'SMS' | 'WhatsApp' | any = 'SMS') {
+  const body = typeof channelOrPayload === 'string' ? { channel: channelOrPayload } : channelOrPayload;
+  return apiRequest(`/orgs/${orgId}/duties/${dutyId}/dispatch`, {
+    method: 'POST',
+    body: JSON.stringify(body || {})
+  });
+}
+
+export async function fetchDutyDispatches(orgId: number = 1, dutyId: number | string) {
+  return apiRequest(`/orgs/${orgId}/duties/${dutyId}/dispatches`);
+}
+
+// ─── MODULE 08: SPARE PARTS INVENTORY ─────────────────────────────────────────
+
+export async function fetchSpareParts(orgId: number = 1) {
+  return apiRequest(`/orgs/${orgId}/spare-parts`);
+}
+
+export async function saveSparePart(orgId: number = 1, payload: any) {
+  return apiRequest(`/orgs/${orgId}/spare-parts`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+export const createSparePart = saveSparePart;
+
+export async function consumeSparePart(orgId: number = 1, partIdOrPayload: any, payload?: any) {
+  let targetPartId = partIdOrPayload;
+  let bodyPayload = payload;
+  if (typeof partIdOrPayload === 'object' && partIdOrPayload !== null) {
+    targetPartId = partIdOrPayload.part_id || 1;
+    bodyPayload = partIdOrPayload;
+  }
+  return apiRequest(`/orgs/${orgId}/spare-parts/${targetPartId}/consume`, {
+    method: 'POST',
+    body: JSON.stringify(bodyPayload || {})
+  });
+}
+
+// ─── MODULE 11: DEBTOR FOLLOW-UP MANAGEMENT ───────────────────────────────────
+
+export async function fetchDueFollowUps(orgId: number = 1, partyId?: number | string, status?: string) {
+  let url = `/orgs/${orgId}/due-followups`;
+  const params: string[] = [];
+  if (partyId) params.push(`party_id=${partyId}`);
+  if (status) params.push(`status=${status}`);
+  if (params.length) url += `?${params.join('&')}`;
+  return apiRequest(url);
+}
+
+export async function createDueFollowUp(orgId: number = 1, payload: any) {
+  return apiRequest(`/orgs/${orgId}/due-followups`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateDueFollowUpStatus(orgId: number = 1, followupId: number | string, status: string) {
+  return apiRequest(`/orgs/${orgId}/due-followups/${followupId}?status=${encodeURIComponent(status)}`, {
+    method: 'PATCH'
+  });
+}
+
+// ─── MODULE 14: CUSTOM REMINDERS ─────────────────────────────────────────────
+
+export async function fetchCustomReminders(orgId: number = 1) {
+  return apiRequest(`/orgs/${orgId}/custom-reminders`);
+}
+
+export async function createCustomReminder(orgId: number = 1, payload: any) {
+  return apiRequest(`/orgs/${orgId}/custom-reminders`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateCustomReminderStatus(orgId: number = 1, reminderId: number | string, status: string) {
+  return apiRequest(`/orgs/${orgId}/custom-reminders/${reminderId}?status=${encodeURIComponent(status)}`, {
+    method: 'PATCH'
+  });
+}
+
+export async function deleteCustomReminder(orgId: number = 1, reminderId: number | string) {
+  return apiRequest(`/orgs/${orgId}/custom-reminders/${reminderId}`, {
+    method: 'DELETE'
+  });
+}
+
+// ─── MODULE 09: AGREEMENT RENEWAL ────────────────────────────────────────────
+
+export async function renewAgreement(orgId: number = 1, agreementId: number | string, payload: { new_start_date: string; new_end_date: string; new_monthly_rent: number }) {
+  return apiRequest(`/orgs/${orgId}/agreements/${agreementId}/renew`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+// ─── MODULE 10: BANK RECONCILIATION ──────────────────────────────────────────
+
+export async function matchBankReconciliation(orgId: number = 1, accountId: number | string, rows: any[]) {
+  return apiRequest(`/orgs/${orgId}/bank-reconciliation/match`, {
+    method: 'POST',
+    body: JSON.stringify({ account_id: Number(accountId), rows })
+  });
+}
+
+// ─── MODULE 13: AD-HOC CUSTOM REPORT BUILDER ─────────────────────────────────
+
+export async function buildCustomReport(orgId: number = 1, payload: { module: string; fields?: string[]; start_date?: string; end_date?: string; status_filter?: string; filters?: any }) {
+  return apiRequest(`/orgs/${orgId}/reports/custom-builder`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+// ─── SECURE FILE UPLOAD & DOCUMENTS ──────────────────────────────────────────
+
+export async function uploadDocument(orgId: number = 1, payload: { entity_type: string; entity_id: string; document_type: string; file_name: string; file_base64: string; mime_type?: string }) {
+  return apiRequest(`/orgs/${orgId}/documents/upload`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function fetchDocuments(orgId: number = 1, entityType: string, entityId: string) {
+  return apiRequest(`/orgs/${orgId}/documents?entity_type=${encodeURIComponent(entityType)}&entity_id=${encodeURIComponent(entityId)}`);
+}
+
+export async function downloadDatabaseBackup(orgId: number = 1) {
+  return apiRequest(`/orgs/${orgId}/backup/download`);
+}
+
+

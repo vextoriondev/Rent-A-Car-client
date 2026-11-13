@@ -1,7 +1,7 @@
 "use client";
 import {useState,useMemo,useEffect} from 'react';
 import Link from 'next/link';
-import {fetchDrivers,createDriver,updateDriver,deleteDriver,recordDriverPayment} from '@/lib/api';
+import {fetchDrivers,createDriver,updateDriver,deleteDriver,recordDriverPayment,fetchDriverAttendance,recordDriverAttendance} from '@/lib/api';
 import {
   UserRound,
   CheckCircle2,
@@ -19,7 +19,9 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Wallet
+  Wallet,
+  CalendarDays,
+  FileCheck2
 } from 'lucide-react';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
@@ -75,6 +77,56 @@ export default function DriversPage(){
   });
   const [toast,setToast]=useState('');
   const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(''),3000)};
+
+  // ─── Module 04: Attendance State ──────────────────────────────────────────
+  const [mainTab, setMainTab] = useState<'directory' | 'attendance'>('directory');
+  const [attYear, setAttYear] = useState<number>(new Date().getFullYear());
+  const [attMonth, setAttMonth] = useState<number>(new Date().getMonth() + 1);
+  const [attendanceData, setAttendanceData] = useState<any>(null);
+  const [attLoading, setAttLoading] = useState(false);
+  const [markAttOpen, setMarkAttOpen] = useState(false);
+  const [attForm, setAttForm] = useState({
+    driver_id: '',
+    date: new Date().toISOString().slice(0, 10),
+    status: 'Present' as 'Present' | 'Absent' | 'On Duty' | 'Leave',
+    notes: ''
+  });
+
+  const loadAttendance = () => {
+    setAttLoading(true);
+    fetchDriverAttendance(1, attYear, attMonth)
+      .then(res => {
+        if (res) setAttendanceData(res);
+      })
+      .catch(() => {})
+      .finally(() => setAttLoading(false));
+  };
+
+  useEffect(() => {
+    if (mainTab === 'attendance') {
+      loadAttendance();
+    }
+  }, [mainTab, attYear, attMonth]);
+
+  const handleSaveAttendance = async () => {
+    if (!attForm.driver_id) {
+      showToast('Please select a driver');
+      return;
+    }
+    try {
+      await recordDriverAttendance(1, {
+        driver_id: Number(attForm.driver_id),
+        date: attForm.date,
+        status: attForm.status,
+        notes: attForm.notes
+      });
+      showToast('Attendance recorded successfully');
+      setMarkAttOpen(false);
+      loadAttendance();
+    } catch {
+      showToast('Error recording attendance');
+    }
+  };
 
   const loadData = () => {
     setLoading(true);
@@ -235,6 +287,123 @@ export default function DriversPage(){
           <Plus size={16}/> Add New Driver
         </button>
       </div>
+
+      {/* ─── Module 04 Sub-Tabs: Directory vs Attendance Register ─── */}
+      <div style={{display:'flex',gap:12,borderBottom:'1px solid #e2e8f0'}}>
+        <button
+          onClick={()=>setMainTab('directory')}
+          style={{
+            padding:'10px 16px',
+            borderBottom: mainTab==='directory'?'2px solid #1677ff':'2px solid transparent',
+            fontWeight: mainTab==='directory'?700:500,
+            color: mainTab==='directory'?'#1677ff':'#64748b',
+            background:'none',
+            borderTop:0,borderLeft:0,borderRight:0,
+            cursor:'pointer',
+            fontSize:13,
+            display:'flex',
+            alignItems:'center',
+            gap:6
+          }}
+        >
+          <UserRound size={16}/> Drivers Directory ({drivers.length})
+        </button>
+        <button
+          onClick={()=>setMainTab('attendance')}
+          style={{
+            padding:'10px 16px',
+            borderBottom: mainTab==='attendance'?'2px solid #1677ff':'2px solid transparent',
+            fontWeight: mainTab==='attendance'?700:500,
+            color: mainTab==='attendance'?'#1677ff':'#64748b',
+            background:'none',
+            borderTop:0,borderLeft:0,borderRight:0,
+            cursor:'pointer',
+            fontSize:13,
+            display:'flex',
+            alignItems:'center',
+            gap:6
+          }}
+        >
+          <CalendarDays size={16}/> Daily Attendance Register
+        </button>
+      </div>
+
+      {mainTab === 'attendance' ? (
+        <Card style={{padding:16}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:12}}>
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <h3 style={{fontSize:15,fontWeight:750,color:'#0f172a',margin:0}}>
+                Monthly Attendance Register — {new Date(attYear, attMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
+              </h3>
+              <div style={{display:'flex',gap:6}}>
+                <Button size="sm" variant="outline" onClick={()=>{
+                  if (attMonth === 1) { setAttYear(y => y - 1); setAttMonth(12); }
+                  else setAttMonth(m => m - 1);
+                }}><ChevronLeft size={14}/></Button>
+                <Button size="sm" variant="outline" onClick={()=>{
+                  if (attMonth === 12) { setAttYear(y => y + 1); setAttMonth(1); }
+                  else setAttMonth(m => m + 1);
+                }}><ChevronRight size={14}/></Button>
+              </div>
+            </div>
+
+            <Button onClick={()=>setMarkAttOpen(true)} style={{background:'#1677ff'}}>
+              <FileCheck2 size={15}/> Mark Attendance
+            </Button>
+          </div>
+
+          <div style={{overflowX:'auto'}}>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,textAlign:'left'}}>
+              <thead>
+                <tr style={{borderBottom:'1px solid #e2e8f0',background:'#f8fafc',height:38}}>
+                  <th style={{padding:'6px 12px',position:'sticky',left:0,background:'#f8fafc',zIndex:1}}>Driver</th>
+                  <th style={{padding:'6px 8px'}}>Vehicle</th>
+                  {Array.from({length: attendanceData?.days_in_month || 30}, (_, i) => i + 1).map(d => (
+                    <th key={d} style={{padding:'6px 4px',textAlign:'center',minWidth:28}}>{d}</th>
+                  ))}
+                  <th style={{padding:'6px 8px',textAlign:'center'}}>Present</th>
+                  <th style={{padding:'6px 8px',textAlign:'center'}}>Absent</th>
+                  <th style={{padding:'6px 8px',textAlign:'center'}}>On Duty</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(attendanceData?.drivers || []).map((d: any) => (
+                  <tr key={d.driver_id} style={{borderBottom:'1px solid #f1f5f9',height:40}}>
+                    <td style={{padding:'6px 12px',fontWeight:700,position:'sticky',left:0,background:'#fff',zIndex:1}}>
+                      {d.name}
+                      <span style={{fontSize:10,color:'#64748b',display:'block'}}>{d.phone}</span>
+                    </td>
+                    <td style={{padding:'6px 8px',color:'#64748b',fontSize:11}}>{d.vehicle}</td>
+                    {(d.daily_records || []).map((r: any) => {
+                      const bg = r.status === 'Present' ? '#dcfce7' : r.status === 'On Duty' ? '#dbeafe' : r.status === 'Absent' ? '#fee2e2' : '#fef9c3';
+                      const fg = r.status === 'Present' ? '#166534' : r.status === 'On Duty' ? '#1e40af' : r.status === 'Absent' ? '#991b1b' : '#854d0e';
+                      const letter = r.status === 'Present' ? 'P' : r.status === 'On Duty' ? 'OD' : r.status === 'Absent' ? 'A' : 'L';
+                      return (
+                        <td key={r.day} style={{padding:'6px 2px',textAlign:'center'}}>
+                          <span style={{display:'inline-block',width:22,height:22,lineHeight:'22px',borderRadius:4,fontSize:10,fontWeight:700,background:bg,color:fg}}>
+                            {letter}
+                          </span>
+                        </td>
+                      );
+                    })}
+                    <td style={{padding:'6px 8px',textAlign:'center',fontWeight:700,color:'#16a34a'}}>{d.summary?.Present || 0}</td>
+                    <td style={{padding:'6px 8px',textAlign:'center',fontWeight:700,color:'#ef4444'}}>{d.summary?.Absent || 0}</td>
+                    <td style={{padding:'6px 8px',textAlign:'center',fontWeight:700,color:'#2563eb'}}>{d.summary?.['On Duty'] || 0}</td>
+                  </tr>
+                ))}
+                {(!attendanceData?.drivers || attendanceData.drivers.length === 0) && (
+                  <tr>
+                    <td colSpan={35} style={{padding:24,textAlign:'center',color:'#94a3b8'}}>
+                      {attLoading ? 'Loading attendance register...' : 'No attendance records for this month.'}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ) : (
+      <>
 
       {/* ─── Top 4 Metric Cards (Dynamic from Neon DB) ─── */}
       <div className="kpi-grid-4">
@@ -593,6 +762,8 @@ export default function DriversPage(){
           </button>
         </Card>
       </div>
+      </>
+      )}
 
       {/* Edit Driver Modal */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -755,6 +926,60 @@ export default function DriversPage(){
           <DialogFooter>
             <Button variant="outline" onClick={()=>setAddOpen(false)}>Cancel</Button>
             <Button onClick={handleAddDriver} disabled={!newDriver.name.trim()||!newDriver.phone.trim()}>Save Driver</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark Attendance Modal */}
+      <Dialog open={markAttOpen} onOpenChange={setMarkAttOpen}>
+        <DialogContent style={{maxWidth:480}}>
+          <DialogHeader>
+            <DialogTitle>Mark Driver Attendance</DialogTitle>
+            <DialogDescription>Record daily status (Present, Absent, On Duty, Leave).</DialogDescription>
+          </DialogHeader>
+
+          <div className="entry-form">
+            <label>
+              <span className="field-label">Select Driver *</span>
+              <Select value={attForm.driver_id} onValueChange={v => setAttForm(f => ({ ...f, driver_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Choose a driver..."/></SelectTrigger>
+                <SelectContent>
+                  {drivers.map(d => (
+                    <SelectItem key={d.id} value={d.id}>{d.name} ({d.phone})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+
+            <div className="form-grid">
+              <label>
+                <span className="field-label">Date *</span>
+                <Input type="date" value={attForm.date} onChange={e => setAttForm(f => ({ ...f, date: e.target.value }))}/>
+              </label>
+
+              <label>
+                <span className="field-label">Status *</span>
+                <Select value={attForm.status} onValueChange={(v: any) => setAttForm(f => ({ ...f, status: v }))}>
+                  <SelectTrigger><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Present">Present</SelectItem>
+                    <SelectItem value="On Duty">On Duty</SelectItem>
+                    <SelectItem value="Leave">Leave</SelectItem>
+                    <SelectItem value="Absent">Absent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
+            </div>
+
+            <label>
+              <span className="field-label">Notes (Optional)</span>
+              <Input placeholder="e.g. Approved leave or assigned outstation trip" value={attForm.notes} onChange={e => setAttForm(f => ({ ...f, notes: e.target.value }))}/>
+            </label>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMarkAttOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveAttendance} disabled={!attForm.driver_id} style={{background:'#1677ff'}}>Save Attendance</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

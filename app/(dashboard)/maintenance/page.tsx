@@ -9,7 +9,10 @@ import {
   fetchGarages,
   createGarage,
   recordGaragePayment,
-  fetchVehicles
+  fetchVehicles,
+  fetchSpareParts,
+  createSparePart,
+  consumeSparePart
 } from '@/lib/api';
 import {
   Wrench,
@@ -27,7 +30,10 @@ import {
   Settings,
   ArrowUpRight,
   X,
-  Wallet
+  Wallet,
+  Layers,
+  Fuel,
+  Droplet
 } from 'lucide-react';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
@@ -44,6 +50,8 @@ export default function MaintenancePage(){
   const [maintenanceList, setMaintenanceList] = useState<any[]>([]);
   const [garagesList, setGaragesList] = useState<any[]>([]);
   const [vehiclesList, setVehiclesList] = useState<any[]>([]);
+  const [partsList, setPartsList] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'overview' | 'spare_parts' | 'mobil_tracker'>('overview');
   const [loading, setLoading] = useState(true);
 
   // Modals
@@ -58,6 +66,24 @@ export default function MaintenancePage(){
   const [payMethod, setPayMethod] = useState('Cash');
   const [payRef, setPayRef] = useState('');
   const [payNote, setPayNote] = useState('');
+
+  // Spare Parts Modals
+  const [addPartOpen, setAddPartOpen] = useState(false);
+  const [consumePartOpen, setConsumePartOpen] = useState(false);
+  const [targetPart, setTargetPart] = useState<any>(null);
+  const [newPart, setNewPart] = useState({
+    name: '',
+    part_number: '',
+    category: 'Filters',
+    stock_quantity: 10,
+    unit_price: 600,
+    reorder_level: 3
+  });
+  const [consumePayload, setConsumePayload] = useState({
+    vehicle_id: '',
+    quantity: 1,
+    notes: 'Routine vehicle replacement'
+  });
 
   const [newGarage, setNewGarage] = useState({
     name: '',
@@ -87,17 +113,22 @@ export default function MaintenancePage(){
   const loadData = async () => {
     setLoading(true);
     try {
-      const [mntRes, grgRes, vehRes] = await Promise.all([
+      const [mntRes, grgRes, vehRes, partsRes] = await Promise.all([
         fetchMaintenance(1),
         fetchGarages(1),
-        fetchVehicles(1)
+        fetchVehicles(1),
+        fetchSpareParts(1).catch(() => [])
       ]);
       if (Array.isArray(mntRes)) setMaintenanceList(mntRes);
       if (Array.isArray(grgRes)) setGaragesList(grgRes);
+      if (Array.isArray(partsRes)) setPartsList(partsRes);
       if (Array.isArray(vehRes)) {
         setVehiclesList(vehRes);
         if (vehRes.length > 0 && !newMnt.vehicle_reg) {
           setNewMnt(m => ({ ...m, vehicle_reg: vehRes[0].registration || vehRes[0].regNo }));
+        }
+        if (vehRes.length > 0 && !consumePayload.vehicle_id) {
+          setConsumePayload(c => ({ ...c, vehicle_id: String(vehRes[0].id) }));
         }
       }
       if (Array.isArray(grgRes) && grgRes.length > 0 && !newMnt.garage_name) {
@@ -241,6 +272,69 @@ export default function MaintenancePage(){
     }
   }
 
+  async function handleCreateSparePart() {
+    if (!newPart.name.trim()) {
+      showToast('Please provide spare part name');
+      return;
+    }
+    try {
+      await createSparePart(1, {
+        name: newPart.name,
+        part_number: newPart.part_number,
+        category: newPart.category,
+        stock_quantity: Number(newPart.stock_quantity) || 0,
+        unit_price: Number(newPart.unit_price) || 0,
+        reorder_level: Number(newPart.reorder_level) || 0
+      });
+      loadData();
+      setAddPartOpen(false);
+      setNewPart({ name: '', part_number: '', category: 'Filters', stock_quantity: 10, unit_price: 600, reorder_level: 3 });
+      showToast(`Spare part added to inventory`);
+    } catch {
+      showToast('Error creating spare part');
+    }
+  }
+
+  async function handleConsumePartSubmit() {
+    if (!targetPart || !consumePayload.vehicle_id) return;
+    try {
+      await consumeSparePart(1, {
+        part_id: targetPart.id,
+        vehicle_id: Number(consumePayload.vehicle_id),
+        quantity_consumed: Number(consumePayload.quantity) || 1,
+        notes: consumePayload.notes
+      });
+      loadData();
+      setConsumePartOpen(false);
+      setTargetPart(null);
+      showToast(`Issued ${consumePayload.quantity} unit(s) of ${targetPart.name}`);
+    } catch {
+      showToast('Error consuming spare part');
+    }
+  }
+
+  async function handleQuickOilChange(regNo: string) {
+    try {
+      const garage = garagesList[0]?.name || 'Standard Workshop';
+      await createMaintenance(1, {
+        vehicle_reg: regNo,
+        garage_name: garage,
+        date: new Date().toISOString().slice(0, 10),
+        problem_description: 'Periodic Mobil Engine Oil & Filter Change',
+        service_type: 'Oil Change',
+        parts_details: 'Mobil 1 / Engine Oil 4L + Filter',
+        labour_cost: 500,
+        parts_cost: 3200,
+        expected_delivery: new Date().toISOString().slice(0, 10),
+        status: 'Completed'
+      });
+      loadData();
+      showToast(`✓ Oil Change recorded for ${regNo}`);
+    } catch {
+      showToast('Error recording oil change');
+    }
+  }
+
   const upcomingJobs = maintenanceList.filter(m => m.status === 'Pending' || m.status === 'In Progress');
   const completedJobs = maintenanceList.filter(m => m.status === 'Completed' || m.status === 'Delivered');
 
@@ -259,19 +353,71 @@ export default function MaintenancePage(){
         </div>
 
         <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <Button variant="outline" onClick={() => setAddGarageOpen(true)} style={{display:'flex',alignItems:'center',gap:6}}>
-            <Building2 size={16}/> Add Garage
-          </Button>
-          <button
-            onClick={() => setAddMntOpen(true)}
-            className="btn-primary-blue"
-            style={{height:40,borderRadius:8,padding:'0 20px',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',gap:6}}
-          >
-            <Plus size={16}/> Schedule Maintenance
-          </button>
+          {activeTab === 'overview' && (
+            <>
+              <Button variant="outline" onClick={() => setAddGarageOpen(true)} style={{display:'flex',alignItems:'center',gap:6}}>
+                <Building2 size={16}/> Add Garage
+              </Button>
+              <button
+                onClick={() => setAddMntOpen(true)}
+                className="btn-primary-blue"
+                style={{height:40,borderRadius:8,padding:'0 20px',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',gap:6}}
+              >
+                <Plus size={16}/> Schedule Maintenance
+              </button>
+            </>
+          )}
+          {activeTab === 'spare_parts' && (
+            <button
+              onClick={() => setAddPartOpen(true)}
+              className="btn-primary-blue"
+              style={{height:40,borderRadius:8,padding:'0 20px',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',gap:6}}
+            >
+              <Plus size={16}/> Add Spare Part
+            </button>
+          )}
+          {activeTab === 'mobil_tracker' && (
+            <button
+              onClick={() => setAddMntOpen(true)}
+              className="btn-primary-blue"
+              style={{height:40,borderRadius:8,padding:'0 20px',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',gap:6}}
+            >
+              <Plus size={16}/> Log Oil Change
+            </button>
+          )}
         </div>
       </div>
 
+      {/* ─── Navigation Tabs ─── */}
+      <div style={{display:'flex',gap:8,borderBottom:'1px solid #e2e8f0',paddingBottom:8,flexWrap:'wrap'}}>
+        <Button
+          variant={activeTab === 'overview' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setActiveTab('overview')}
+          style={{display:'flex',alignItems:'center',gap:6}}
+        >
+          <Wrench size={14}/> Maintenance & Garages
+        </Button>
+        <Button
+          variant={activeTab === 'spare_parts' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setActiveTab('spare_parts')}
+          style={{display:'flex',alignItems:'center',gap:6}}
+        >
+          <Package size={14}/> Spare Parts Inventory ({partsList.length})
+        </Button>
+        <Button
+          variant={activeTab === 'mobil_tracker' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setActiveTab('mobil_tracker')}
+          style={{display:'flex',alignItems:'center',gap:6}}
+        >
+          <Droplet size={14}/> Mobil Oil Tracker ({vehiclesList.length} Cars)
+        </Button>
+      </div>
+
+      {activeTab === 'overview' && (
+        <>
       {/* ─── Top 4 Metric Cards (Live from Neon DB) ─── */}
       <div className="kpi-grid-4">
         {/* 1. Total Fleet */}
@@ -516,6 +662,235 @@ export default function MaintenancePage(){
           </table>
         </div>
       </Card>
+      </>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          SPARE PARTS INVENTORY TAB
+      ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'spare_parts' && (
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          <div className="kpi-grid-4">
+            <Card style={{padding:'14px 18px',background:'#fff',borderRadius:12,border:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:14}}>
+              <div style={{width:48,height:48,borderRadius:10,background:'#e6f0ff',display:'grid',placeItems:'center',color:'#1677ff',flexShrink:0}}>
+                <Package size={26}/>
+              </div>
+              <div>
+                <span style={{fontSize:11.5,color:'#64748b',fontWeight:600,display:'block'}}>Total Stock SKUs</span>
+                <strong style={{fontSize:26,fontWeight:800,color:'#0f172a',display:'block',marginTop:2}}>{partsList.length}</strong>
+              </div>
+            </Card>
+
+            <Card style={{padding:'14px 18px',background:'#fff',borderRadius:12,border:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:14}}>
+              <div style={{width:48,height:48,borderRadius:10,background:'#fff3e6',display:'grid',placeItems:'center',color:'#f79009',flexShrink:0}}>
+                <AlertTriangle size={26}/>
+              </div>
+              <div>
+                <span style={{fontSize:11.5,color:'#64748b',fontWeight:600,display:'block'}}>Low Stock Items</span>
+                <strong style={{fontSize:26,fontWeight:800,color:'#f79009',display:'block',marginTop:2}}>
+                  {partsList.filter(p => p.stock_quantity <= (p.reorder_level || 3)).length}
+                </strong>
+              </div>
+            </Card>
+
+            <Card style={{padding:'14px 18px',background:'#fff',borderRadius:12,border:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:14}}>
+              <div style={{width:48,height:48,borderRadius:10,background:'#e6f9f0',display:'grid',placeItems:'center',color:'#10b981',flexShrink:0}}>
+                <Wallet size={26}/>
+              </div>
+              <div>
+                <span style={{fontSize:11.5,color:'#64748b',fontWeight:600,display:'block'}}>Total Inventory Valuation</span>
+                <strong style={{fontSize:22,fontWeight:800,color:'#10b981',display:'block',marginTop:2}}>
+                  {fmt(partsList.reduce((acc, p) => acc + (Number(p.stock_quantity) || 0) * (Number(p.unit_price) || 0), 0))}
+                </strong>
+              </div>
+            </Card>
+
+            <Card style={{padding:'14px 18px',background:'#fff',borderRadius:12,border:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:14}}>
+              <div style={{width:48,height:48,borderRadius:10,background:'#f3e8ff',display:'grid',placeItems:'center',color:'#9333ea',flexShrink:0}}>
+                <Droplet size={26}/>
+              </div>
+              <div>
+                <span style={{fontSize:11.5,color:'#64748b',fontWeight:600,display:'block'}}>Mobil Oil stock</span>
+                <strong style={{fontSize:26,fontWeight:800,color:'#0f172a',display:'block',marginTop:2}}>
+                  {partsList.filter(p => p.category?.toLowerCase().includes('oil') || p.name?.toLowerCase().includes('mobil')).reduce((acc, p) => acc + (p.stock_quantity || 0), 0)} L
+                </strong>
+              </div>
+            </Card>
+          </div>
+
+          <Card style={{padding:16,borderRadius:12,background:'#fff',border:'1px solid #e2e8f0'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+              <h3 style={{fontSize:14,fontWeight:750,color:'#0f172a',margin:0,display:'flex',alignItems:'center',gap:6}}>
+                <Package size={16} color="#1677ff"/> Spare Parts Catalog & Inventory Levels
+              </h3>
+              <Button size="sm" onClick={() => setAddPartOpen(true)}>+ Add Spare Part</Button>
+            </div>
+
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,textAlign:'left'}}>
+                <thead>
+                  <tr style={{borderBottom:'1px solid #f1f5f9',color:'#64748b',fontWeight:700,height:36}}>
+                    <th style={{padding:'0 12px'}}>Item Name</th>
+                    <th style={{padding:'0 12px'}}>Part #</th>
+                    <th style={{padding:'0 12px'}}>Category</th>
+                    <th style={{padding:'0 12px'}}>Stock Qty</th>
+                    <th style={{padding:'0 12px'}}>Unit Price</th>
+                    <th style={{padding:'0 12px'}}>Total Value</th>
+                    <th style={{padding:'0 12px'}}>Stock Alert</th>
+                    <th style={{padding:'0 12px',textAlign:'center'}}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {partsList.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} style={{padding:'20px 12px',textAlign:'center',color:'#94a3b8'}}>No spare parts recorded in inventory yet.</td>
+                    </tr>
+                  ) : (
+                    partsList.map((p, i) => {
+                      const isLow = p.stock_quantity <= (p.reorder_level || 3);
+                      return (
+                        <tr key={p.id || i} style={{borderBottom:'1px solid #f8fafc',height:42}}>
+                          <td style={{padding:'0 12px',fontWeight:700,color:'#0f172a'}}>{p.name}</td>
+                          <td style={{padding:'0 12px',color:'#64748b',fontFamily:'monospace'}}>{p.part_number || 'N/A'}</td>
+                          <td style={{padding:'0 12px'}}>
+                            <span style={{background:'#eff6ff',color:'#1677ff',padding:'2px 8px',borderRadius:6,fontSize:11,fontWeight:600}}>
+                              {p.category}
+                            </span>
+                          </td>
+                          <td style={{padding:'0 12px',fontWeight:750,fontSize:13,color: isLow ? '#ef4444' : '#0f172a'}}>
+                            {p.stock_quantity}
+                          </td>
+                          <td style={{padding:'0 12px',color:'#475569'}}>{fmt(p.unit_price)}</td>
+                          <td style={{padding:'0 12px',fontWeight:700,color:'#0f172a'}}>
+                            {fmt((p.stock_quantity || 0) * (p.unit_price || 0))}
+                          </td>
+                          <td style={{padding:'0 12px'}}>
+                            {isLow ? (
+                              <span style={{background:'#fee4e2',color:'#ef4444',padding:'2px 8px',borderRadius:6,fontSize:11,fontWeight:700,display:'inline-flex',alignItems:'center',gap:4}}>
+                                <AlertTriangle size={11}/> Low Stock (Min: {p.reorder_level})
+                              </span>
+                            ) : (
+                              <span style={{background:'#e6f9f0',color:'#10b981',padding:'2px 8px',borderRadius:6,fontSize:11,fontWeight:600}}>
+                                In Stock
+                              </span>
+                            )}
+                          </td>
+                          <td style={{padding:'0 12px',textAlign:'center'}}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              style={{height:28,fontSize:11}}
+                              onClick={() => {
+                                setTargetPart(p);
+                                setConsumePayload(c => ({ ...c, quantity: 1 }));
+                                setConsumePartOpen(true);
+                              }}
+                              disabled={p.stock_quantity <= 0}
+                            >
+                              Issue to Car
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          CAR-WISE MOBIL OIL TRACKER TAB
+      ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'mobil_tracker' && (
+        <Card style={{padding:16,borderRadius:12,background:'#fff',border:'1px solid #e2e8f0'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <div>
+              <h3 style={{fontSize:14,fontWeight:750,color:'#0f172a',margin:0,display:'flex',alignItems:'center',gap:6}}>
+                <Droplet size={16} color="#1677ff"/> Car-Wise Mobil Count & Engine Oil Change Register
+              </h3>
+              <p style={{fontSize:12,color:'#64748b',margin:'2px 0 0'}}>
+                Automated tracking of engine oil change cycles per fleet vehicle.
+              </p>
+            </div>
+          </div>
+
+          <div style={{overflowX:'auto'}}>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,textAlign:'left'}}>
+              <thead>
+                <tr style={{borderBottom:'1px solid #f1f5f9',color:'#64748b',fontWeight:700,height:36}}>
+                  <th style={{padding:'0 12px'}}>Vehicle Reg</th>
+                  <th style={{padding:'0 12px'}}>Model / Make</th>
+                  <th style={{padding:'0 12px'}}>Mobil Oil Changes Logged</th>
+                  <th style={{padding:'0 12px'}}>Last Service Date</th>
+                  <th style={{padding:'0 12px'}}>Fleet Status</th>
+                  <th style={{padding:'0 12px',textAlign:'center'}}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vehiclesList.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{padding:'20px 12px',textAlign:'center',color:'#94a3b8'}}>No fleet vehicles found.</td>
+                  </tr>
+                ) : (
+                  vehiclesList.map((v, i) => {
+                    const reg = v.registration || v.regNo;
+                    const vServices = maintenanceList.filter(m => (m.vehicleReg === reg || m.vehicle_reg === reg));
+                    const oilChanges = vServices.filter(m => (m.serviceType === 'Oil Change' || m.service_type === 'Oil Change')).length;
+                    const lastService = vServices[0]?.date || 'None logged';
+
+                    return (
+                      <tr key={v.id || i} style={{borderBottom:'1px solid #f8fafc',height:44}}>
+                        <td style={{padding:'0 12px',fontWeight:700,color:'#0f172a'}}>{reg}</td>
+                        <td style={{padding:'0 12px',color:'#475569'}}>{v.model} ({v.type || 'Car'})</td>
+                        <td style={{padding:'0 12px'}}>
+                          <span style={{
+                            background:'#eff6ff',
+                            color:'#1677ff',
+                            padding:'3px 10px',
+                            borderRadius:12,
+                            fontWeight:750,
+                            fontSize:12,
+                            display:'inline-flex',
+                            alignItems:'center',
+                            gap:4
+                          }}>
+                            <Droplet size={12}/> {oilChanges} Oil Changes
+                          </span>
+                        </td>
+                        <td style={{padding:'0 12px',color:'#64748b'}}>{lastService}</td>
+                        <td style={{padding:'0 12px'}}>
+                          <span style={{
+                            background: v.status === 'Active' ? '#e6f9f0' : '#fff3e6',
+                            color: v.status === 'Active' ? '#10b981' : '#f79009',
+                            padding:'2px 8px',
+                            borderRadius:6,
+                            fontSize:11,
+                            fontWeight:600
+                          }}>
+                            {v.status || 'Active'}
+                          </span>
+                        </td>
+                        <td style={{padding:'0 12px',textAlign:'center'}}>
+                          <Button
+                            size="sm"
+                            style={{height:28,fontSize:11,background:'#1677ff',display:'inline-flex',alignItems:'center',gap:4}}
+                            onClick={() => handleQuickOilChange(reg)}
+                          >
+                            <Plus size={12}/> +1 Mobil Oil Change
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       {/* ─── Schedule Maintenance Modal ─── */}
       <Dialog open={addMntOpen} onOpenChange={setAddMntOpen}>
@@ -761,6 +1136,127 @@ export default function MaintenancePage(){
           <DialogFooter>
             <Button variant="outline" onClick={() => setPayGarageOpen(false)}>Cancel</Button>
             <Button onClick={handleRecordGaragePayout} disabled={payAmount <= 0} style={{background:'#10b981'}}>Confirm Payment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Add Spare Part Modal ─── */}
+      <Dialog open={addPartOpen} onOpenChange={setAddPartOpen}>
+        <DialogContent style={{maxWidth:500}}>
+          <DialogHeader>
+            <DialogTitle>Add Spare Part to Inventory</DialogTitle>
+            <DialogDescription>Track new replacement parts, lubricants, and workshop supplies.</DialogDescription>
+          </DialogHeader>
+
+          <div style={{display:'flex',flexDirection:'column',gap:12,padding:'8px 0'}}>
+            <label>
+              <span className="field-label">Part Name *</span>
+              <Input placeholder="e.g. Mobil Super 4L 20W-50" value={newPart.name} onChange={e => setNewPart(p => ({ ...p, name: e.target.value }))}/>
+            </label>
+
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              <label>
+                <span className="field-label">Part Number / SKU</span>
+                <Input placeholder="MOB-20W50-4L" value={newPart.part_number} onChange={e => setNewPart(p => ({ ...p, part_number: e.target.value }))}/>
+              </label>
+
+              <label>
+                <span className="field-label">Category</span>
+                <Select value={newPart.category} onValueChange={v => setNewPart(p => ({ ...p, category: v }))}>
+                  <SelectTrigger><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Engine Oil">Engine Oil / Lubricants</SelectItem>
+                    <SelectItem value="Filters">Oil / Air / Fuel Filters</SelectItem>
+                    <SelectItem value="Brakes">Brake Pads / Shoes</SelectItem>
+                    <SelectItem value="Suspension">Suspension & Bushes</SelectItem>
+                    <SelectItem value="Electrical">Bulbs & Fuses</SelectItem>
+                    <SelectItem value="Batteries">Batteries & Terminals</SelectItem>
+                    <SelectItem value="Tyres">Tyres & Tubes</SelectItem>
+                    <SelectItem value="Other">Other Consumables</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
+            </div>
+
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+              <label>
+                <span className="field-label">Initial Stock</span>
+                <Input type="number" value={newPart.stock_quantity} onChange={e => setNewPart(p => ({ ...p, stock_quantity: Number(e.target.value) }))}/>
+              </label>
+
+              <label>
+                <span className="field-label">Unit Price (৳)</span>
+                <Input type="number" value={newPart.unit_price} onChange={e => setNewPart(p => ({ ...p, unit_price: Number(e.target.value) }))}/>
+              </label>
+
+              <label>
+                <span className="field-label">Min Alert Level</span>
+                <Input type="number" value={newPart.reorder_level} onChange={e => setNewPart(p => ({ ...p, reorder_level: Number(e.target.value) }))}/>
+              </label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddPartOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateSparePart} disabled={!newPart.name.trim()}>Save Spare Part</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Issue / Consume Spare Part Modal ─── */}
+      <Dialog open={consumePartOpen} onOpenChange={setConsumePartOpen}>
+        <DialogContent style={{maxWidth:500}}>
+          <DialogHeader>
+            <DialogTitle>Issue Spare Part to Vehicle</DialogTitle>
+            <DialogDescription>
+              Deduct {targetPart?.name} from inventory (Available Stock: {targetPart?.stock_quantity ?? 0}).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div style={{display:'flex',flexDirection:'column',gap:12,padding:'8px 0'}}>
+            <label>
+              <span className="field-label">Target Vehicle *</span>
+              <Select value={consumePayload.vehicle_id} onValueChange={v => setConsumePayload(c => ({ ...c, vehicle_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Select Vehicle"/></SelectTrigger>
+                <SelectContent>
+                  {vehiclesList.map(v => (
+                    <SelectItem key={v.id} value={String(v.id)}>
+                      {v.registration || v.regNo} ({v.model})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+
+            <label>
+              <span className="field-label">Quantity to Issue</span>
+              <Input
+                type="number"
+                min={1}
+                max={targetPart?.stock_quantity || 100}
+                value={consumePayload.quantity}
+                onChange={e => setConsumePayload(c => ({ ...c, quantity: Number(e.target.value) }))}
+              />
+            </label>
+
+            <label>
+              <span className="field-label">Work / Usage Description</span>
+              <Input
+                placeholder="e.g. Periodic replacement during service"
+                value={consumePayload.notes}
+                onChange={e => setConsumePayload(c => ({ ...c, notes: e.target.value }))}
+              />
+            </label>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConsumePartOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleConsumePartSubmit}
+              disabled={!consumePayload.vehicle_id || consumePayload.quantity <= 0 || (targetPart && consumePayload.quantity > targetPart.stock_quantity)}
+            >
+              Confirm Issue
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

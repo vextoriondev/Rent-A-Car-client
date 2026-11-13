@@ -23,7 +23,9 @@ import {
   LogOut,
   Calendar,
   ChevronDown,
-  CheckCircle2
+  CheckCircle2,
+  Command,
+  ArrowRight
 } from 'lucide-react';
 import {RentflowStoreProvider,useRentflowStore} from '@/lib/store-context';
 import {useBackendStatus} from '@/lib/use-backend-status';
@@ -31,6 +33,10 @@ import {SourceDrawer} from '@/components/shared/source-drawer';
 import {RecordEntryDialog} from '@/components/features/entries/record-entry-dialog';
 import {NewAgreementDialog} from '@/components/features/agreements/new-agreement-dialog';
 import {LoadingState} from '@/components/shared/loading-state';
+import {Dialog, DialogContent, DialogHeader, DialogTitle} from '@/components/ui/dialog';
+import {Input} from '@/components/ui/input';
+import {fetchUserPermissions, searchVehicles} from '@/lib/api';
+import {navItems, routeAllowed} from '@/lib/nav';
 
 export default function DashboardLayout({children}:{children:React.ReactNode}){
   return (
@@ -42,33 +48,66 @@ export default function DashboardLayout({children}:{children:React.ReactNode}){
   );
 }
 
-const MENU_ITEMS = [
-  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { label: 'Owners', href: '/owners', icon: Building2 },
-  { label: 'Vehicles', href: '/vehicles', icon: CarFront },
-  { label: 'Drivers', href: '/drivers', icon: UserRound },
-  { label: 'Clients & Companies', href: '/customers', icon: UsersRound },
-  { label: 'Daily Operations', href: '/duties', icon: CalendarDays },
-  { label: 'Daily Expenses', href: '/expenses', icon: ReceiptText },
-  { label: 'Maintenance & Garage', href: '/maintenance', icon: Wrench },
-  { label: 'Agreements & Documents', href: '/documents', icon: FileSignature },
-  { label: 'Accounts & Transactions', href: '/cashbook', icon: BookOpen },
-  { label: 'Due & Collection', href: '/due-collection', icon: CircleDollarSign },
-  { label: 'Vehicle Search', href: '/vehicle-search', icon: Search },
-  { label: 'Reports & Analytics', href: '/reports', icon: ChartNoAxesCombined },
-  { label: 'Notifications & Alerts', href: '/notifications', icon: Bell, badge: '3' },
-  { label: 'System Settings', href: '/settings', icon: Settings2 },
-];
-
 function DashboardShell({children}:{children:React.ReactNode}){
-  const pathname=usePathname();
-  const router=useRouter();
-  const [mobileMenu,setMobileMenu]=useState(false);
-  const {isConnected}=useBackendStatus();
-  const rf=useRentflowStore();
-  const {store,ready,toast,setToast}=rf;
+  const pathname = usePathname();
+  const router = useRouter();
+  const [mobileMenu, setMobileMenu] = useState(false);
+  const {isConnected} = useBackendStatus();
+  const rf = useRentflowStore();
+  const {store, ready, toast, setToast} = rf;
 
-  if(!ready)return <div className="app-shell"><div className="main-shell"><main className="content"><LoadingState/></main></div></div>;
+  // RBAC User info
+  const [userRole, setUserRole] = useState('super_admin');
+  const [roleTitle, setRoleTitle] = useState('Super Admin');
+  const [username, setUsername] = useState('Admin');
+
+  // Global Ctrl+K Search
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchUserPermissions(1).then((res: any) => {
+      if (res && res.role) {
+        setUserRole(res.role);
+        setRoleTitle(res.role_title || res.role);
+        setUsername(res.username || 'Admin');
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Keyboard shortcut Ctrl+K / Cmd+K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Search execution
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const q = searchQuery.toLowerCase();
+    searchVehicles(1, q).then((data: any) => {
+      if (Array.isArray(data)) {
+        setSearchResults(data.slice(0, 8).map(v => ({
+          type: 'Vehicle',
+          title: v.registration || v.regNo,
+          subtitle: `${v.brand || ''} ${v.model || ''} • Owner: ${v.owner || 'Company'}`,
+          href: `/vehicle-search?q=${v.registration || v.regNo}`
+        })));
+      }
+    }).catch(() => {});
+  }, [searchQuery]);
+
+  if (!ready) return <div className="app-shell"><div className="main-shell"><main className="content"><LoadingState/></main></div></div>;
 
   return (
     <div className="app-shell">
@@ -81,8 +120,8 @@ function DashboardShell({children}:{children:React.ReactNode}){
         />
       )}
 
-      {/* Sidebar matching screenshot */}
-      <aside className={'sidebar '+(mobileMenu?'mobile-open':'')}>
+      {/* Sidebar */}
+      <aside className={'sidebar ' + (mobileMenu ? 'mobile-open' : '')}>
         {/* Brand Logo Header */}
         <div className="brand" style={{display:'flex',alignItems:'center',gap:12,padding:'0 18px',height:80}}>
           <div style={{width:44,height:44,borderRadius:10,background:'linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%)',display:'grid',placeItems:'center',flexShrink:0,boxShadow:'0 2px 8px rgba(0,0,0,0.3)',border:'1px solid rgba(255,255,255,0.15)'}}>
@@ -101,16 +140,15 @@ function DashboardShell({children}:{children:React.ReactNode}){
           </button>
         </div>
 
-        {/* Navigation Items */}
-        <nav aria-label="Main navigation" style={{padding:'12px 10px',flex:1,overflowY:'auto'}}>
-          {MENU_ITEMS.map((item)=>{
-            const Icon=item.icon;
-            const isActive=pathname===item.href||(item.href!=='/'&&pathname.startsWith(item.href));
+        {/* Sidebar Nav filtered by RBAC */}
+        <nav style={{padding:'12px 10px',flex:1,overflowY:'auto'}}>
+          {navItems.filter(item => routeAllowed(item.href, userRole)).map(item => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={'nav-link '+(isActive?'active':'')}
                 onClick={()=>setMobileMenu(false)}
                 style={{
                   display:'flex',
@@ -128,21 +166,8 @@ function DashboardShell({children}:{children:React.ReactNode}){
                   textDecoration:'none',
                 }}
               >
-                <Icon size={18} color={isActive?'#ffffff':'#94a3b8'}/>
+                <Icon size={18} className={isActive ? 'text-white' : 'text-slate-400'}/>
                 <span style={{flex:1}}>{item.label}</span>
-                {item.badge&&(
-                  <span style={{
-                    background:'#ef4444',
-                    color:'#ffffff',
-                    fontSize:10,
-                    fontWeight:700,
-                    borderRadius:'999px',
-                    padding:'1px 6px',
-                    lineHeight:1.4
-                  }}>
-                    {item.badge}
-                  </span>
-                )}
               </Link>
             );
           })}
@@ -163,11 +188,11 @@ function DashboardShell({children}:{children:React.ReactNode}){
               fontSize:13,
               border:'2px solid #60a5fa'
             }}>
-              TA
+              {username.slice(0, 2).toUpperCase()}
             </div>
             <div style={{flex:1}}>
-              <strong style={{fontSize:13,color:'#ffffff',display:'block',lineHeight:1.2}}>Admin</strong>
-              <small style={{fontSize:11,color:'#94a3b8',display:'block'}}>Super Admin</small>
+              <strong style={{fontSize:13,color:'#ffffff',display:'block',lineHeight:1.2}}>{username}</strong>
+              <small style={{fontSize:11,color:'#94a3b8',display:'block'}}>{roleTitle}</small>
             </div>
             <ChevronDown size={14} color="#94a3b8"/>
           </div>
@@ -195,7 +220,7 @@ function DashboardShell({children}:{children:React.ReactNode}){
 
       {/* Main Content Area */}
       <div className="main-shell" style={{background:'#f0f4f9'}}>
-        {/* Topbar matching screenshot */}
+        {/* Topbar */}
         <header className="topbar">
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             <button className="menu-button" onClick={()=>setMobileMenu(true)} aria-label="Open menu">
@@ -212,6 +237,27 @@ function DashboardShell({children}:{children:React.ReactNode}){
           </div>
 
           <div style={{display:'flex',alignItems:'center',gap:10}}>
+            {/* Global Search Button */}
+            <button
+              onClick={() => setSearchOpen(true)}
+              style={{
+                display:'flex',
+                alignItems:'center',
+                gap:8,
+                background:'#ffffff',
+                border:'1px solid #cbd5e1',
+                borderRadius:8,
+                padding:'6px 12px',
+                fontSize:12,
+                color:'#64748b',
+                cursor:'pointer'
+              }}
+            >
+              <Search size={14} color="#64748b"/>
+              <span className="hidden sm:inline">Search anything...</span>
+              <kbd style={{fontSize:10,background:'#f1f5f9',padding:'1px 5px',borderRadius:4,border:'1px solid #cbd5e1'}}>Ctrl K</kbd>
+            </button>
+
             {/* Backend Live Connection Status */}
             <div
               title={isConnected ? 'Backend API is connected & live' : 'Running in demo mode (backend offline)'}
@@ -238,13 +284,6 @@ function DashboardShell({children}:{children:React.ReactNode}){
               <span className="topbar-badge-text">{isConnected ? 'Backend Live' : 'Demo Mode'}</span>
             </div>
 
-            {/* Date Pill Selector */}
-            <div className="date-pill topbar-date-pill">
-              <Calendar size={15} color="#64748b"/>
-              <span>November 2026</span>
-              <ChevronDown size={14} color="#64748b"/>
-            </div>
-
             {/* Notification Bell with Badge */}
             <button
               onClick={()=>router.push('/notifications')}
@@ -252,9 +291,7 @@ function DashboardShell({children}:{children:React.ReactNode}){
               aria-label="Notifications"
             >
               <Bell size={17}/>
-              <span className="bell-badge">
-                3
-              </span>
+              <span className="bell-badge">3</span>
             </button>
 
             {/* User Avatar Circle */}
@@ -275,9 +312,9 @@ function DashboardShell({children}:{children:React.ReactNode}){
                 cursor:'pointer',
                 flexShrink:0
               }}
-              title="Admin Profile"
+              title={`${username} (${roleTitle})`}
             >
-              TA
+              {username.slice(0, 2).toUpperCase()}
             </div>
           </div>
         </header>
@@ -287,6 +324,64 @@ function DashboardShell({children}:{children:React.ReactNode}){
           {children}
         </main>
       </div>
+
+      {/* Global Omni-Search Dialog */}
+      <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+        <DialogContent style={{maxWidth:540,padding:16}}>
+          <DialogHeader>
+            <DialogTitle style={{display:'flex',alignItems:'center',gap:8}}>
+              <Search size={18} color="#1677ff"/> Global Search (Vehicles, Parties, Invoices)
+            </DialogTitle>
+          </DialogHeader>
+
+          <Input
+            autoFocus
+            placeholder="Type registration, client, owner, driver name..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{fontSize:14,height:40}}
+          />
+
+          <div style={{marginTop:12,maxHeight:300,overflowY:'auto',display:'flex',flexDirection:'column',gap:6}}>
+            {searchResults.map((r, idx) => (
+              <div
+                key={idx}
+                onClick={() => {
+                  setSearchOpen(false);
+                  router.push(r.href);
+                }}
+                style={{
+                  display:'flex',
+                  alignItems:'center',
+                  justifyContent:'space-between',
+                  padding:'8px 12px',
+                  background:'#f8fafc',
+                  borderRadius:8,
+                  cursor:'pointer',
+                  border:'1px solid #e2e8f0'
+                }}
+              >
+                <div>
+                  <span style={{fontSize:10,fontWeight:700,color:'#1677ff',textTransform:'uppercase'}}>{r.type}</span>
+                  <strong style={{fontSize:13,color:'#0f172a',display:'block'}}>{r.title}</strong>
+                  <small style={{fontSize:11,color:'#64748b'}}>{r.subtitle}</small>
+                </div>
+                <ArrowRight size={14} color="#94a3b8"/>
+              </div>
+            ))}
+            {searchQuery && searchResults.length === 0 && (
+              <p style={{textAlign:'center',color:'#94a3b8',fontSize:12,padding:12}}>
+                No records matching "{searchQuery}"
+              </p>
+            )}
+            {!searchQuery && (
+              <div style={{padding:'8px 4px',fontSize:11,color:'#94a3b8'}}>
+                Quick navigation: Type <b>DHA-METRO</b> for vehicles, or <b>Square</b> for clients.
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <SourceDrawer/>
       <RecordEntryDialog/>
