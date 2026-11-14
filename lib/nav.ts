@@ -3,7 +3,7 @@ import {
   LayoutDashboard, FileSignature, CarFront, UsersRound, Building2, UserRound,
   ReceiptText, WalletCards, HandCoins, Banknote, Layers3, BookOpen,
   ChartNoAxesCombined, Bell, FileText, Settings2, Wrench, ScrollText,
-  CalendarDays, Search, CircleDollarSign
+  CalendarDays, Search, CircleDollarSign, KeyRound
 } from 'lucide-react';
 
 import type {Role} from './roles';
@@ -16,6 +16,7 @@ export interface NavItem {
   icon: ComponentType<{size?: number; className?: string}>;
   roles?: Role[];
   moduleKey?: string;
+  badge?: string;
 }
 
 export const groupLabel = (g: string) =>
@@ -49,6 +50,7 @@ export const ROUTE_MODULE_MAP: Record<string, { key: string; name: string }> = {
   '/settlements': { key: 'accounts', name: 'Settlements' },
   '/vehicle-search': { key: 'vehicle_search', name: 'Vehicle Search & Statements' },
   '/reports': { key: 'reports', name: 'Reports & Analytics' },
+  '/access-requests': { key: 'settings', name: 'Access Requests' },
   '/notifications': { key: 'notifications', name: 'Notifications & Reminders' },
   '/audit': { key: 'settings', name: 'Audit Log' },
   '/settings': { key: 'settings', name: 'Settings & User Management' },
@@ -73,7 +75,8 @@ export const navItems: NavItem[] = [
   {group: '', label: 'Settlements', href: '/settlements', icon: Layers3, roles: FINANCE_ROLES, moduleKey: 'accounts'},
   {group: '', label: 'Vehicle Search', href: '/vehicle-search', icon: Search, roles: ALL_ROLES, moduleKey: 'vehicle_search'},
   {group: '', label: 'Reports', href: '/reports', icon: ChartNoAxesCombined, roles: FINANCE_ROLES, moduleKey: 'reports'},
-  {group: 'SYSTEM', label: 'Notifications', href: '/notifications', icon: Bell, roles: ALL_ROLES, moduleKey: 'notifications'},
+  {group: 'SYSTEM', label: 'Access Requests', href: '/access-requests', icon: KeyRound, roles: ['super_admin', 'admin'], moduleKey: 'settings'},
+  {group: '', label: 'Notifications', href: '/notifications', icon: Bell, roles: ALL_ROLES, moduleKey: 'notifications'},
   {group: '', label: 'Audit Log', href: '/audit', icon: ScrollText, roles: ['super_admin', 'admin', 'accountant'], moduleKey: 'settings'},
   {group: '', label: 'Settings', href: '/settings', icon: Settings2, roles: ['super_admin', 'admin'], moduleKey: 'settings'},
 ];

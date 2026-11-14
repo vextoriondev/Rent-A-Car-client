@@ -52,6 +52,8 @@ export function AccessRequestModal({
   const [canCreate, setCanCreate] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   const [canDelete, setCanDelete] = useState(false);
+  const [canExport, setCanExport] = useState(false);
+  const [canApprove, setCanApprove] = useState(false);
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -105,6 +107,8 @@ export function AccessRequestModal({
         can_create: canCreate,
         can_edit: canEdit,
         can_delete: canDelete,
+        can_export: canExport,
+        can_approve: canApprove,
         reason: reason.trim(),
       });
       setSuccessMsg(res.message || 'Access request submitted successfully for Administrator approval.');
@@ -216,7 +220,7 @@ export function AccessRequestModal({
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                 Requested Capabilities
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
@@ -252,6 +256,24 @@ export function AccessRequestModal({
                     className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
                   />
                   <span>Delete / Remove</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={canExport}
+                    onChange={e => setCanExport(e.target.checked)}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                  />
+                  <span>Export Reports</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={canApprove}
+                    onChange={e => setCanApprove(e.target.checked)}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                  />
+                  <span>Approve Actions</span>
                 </label>
               </div>
             </div>
@@ -407,3 +429,4 @@ export function AccessRequestModal({
     </Dialog>
   );
 }
+

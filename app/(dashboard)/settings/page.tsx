@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Settings, Building, Users, Shield, Globe, Database, Plus, CheckCircle2,
   X, Key, Lock, Download, UploadCloud, RefreshCw, KeyRound, Clock,
-  AlertCircle, XCircle, Search, Edit3, Trash2, ShieldAlert, Sparkles, Filter
+  AlertCircle, XCircle, Search, Edit3, Trash2, ShieldAlert, Sparkles, Filter,
+  Eye, EyeOff, Check, ExternalLink, ShieldCheck
 } from 'lucide-react';
 import {
   fetchCompanyProfile, updateCompanyProfile, fetchUsers, createUser,
@@ -21,6 +22,327 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { SYSTEM_MODULES } from '@/components/shared/access-request-modal';
+
+interface ModulePermissionItem {
+  enabled: boolean;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  can_export: boolean;
+  can_approve: boolean;
+}
+
+const getInitialPermissionsMatrix = (): Record<string, ModulePermissionItem> => {
+  const map: Record<string, ModulePermissionItem> = {};
+  SYSTEM_MODULES.forEach(m => {
+    map[m.key] = {
+      enabled: false,
+      can_view: false,
+      can_create: false,
+      can_edit: false,
+      can_delete: false,
+      can_export: false,
+      can_approve: false,
+    };
+  });
+  return map;
+};
+
+function PermissionMatrixEditor({
+  permissions,
+  onChange,
+  disabled = false,
+}: {
+  permissions: Record<string, ModulePermissionItem>;
+  onChange: (updated: Record<string, ModulePermissionItem>) => void;
+  disabled?: boolean;
+}) {
+  const selectedCount = Object.values(permissions).filter(p => p.enabled && p.can_view).length;
+
+  const handleToggleMaster = (key: string, enabled: boolean) => {
+    const next = { ...permissions };
+    if (enabled) {
+      next[key] = {
+        enabled: true,
+        can_view: true,
+        can_create: true,
+        can_edit: true,
+        can_delete: false,
+        can_export: true,
+        can_approve: false,
+      };
+    } else {
+      next[key] = {
+        enabled: false,
+        can_view: false,
+        can_create: false,
+        can_edit: false,
+        can_delete: false,
+        can_export: false,
+        can_approve: false,
+      };
+    }
+    onChange(next);
+  };
+
+  const handleToggleAction = (
+    key: string,
+    action: 'can_view' | 'can_create' | 'can_edit' | 'can_delete' | 'can_export' | 'can_approve',
+    checked: boolean
+  ) => {
+    const next = { ...permissions };
+    const cur = next[key] || {
+      enabled: false,
+      can_view: false,
+      can_create: false,
+      can_edit: false,
+      can_delete: false,
+      can_export: false,
+      can_approve: false,
+    };
+    const updated = { ...cur, [action]: checked };
+    if (action === 'can_view' && !checked) {
+      updated.enabled = false;
+      updated.can_create = false;
+      updated.can_edit = false;
+      updated.can_delete = false;
+      updated.can_export = false;
+      updated.can_approve = false;
+    } else if (checked) {
+      updated.enabled = true;
+      updated.can_view = true;
+    }
+    next[key] = updated;
+    onChange(next);
+  };
+
+  const handleBulk = (type: 'all' | 'full' | 'readonly' | 'none') => {
+    const next: Record<string, ModulePermissionItem> = {};
+    SYSTEM_MODULES.forEach(m => {
+      if (type === 'all') {
+        next[m.key] = {
+          enabled: true,
+          can_view: true,
+          can_create: true,
+          can_edit: true,
+          can_delete: false,
+          can_export: true,
+          can_approve: false,
+        };
+      } else if (type === 'full') {
+        next[m.key] = {
+          enabled: true,
+          can_view: true,
+          can_create: true,
+          can_edit: true,
+          can_delete: true,
+          can_export: true,
+          can_approve: true,
+        };
+      } else if (type === 'readonly') {
+        next[m.key] = {
+          enabled: true,
+          can_view: true,
+          can_create: false,
+          can_edit: false,
+          can_delete: false,
+          can_export: true,
+          can_approve: false,
+        };
+      } else {
+        next[m.key] = {
+          enabled: false,
+          can_view: false,
+          can_create: false,
+          can_edit: false,
+          can_delete: false,
+          can_export: false,
+          can_approve: false,
+        };
+      }
+    });
+    onChange(next);
+  };
+
+  return (
+    <div className="space-y-3 bg-slate-50/80 p-4 rounded-xl border border-slate-200">
+      {/* Batch Actions Bar & Selected Counter */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-slate-200">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+            <ShieldCheck size={15} className="text-blue-600" />
+            15-Module Permission Matrix
+          </span>
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-100 text-blue-800 border border-blue-200">
+            {selectedCount} of 15 Modules Selected
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={disabled}
+            onClick={() => handleBulk('all')}
+            className="text-[11px] h-7 px-2.5 border-slate-300 text-slate-700 bg-white hover:bg-slate-50"
+          >
+            Select All Modules
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={disabled}
+            onClick={() => handleBulk('full')}
+            className="text-[11px] h-7 px-2.5 border-blue-300 text-blue-700 bg-blue-50/60 hover:bg-blue-100"
+          >
+            Full Access All
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={disabled}
+            onClick={() => handleBulk('readonly')}
+            className="text-[11px] h-7 px-2.5 border-slate-300 text-slate-700 bg-white hover:bg-slate-50"
+          >
+            Read Only All
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={disabled}
+            onClick={() => handleBulk('none')}
+            className="text-[11px] h-7 px-2.5 border-rose-300 text-rose-700 bg-white hover:bg-rose-50"
+          >
+            Deselect All
+          </Button>
+        </div>
+      </div>
+
+      {/* 15 Modules Matrix Table */}
+      <div className="overflow-x-auto max-h-[380px] border border-slate-200 rounded-lg bg-white shadow-xs">
+        <table className="w-full text-left text-xs">
+          <thead className="bg-slate-100 text-[11px] uppercase font-bold text-slate-700 sticky top-0 z-10 border-b border-slate-200">
+            <tr>
+              <th className="py-2.5 px-3 w-56">Application Module</th>
+              <th className="py-2.5 px-2 text-center w-28">Enable Access</th>
+              <th className="py-2.5 px-2 text-center">View</th>
+              <th className="py-2.5 px-2 text-center">Create</th>
+              <th className="py-2.5 px-2 text-center">Edit</th>
+              <th className="py-2.5 px-2 text-center">Delete</th>
+              <th className="py-2.5 px-2 text-center">Export</th>
+              <th className="py-2.5 px-2 text-center">Approve</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {SYSTEM_MODULES.map(m => {
+              const row = permissions[m.key] || {
+                enabled: false, can_view: false, can_create: false,
+                can_edit: false, can_delete: false, can_export: false, can_approve: false
+              };
+              const isEnabled = Boolean(row.enabled && row.can_view);
+
+              return (
+                <tr
+                  key={m.key}
+                  className={`transition-colors ${isEnabled ? 'bg-white hover:bg-blue-50/30' : 'bg-slate-50/40 text-slate-400 hover:bg-slate-50'}`}
+                >
+                  <td className="py-2.5 px-3">
+                    <span className={`font-bold block text-xs ${isEnabled ? 'text-slate-900' : 'text-slate-500'}`}>
+                      {m.name}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">{m.key}</span>
+                  </td>
+
+                  {/* Enable Access Master Checkbox */}
+                  <td className="py-2.5 px-2 text-center">
+                    <input
+                      type="checkbox"
+                      disabled={disabled}
+                      checked={isEnabled}
+                      onChange={e => handleToggleMaster(m.key, e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </td>
+
+                  {/* View */}
+                  <td className="py-2.5 px-2 text-center">
+                    <input
+                      type="checkbox"
+                      disabled={disabled || !isEnabled}
+                      checked={isEnabled && Boolean(row.can_view)}
+                      onChange={e => handleToggleAction(m.key, 'can_view', e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed"
+                    />
+                  </td>
+
+                  {/* Create */}
+                  <td className="py-2.5 px-2 text-center">
+                    <input
+                      type="checkbox"
+                      disabled={disabled || !isEnabled}
+                      checked={isEnabled && Boolean(row.can_create)}
+                      onChange={e => handleToggleAction(m.key, 'can_create', e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:cursor-not-allowed"
+                    />
+                  </td>
+
+                  {/* Edit */}
+                  <td className="py-2.5 px-2 text-center">
+                    <input
+                      type="checkbox"
+                      disabled={disabled || !isEnabled}
+                      checked={isEnabled && Boolean(row.can_edit)}
+                      onChange={e => handleToggleAction(m.key, 'can_edit', e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer disabled:cursor-not-allowed"
+                    />
+                  </td>
+
+                  {/* Delete */}
+                  <td className="py-2.5 px-2 text-center">
+                    <input
+                      type="checkbox"
+                      disabled={disabled || !isEnabled}
+                      checked={isEnabled && Boolean(row.can_delete)}
+                      onChange={e => handleToggleAction(m.key, 'can_delete', e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500 cursor-pointer disabled:cursor-not-allowed"
+                    />
+                  </td>
+
+                  {/* Export */}
+                  <td className="py-2.5 px-2 text-center">
+                    <input
+                      type="checkbox"
+                      disabled={disabled || !isEnabled}
+                      checked={isEnabled && Boolean(row.can_export)}
+                      onChange={e => handleToggleAction(m.key, 'can_export', e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed"
+                    />
+                  </td>
+
+                  {/* Approve */}
+                  <td className="py-2.5 px-2 text-center">
+                    <input
+                      type="checkbox"
+                      disabled={disabled || !isEnabled}
+                      checked={isEnabled && Boolean(row.can_approve)}
+                      onChange={e => handleToggleAction(m.key, 'can_approve', e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer disabled:cursor-not-allowed"
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('company');
@@ -49,26 +371,31 @@ export default function SettingsPage() {
   const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState('ALL');
 
-  // Add User Modal
+  // Add User Modal State (Integrated Profile + 15-Module Permission Matrix)
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [newUser, setNewUser] = useState({
     username: '',
     name: '',
     email: '',
-    password: '',
-    role: 'staff',
     phone: '',
     designation: 'Operations Staff',
     department: 'Operations',
     employee_id: '',
+    status: 'Active',
+    role: 'staff',
+    password: '',
+    confirm_password: '',
     is_main_admin: false,
-    initial_modules: [] as string[]
   });
+  const [showNewUserPassword, setShowNewUserPassword] = useState(false);
+  const [newUserPermissions, setNewUserPermissions] = useState<Record<string, ModulePermissionItem>>(getInitialPermissionsMatrix());
   const [creatingUser, setCreatingUser] = useState(false);
 
-  // Edit User Modal
+  // Edit User Modal State (Integrated Profile + 15-Module Permission Matrix)
   const [editUserOpen, setEditUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [editingUserPermissions, setEditingUserPermissions] = useState<Record<string, ModulePermissionItem>>(getInitialPermissionsMatrix());
+  const [loadingEditPerms, setLoadingEditPerms] = useState(false);
   const [updatingUser, setUpdatingUser] = useState(false);
 
   // Reset Password Modal
@@ -77,7 +404,7 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [resettingPwd, setResettingPwd] = useState(false);
 
-  // ─── 3. PERMISSIONS MATRIX STATE ─────────────────────────────────────────────
+  // ─── 3. PERMISSIONS MATRIX STATE (AD-HOC INSPECTOR) ──────────────────────────
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [matrixData, setMatrixData] = useState<any>(null);
   const [matrixModules, setMatrixModules] = useState<Record<string, any>>({});
@@ -202,15 +529,112 @@ export default function SettingsPage() {
       .catch(() => showToast('Error saving company profile'));
   }
 
-  // Create User
+  // Open Add User Modal with clean reset
+  const openAddUserModal = () => {
+    setNewUser({
+      username: '',
+      name: '',
+      email: '',
+      phone: '',
+      designation: 'Operations Staff',
+      department: 'Operations',
+      employee_id: '',
+      status: 'Active',
+      role: 'staff',
+      password: '',
+      confirm_password: '',
+      is_main_admin: false,
+    });
+    setNewUserPermissions(getInitialPermissionsMatrix());
+    setShowNewUserPassword(false);
+    setAddUserOpen(true);
+  };
+
+  // Open Edit User Modal with DB Permissions Loading
+  const openEditUserModal = async (u: any) => {
+    setEditingUser({
+      id: u.id,
+      username: u.username,
+      name: u.name || '',
+      email: u.email || '',
+      phone: u.phone || '',
+      designation: u.designation || '',
+      department: u.department || '',
+      employee_id: u.employeeId || u.employee_id || '',
+      status: u.status || (u.isActive ? 'Active' : 'Inactive'),
+      role: u.role || 'staff',
+      is_main_admin: Boolean(u.isMainAdmin || u.is_main_admin),
+      is_super_admin: Boolean(u.isSuperAdmin || u.is_super_admin),
+    });
+    setEditUserOpen(true);
+    setLoadingEditPerms(true);
+    try {
+      const res: any = await fetchUserPermissionsMatrix(1, u.id);
+      const perms = getInitialPermissionsMatrix();
+      if (res && res.modules) {
+        SYSTEM_MODULES.forEach(m => {
+          const item = res.modules[m.key];
+          if (item) {
+            const hasView = Boolean(item.view ?? item.can_view);
+            perms[m.key] = {
+              enabled: hasView,
+              can_view: hasView,
+              can_create: Boolean(item.create ?? item.can_create),
+              can_edit: Boolean(item.edit ?? item.can_edit),
+              can_delete: Boolean(item.delete ?? item.can_delete),
+              can_export: Boolean(item.export ?? item.can_export),
+              can_approve: Boolean(item.approve ?? item.can_approve),
+            };
+          }
+        });
+      }
+      setEditingUserPermissions(perms);
+    } catch (err) {
+      console.error('Failed to load user permissions for edit modal', err);
+    } finally {
+      setLoadingEditPerms(false);
+    }
+  };
+
+  // Create User with Integrated 15-Module Permissions Matrix
   async function handleCreateUser(e: React.FormEvent) {
     e.preventDefault();
     if (!newUser.username.trim() || !newUser.password.trim()) {
       showToast('Username and password are required');
       return;
     }
+    if (newUser.password !== newUser.confirm_password) {
+      showToast('Password confirmation does not match');
+      return;
+    }
     setCreatingUser(true);
     try {
+      const module_permissions: Record<string, any> = {};
+      let selectedCount = 0;
+      SYSTEM_MODULES.forEach(m => {
+        const perm = newUserPermissions[m.key];
+        if (perm && perm.enabled && perm.can_view) {
+          selectedCount++;
+          module_permissions[m.key] = {
+            can_view: true,
+            can_create: Boolean(perm.can_create),
+            can_edit: Boolean(perm.can_edit),
+            can_delete: Boolean(perm.can_delete),
+            can_export: Boolean(perm.can_export),
+            can_approve: Boolean(perm.can_approve),
+          };
+        } else {
+          module_permissions[m.key] = {
+            can_view: false,
+            can_create: false,
+            can_edit: false,
+            can_delete: false,
+            can_export: false,
+            can_approve: false,
+          };
+        }
+      });
+
       await createUser(1, {
         username: newUser.username.trim(),
         name: newUser.name.trim(),
@@ -221,16 +645,13 @@ export default function SettingsPage() {
         designation: newUser.designation.trim(),
         department: newUser.department.trim(),
         employee_id: newUser.employee_id.trim(),
-        is_main_admin: newUser.is_main_admin,
-        initial_modules: newUser.initial_modules
+        status: newUser.status || 'Active',
+        is_main_admin: newUser.role === 'admin' || newUser.is_main_admin,
+        module_permissions,
       });
-      showToast(`✓ User account created successfully`);
+
+      showToast(`✓ User account @${newUser.username.trim()} created with ${selectedCount} module permissions assigned`);
       setAddUserOpen(false);
-      setNewUser({
-        username: '', name: '', email: '', password: '', role: 'staff',
-        phone: '', designation: 'Operations Staff', department: 'Operations',
-        employee_id: '', is_main_admin: false, initial_modules: []
-      });
       loadUsersList();
     } catch (err: any) {
       showToast(err.message || 'Error creating user');
@@ -239,12 +660,38 @@ export default function SettingsPage() {
     }
   }
 
-  // Update User Profile
+  // Update User Profile & 15-Module Permissions Together
   async function handleUpdateUserProfile(e: React.FormEvent) {
     e.preventDefault();
     if (!editingUser) return;
     setUpdatingUser(true);
     try {
+      const module_permissions: Record<string, any> = {};
+      let selectedCount = 0;
+      SYSTEM_MODULES.forEach(m => {
+        const perm = editingUserPermissions[m.key];
+        if (perm && perm.enabled && perm.can_view) {
+          selectedCount++;
+          module_permissions[m.key] = {
+            can_view: true,
+            can_create: Boolean(perm.can_create),
+            can_edit: Boolean(perm.can_edit),
+            can_delete: Boolean(perm.can_delete),
+            can_export: Boolean(perm.can_export),
+            can_approve: Boolean(perm.can_approve),
+          };
+        } else {
+          module_permissions[m.key] = {
+            can_view: false,
+            can_create: false,
+            can_edit: false,
+            can_delete: false,
+            can_export: false,
+            can_approve: false,
+          };
+        }
+      });
+
       await updateUserProfile(1, editingUser.id, {
         name: editingUser.name,
         email: editingUser.email,
@@ -252,11 +699,13 @@ export default function SettingsPage() {
         phone: editingUser.phone,
         designation: editingUser.designation,
         department: editingUser.department,
-        employee_id: editingUser.employeeId,
+        employee_id: editingUser.employee_id || editingUser.employeeId,
         status: editingUser.status,
-        is_main_admin: editingUser.isMainAdmin
+        is_main_admin: editingUser.role === 'admin' || editingUser.is_main_admin || editingUser.isMainAdmin,
+        module_permissions,
       });
-      showToast(`✓ User profile updated`);
+
+      showToast(`✓ User profile and ${selectedCount} module permissions updated for @${editingUser.username}`);
       setEditUserOpen(false);
       loadUsersList();
     } catch (err: any) {
@@ -552,7 +1001,7 @@ export default function SettingsPage() {
                 <h3 className="text-base font-bold text-slate-900">User Accounts & Directory</h3>
                 <p className="text-xs text-slate-500 mt-0.5">Manage administrative roles, employee access statuses, and module assignments</p>
               </div>
-              <Button onClick={() => setAddUserOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-2">
+              <Button onClick={openAddUserModal} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-2">
                 <Plus size={16} /> Add Employee User
               </Button>
             </div>
@@ -671,30 +1120,24 @@ export default function SettingsPage() {
 
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              {/* Manage Permissions */}
+                              {/* Manage Access & Edit Profile */}
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => {
-                                  setSelectedUserId(String(u.id));
-                                  setActiveTab('permissions');
-                                }}
-                                className="h-7 text-[11px] px-2 text-blue-700 border-blue-200 hover:bg-blue-50"
-                                title="Configure Module Permissions"
+                                onClick={() => openEditUserModal(u)}
+                                className="h-7 text-[11px] px-2.5 text-blue-700 border-blue-200 hover:bg-blue-50 font-semibold"
+                                title="Edit Profile & Configure 15-Module Access"
                               >
-                                <Shield size={12} className="mr-1" /> Perms
+                                <Shield size={12} className="mr-1 text-blue-600" /> Manage Access
                               </Button>
 
-                              {/* Edit Profile */}
+                              {/* Edit Profile Quick Icon */}
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => {
-                                  setEditingUser({ ...u });
-                                  setEditUserOpen(true);
-                                }}
+                                onClick={() => openEditUserModal(u)}
                                 className="h-7 w-7 p-0 text-slate-600 hover:text-slate-900"
-                                title="Edit Profile"
+                                title="Edit Profile & Permissions"
                               >
                                 <Edit3 size={13} />
                               </Button>
@@ -946,24 +1389,35 @@ export default function SettingsPage() {
                 </p>
               </div>
 
-              {/* Status Filter */}
-              <div className="flex items-center gap-2">
-                {['All', 'Pending', 'Approved', 'Rejected'].map(st => (
-                  <Button
-                    key={st}
-                    size="sm"
-                    variant={requestStatusFilter === st ? 'default' : 'outline'}
-                    onClick={() => setRequestStatusFilter(st)}
-                    className={`text-xs h-8 ${requestStatusFilter === st ? 'bg-blue-600 text-white' : 'text-slate-700'}`}
-                  >
-                    {st}
-                    {st === 'Pending' && pendingRequestsCount > 0 && (
-                      <span className="ml-1.5 bg-amber-500 text-white text-[10px] px-1.5 py-0.2 rounded-full">
-                        {pendingRequestsCount}
-                      </span>
-                    )}
-                  </Button>
-                ))}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => window.location.href = '/access-requests'}
+                  className="h-8 text-xs border-blue-200 text-blue-700 bg-blue-50/50 hover:bg-blue-100 flex items-center gap-1.5 font-semibold"
+                >
+                  <ExternalLink size={13} /> Open Dedicated Request Inbox
+                </Button>
+
+                {/* Status Filter */}
+                <div className="flex items-center gap-1">
+                  {['All', 'Pending', 'Approved', 'Rejected'].map(st => (
+                    <Button
+                      key={st}
+                      size="sm"
+                      variant={requestStatusFilter === st ? 'default' : 'outline'}
+                      onClick={() => setRequestStatusFilter(st)}
+                      className={`text-xs h-8 ${requestStatusFilter === st ? 'bg-blue-600 text-white' : 'text-slate-700'}`}
+                    >
+                      {st}
+                      {st === 'Pending' && pendingRequestsCount > 0 && (
+                        <span className="ml-1.5 bg-amber-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                          {pendingRequestsCount}
+                        </span>
+                      )}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -1162,231 +1616,379 @@ export default function SettingsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* ─── MODAL 1: ADD USER MODAL ────────────────────────────────────────── */}
+      {/* ─── MODAL 1: ADD USER MODAL (INTEGRATED PROFILE + 15-MODULE MATRIX) ─── */}
       <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
-        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Add New Employee Account</DialogTitle>
+        <DialogContent className="sm:max-w-4xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader className="border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">
+              <ShieldCheck size={16} />
+              Identity & Access Management
+            </div>
+            <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <Plus className="text-blue-600" size={20} />
+              Create User & Assign 15-Module Workspace Access
+            </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Create credentials and assign initial workspace access
+              Configure employee profile, authentication credentials, and authorize module permissions atomically in a single transaction
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleCreateUser} className="space-y-4 pt-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Username <span className="text-rose-500">*</span></label>
-                <Input
-                  required
-                  placeholder="e.g. kamrul_ops"
-                  value={newUser.username}
-                  onChange={e => setNewUser({ ...newUser, username: e.target.value })}
-                />
+          <form onSubmit={handleCreateUser} className="space-y-6 pt-3">
+            {/* SECTION A: PROFILE INFORMATION */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Users size={14} className="text-blue-600" />
+                  Section A: Employee Profile & Credentials
+                </h4>
+                <span className="text-[11px] text-slate-400">Fields marked with * are required</span>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Password <span className="text-rose-500">*</span></label>
-                <Input
-                  required
-                  type="password"
-                  placeholder="Temporary password"
-                  value={newUser.password}
-                  onChange={e => setNewUser({ ...newUser, password: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Full Legal Name</label>
-                <Input
-                  placeholder="e.g. Md. Kamrul Hasan"
-                  value={newUser.name}
-                  onChange={e => setNewUser({ ...newUser, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Official Email</label>
-                <Input
-                  type="email"
-                  placeholder="kamrul@tasinenterprise.com.bd"
-                  value={newUser.email}
-                  onChange={e => setNewUser({ ...newUser, email: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Role / Authority Level</label>
-                <select
-                  value={newUser.role}
-                  onChange={e => setNewUser({ ...newUser, role: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-900 outline-none"
-                >
-                  <option value="staff">Operations Staff</option>
-                  <option value="operations_manager">Operations Manager</option>
-                  <option value="accountant">Financial Accountant</option>
-                  <option value="admin">Main Admin (Delegated)</option>
-                  <option value="super_admin">Super Admin (Managing Director)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Designation</label>
-                <Input
-                  placeholder="e.g. Senior Fleet Executive"
-                  value={newUser.designation}
-                  onChange={e => setNewUser({ ...newUser, designation: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Department</label>
-                <Input
-                  placeholder="e.g. Fleet Operations"
-                  value={newUser.department}
-                  onChange={e => setNewUser({ ...newUser, department: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number</label>
-                <Input
-                  placeholder="+880 1700-000000"
-                  value={newUser.phone}
-                  onChange={e => setNewUser({ ...newUser, phone: e.target.value })}
-                />
-              </div>
-            </div>
 
-            {/* Initial Module Assignment Checkboxes */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mt-2 space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Initial Workspace Modules
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setNewUser({ ...newUser, initial_modules: SYSTEM_MODULES.map(m => m.key) })}
-                    className="text-[11px] text-blue-600 hover:underline font-semibold"
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Username <span className="text-rose-500">*</span>
+                  </label>
+                  <Input
+                    required
+                    placeholder="e.g. kamrul_fleet"
+                    value={newUser.username}
+                    onChange={e => setNewUser({ ...newUser, username: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+                    className="bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Full Legal Name <span className="text-rose-500">*</span>
+                  </label>
+                  <Input
+                    required
+                    placeholder="e.g. Md. Kamrul Hasan"
+                    value={newUser.name}
+                    onChange={e => setNewUser({ ...newUser, name: e.target.value })}
+                    className="bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Official Email <span className="text-rose-500">*</span>
+                  </label>
+                  <Input
+                    required
+                    type="email"
+                    placeholder="kamrul@tasinenterprise.com.bd"
+                    value={newUser.email}
+                    onChange={e => setNewUser({ ...newUser, email: e.target.value })}
+                    className="bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Phone Number
+                  </label>
+                  <Input
+                    placeholder="+880 1711-000000"
+                    value={newUser.phone}
+                    onChange={e => setNewUser({ ...newUser, phone: e.target.value })}
+                    className="bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Designation
+                  </label>
+                  <Input
+                    placeholder="e.g. Senior Fleet Manager"
+                    value={newUser.designation}
+                    onChange={e => setNewUser({ ...newUser, designation: e.target.value })}
+                    className="bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Department
+                  </label>
+                  <Input
+                    placeholder="e.g. Fleet Operations"
+                    value={newUser.department}
+                    onChange={e => setNewUser({ ...newUser, department: e.target.value })}
+                    className="bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Employee ID
+                  </label>
+                  <Input
+                    placeholder="e.g. TE-2024-009"
+                    value={newUser.employee_id}
+                    onChange={e => setNewUser({ ...newUser, employee_id: e.target.value })}
+                    className="bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Account Status
+                  </label>
+                  <select
+                    value={newUser.status}
+                    onChange={e => setNewUser({ ...newUser, status: e.target.value })}
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-900 outline-none h-9"
                   >
-                    Select All
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewUser({ ...newUser, initial_modules: [] })}
-                    className="text-[11px] text-slate-500 hover:underline"
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Authority Role
+                  </label>
+                  <select
+                    value={newUser.role}
+                    onChange={e => setNewUser({ ...newUser, role: e.target.value })}
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-900 outline-none h-9"
                   >
-                    Clear
-                  </button>
+                    <option value="staff">Staff / Driver Mgr</option>
+                    <option value="operations_manager">Operations Manager</option>
+                    <option value="accountant">Financial Accountant</option>
+                    <option value="admin">Main Admin (Delegated)</option>
+                    <option value="super_admin">Super Admin (Managing Director)</option>
+                  </select>
+                </div>
+
+                <div className="relative">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Password <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      required
+                      type={showNewUserPassword ? "text" : "password"}
+                      placeholder="Enter secure password"
+                      value={newUser.password}
+                      onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+                      className="bg-white pr-9"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewUserPassword(!showNewUserPassword)}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                    >
+                      {showNewUserPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Confirm Password <span className="text-rose-500">*</span>
+                  </label>
+                  <Input
+                    required
+                    type={showNewUserPassword ? "text" : "password"}
+                    placeholder="Re-enter password"
+                    value={newUser.confirm_password}
+                    onChange={e => setNewUser({ ...newUser, confirm_password: e.target.value })}
+                    className="bg-white"
+                  />
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 max-h-40 overflow-y-auto">
-                {SYSTEM_MODULES.map(m => {
-                  const checked = newUser.initial_modules.includes(m.key);
-                  return (
-                    <label key={m.key} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={e => {
-                          if (e.target.checked) {
-                            setNewUser({ ...newUser, initial_modules: [...newUser.initial_modules, m.key] });
-                          } else {
-                            setNewUser({ ...newUser, initial_modules: newUser.initial_modules.filter(k => k !== m.key) });
-                          }
-                        }}
-                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5"
-                      />
-                      <span className="truncate">{m.name}</span>
-                    </label>
-                  );
-                })}
-              </div>
             </div>
 
-            <DialogFooter className="pt-3">
-              <Button type="button" variant="outline" onClick={() => setAddUserOpen(false)}>
+            {/* SECTION B: 15-MODULE PERMISSIONS MATRIX */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Shield size={14} className="text-blue-600" />
+                  Section B: Application Modules & Permissions Assignment (15 Modules)
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  Enable access and configure action checkboxes for each application module
+                </p>
+              </div>
+
+              <PermissionMatrixEditor
+                permissions={newUserPermissions}
+                onChange={setNewUserPermissions}
+              />
+            </div>
+
+            <DialogFooter className="pt-3 border-t border-slate-200">
+              <Button type="button" variant="outline" onClick={() => setAddUserOpen(false)} className="border-slate-300">
                 Cancel
               </Button>
-              <Button type="submit" disabled={creatingUser} className="bg-blue-600 hover:bg-blue-700 text-white">
-                {creatingUser ? 'Creating...' : 'Create Account'}
+              <Button type="submit" disabled={creatingUser} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">
+                {creatingUser ? 'Creating User & Assigning Permissions...' : 'Create User & Assign Access'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* ─── MODAL 2: EDIT USER PROFILE ────────────────────────────────────── */}
+      {/* ─── MODAL 2: EDIT USER PROFILE & 15-MODULE ACCESS TOGETHER ───────────── */}
       <Dialog open={editUserOpen} onOpenChange={setEditUserOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold">Edit User Profile</DialogTitle>
+        <DialogContent className="sm:max-w-4xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader className="border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">
+              <ShieldCheck size={16} />
+              Directory Governance
+            </div>
+            <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <Edit3 className="text-blue-600" size={20} />
+              Edit User Profile & Module Access: {editingUser?.username}
+            </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Update personal and organizational information for {editingUser?.username}
+              Update personal details and adjust the 15-module permission matrix atomically in the database
             </DialogDescription>
           </DialogHeader>
 
           {editingUser && (
-            <form onSubmit={handleUpdateUserProfile} className="space-y-3 pt-2">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Full Legal Name</label>
-                <Input
-                  value={editingUser.name || ''}
-                  onChange={e => setEditingUser({ ...editingUser, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Official Email</label>
-                <Input
-                  value={editingUser.email || ''}
-                  onChange={e => setEditingUser({ ...editingUser, email: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Designation</label>
-                  <Input
-                    value={editingUser.designation || ''}
-                    onChange={e => setEditingUser({ ...editingUser, designation: e.target.value })}
-                  />
+            <form onSubmit={handleUpdateUserProfile} className="space-y-6 pt-3">
+              {/* SECTION A: PROFILE INFORMATION */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Users size={14} className="text-blue-600" />
+                    Section A: Employee Profile Details
+                  </h4>
+                  <span className="text-[11px] font-mono font-bold text-slate-600">
+                    User ID: #{editingUser.id} • @{editingUser.username}
+                  </span>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Department</label>
-                  <Input
-                    value={editingUser.department || ''}
-                    onChange={e => setEditingUser({ ...editingUser, department: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
-                  <select
-                    value={editingUser.status || 'Active'}
-                    onChange={e => setEditingUser({ ...editingUser, status: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-900 outline-none"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                    <option value="Suspended">Suspended</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Role</label>
-                  <select
-                    value={editingUser.role || 'staff'}
-                    onChange={e => setEditingUser({ ...editingUser, role: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-900 outline-none"
-                  >
-                    <option value="staff">Staff</option>
-                    <option value="operations_manager">Operations Manager</option>
-                    <option value="accountant">Accountant</option>
-                    <option value="admin">Main Admin</option>
-                    <option value="super_admin">Super Admin</option>
-                  </select>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Full Legal Name</label>
+                    <Input
+                      required
+                      value={editingUser.name || ''}
+                      onChange={e => setEditingUser({ ...editingUser, name: e.target.value })}
+                      className="bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Official Email</label>
+                    <Input
+                      required
+                      type="email"
+                      value={editingUser.email || ''}
+                      onChange={e => setEditingUser({ ...editingUser, email: e.target.value })}
+                      className="bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number</label>
+                    <Input
+                      value={editingUser.phone || ''}
+                      onChange={e => setEditingUser({ ...editingUser, phone: e.target.value })}
+                      className="bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Designation</label>
+                    <Input
+                      value={editingUser.designation || ''}
+                      onChange={e => setEditingUser({ ...editingUser, designation: e.target.value })}
+                      className="bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Department</label>
+                    <Input
+                      value={editingUser.department || ''}
+                      onChange={e => setEditingUser({ ...editingUser, department: e.target.value })}
+                      className="bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Employee ID</label>
+                    <Input
+                      value={editingUser.employee_id || ''}
+                      onChange={e => setEditingUser({ ...editingUser, employee_id: e.target.value })}
+                      className="bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
+                    <select
+                      value={editingUser.status || 'Active'}
+                      onChange={e => setEditingUser({ ...editingUser, status: e.target.value })}
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-900 outline-none h-9"
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                      <option value="Suspended">Suspended</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Authority Role</label>
+                    <select
+                      value={editingUser.role || 'staff'}
+                      onChange={e => setEditingUser({ ...editingUser, role: e.target.value })}
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-900 outline-none h-9"
+                    >
+                      <option value="staff">Staff / Driver Mgr</option>
+                      <option value="operations_manager">Operations Manager</option>
+                      <option value="accountant">Financial Accountant</option>
+                      <option value="admin">Main Admin</option>
+                      <option value="super_admin">Super Admin</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <DialogFooter className="pt-3">
-                <Button type="button" variant="outline" onClick={() => setEditUserOpen(false)}>
+              {/* SECTION B: 15-MODULE PERMISSIONS MATRIX */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Shield size={14} className="text-blue-600" />
+                    Section B: Application Modules & Permissions Assignment (15 Modules)
+                  </h4>
+                  {loadingEditPerms ? (
+                    <span className="text-xs text-blue-600 flex items-center gap-1">
+                      <RefreshCw size={12} className="animate-spin" /> Loading saved permissions...
+                    </span>
+                  ) : (
+                    <p className="text-[11px] text-slate-500">
+                      Loaded directly from database. Modify toggles and save atomically.
+                    </p>
+                  )}
+                </div>
+
+                {loadingEditPerms ? (
+                  <div className="py-12 text-center text-slate-400 bg-slate-50 rounded-xl border border-slate-200">
+                    <RefreshCw size={24} className="animate-spin mx-auto mb-2 text-blue-500" />
+                    Fetching user module permissions from Neon PostgreSQL...
+                  </div>
+                ) : (
+                  <PermissionMatrixEditor
+                    permissions={editingUserPermissions}
+                    onChange={setEditingUserPermissions}
+                  />
+                )}
+              </div>
+
+              <DialogFooter className="pt-3 border-t border-slate-200">
+                <Button type="button" variant="outline" onClick={() => setEditUserOpen(false)} className="border-slate-300">
                   Cancel
                 </Button>
-                <Button type="submit" disabled={updatingUser} className="bg-blue-600 hover:bg-blue-700 text-white">
-                  {updatingUser ? 'Updating...' : 'Save Profile'}
+                <Button type="submit" disabled={updatingUser || loadingEditPerms} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">
+                  {updatingUser ? 'Updating Profile & Permissions...' : 'Save Profile & Permissions'}
                 </Button>
               </DialogFooter>
             </form>

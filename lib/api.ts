@@ -409,13 +409,25 @@ export async function fetchAccessRequests(orgId: number = 1, status?: string, my
   return apiRequest(url);
 }
 
+export async function fetchAccessRequestsSummary(orgId: number = 1) {
+  return apiRequest(`/orgs/${orgId}/access-requests/summary`);
+}
+
+export async function fetchAccessRequestReviewDetails(orgId: number = 1, requestId: number | string) {
+  return apiRequest(`/orgs/${orgId}/access-requests/${requestId}/review`);
+}
+
 export async function submitAccessRequest(orgId: number = 1, data: {
   module: string;
   can_view?: boolean;
   can_create?: boolean;
   can_edit?: boolean;
   can_delete?: boolean;
+  can_export?: boolean;
+  can_approve?: boolean;
   reason: string;
+  user_id?: number | string;
+  username?: string;
 }) {
   return apiRequest(`/orgs/${orgId}/access-requests`, { method: 'POST', body: JSON.stringify(data) });
 }

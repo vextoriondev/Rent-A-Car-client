@@ -201,6 +201,18 @@ function DashboardShell({children}:{children:React.ReactNode}){
               >
                 <Icon size={18} className={isActive ? 'text-white' : 'text-slate-400'}/>
                 <span style={{flex:1}}>{item.label}</span>
+                {item.href === '/access-requests' && pendingRequestsCount > 0 && (
+                  <span style={{
+                    background: '#f59e0b',
+                    color: '#ffffff',
+                    padding: '1px 6px',
+                    borderRadius: 10,
+                    fontSize: 10,
+                    fontWeight: 800
+                  }}>
+                    {pendingRequestsCount}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -332,43 +344,79 @@ function DashboardShell({children}:{children:React.ReactNode}){
               <kbd style={{fontSize:10,background:'#f1f5f9',padding:'1px 5px',borderRadius:4,border:'1px solid #cbd5e1'}}>Ctrl K</kbd>
             </button>
 
-            {/* Request Workspace Access Pill Button in Header */}
-            <button
-              type="button"
-              onClick={() => {
-                setRequestTargetModule('');
-                setRequestModalOpen(true);
-              }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '5px 11px',
-                borderRadius: 8,
-                fontSize: 11.5,
-                fontWeight: 600,
-                background: '#eff6ff',
-                color: '#1d4ed8',
-                border: '1px solid #bfdbfe',
-                cursor: 'pointer'
-              }}
-              title="Request Access to additional workspaces"
-            >
-              <KeyRound size={13} className="text-blue-600" />
-              <span className="hidden md:inline">Request Access</span>
-              {pendingRequestsCount > 0 && (
-                <span style={{
-                  background: '#f59e0b',
-                  color: '#ffffff',
-                  padding: '1px 5px',
-                  borderRadius: 10,
-                  fontSize: 10,
-                  fontWeight: 800
-                }}>
-                  {pendingRequestsCount}
-                </span>
-              )}
-            </button>
+            {/* Super Admin / Admin: Access Requests Inbox Pill; Staff: Request Access Pill */}
+            {isSuperAdmin || isMainAdmin ? (
+              <button
+                type="button"
+                onClick={() => router.push('/access-requests')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '5px 11px',
+                  borderRadius: 8,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  background: pendingRequestsCount > 0 ? '#fffbeb' : '#eff6ff',
+                  color: pendingRequestsCount > 0 ? '#b45309' : '#1d4ed8',
+                  border: pendingRequestsCount > 0 ? '1px solid #fde68a' : '1px solid #bfdbfe',
+                  cursor: 'pointer'
+                }}
+                title={`Access Requests Inbox (${pendingRequestsCount} pending)`}
+              >
+                <KeyRound size={13} className={pendingRequestsCount > 0 ? 'text-amber-600' : 'text-blue-600'} />
+                <span className="hidden md:inline">Requests Inbox</span>
+                {pendingRequestsCount > 0 && (
+                  <span style={{
+                    background: '#f59e0b',
+                    color: '#ffffff',
+                    padding: '1px 5px',
+                    borderRadius: 10,
+                    fontSize: 10,
+                    fontWeight: 800
+                  }}>
+                    {pendingRequestsCount}
+                  </span>
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setRequestTargetModule('');
+                  setRequestModalOpen(true);
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '5px 11px',
+                  borderRadius: 8,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  background: '#eff6ff',
+                  color: '#1d4ed8',
+                  border: '1px solid #bfdbfe',
+                  cursor: 'pointer'
+                }}
+                title="Request Access to additional workspaces"
+              >
+                <KeyRound size={13} className="text-blue-600" />
+                <span className="hidden md:inline">Request Access</span>
+                {pendingRequestsCount > 0 && (
+                  <span style={{
+                    background: '#f59e0b',
+                    color: '#ffffff',
+                    padding: '1px 5px',
+                    borderRadius: 10,
+                    fontSize: 10,
+                    fontWeight: 800
+                  }}>
+                    {pendingRequestsCount}
+                  </span>
+                )}
+              </button>
+            )}
 
             {/* Backend Live Connection Status */}
             <div
