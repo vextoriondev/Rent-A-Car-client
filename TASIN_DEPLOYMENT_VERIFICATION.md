@@ -50,3 +50,4 @@
 2. **Frontend Deployment (Vercel):**
    Pushing the latest commits to `https://github.com/vextoriondev/Rent-A-Car-client.git` triggers automated Vercel deployment.
    Verified with Turbopack compilation passing with zero warnings or errors.
+

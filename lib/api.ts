@@ -374,8 +374,70 @@ export async function createUser(orgId: number = 1, data: unknown) {
   return apiRequest(`/orgs/${orgId}/tasin-settings/users`, { method: 'POST', body: JSON.stringify(data) });
 }
 
+export async function updateUserProfile(orgId: number = 1, userId: number | string, data: unknown) {
+  return apiRequest(`/orgs/${orgId}/tasin-settings/users/${userId}/profile`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function resetUserPassword(orgId: number = 1, userId: number | string, newPassword: string) {
+  return apiRequest(`/orgs/${orgId}/tasin-settings/users/${userId}/reset-password`, {
+    method: 'POST',
+    body: JSON.stringify({ new_password: newPassword })
+  });
+}
+
 export async function deleteUser(orgId: number = 1, userId: number | string) {
   return apiRequest(`/orgs/${orgId}/tasin-settings/users/${userId}`, { method: 'DELETE' });
+}
+
+export async function fetchUserPermissionsMatrix(orgId: number = 1, userId: number | string) {
+  return apiRequest(`/orgs/${orgId}/tasin-settings/users/${userId}/permissions`);
+}
+
+export async function saveUserPermissionsMatrix(orgId: number = 1, userId: number | string, modules: unknown) {
+  return apiRequest(`/orgs/${orgId}/tasin-settings/users/${userId}/permissions`, {
+    method: 'PUT',
+    body: JSON.stringify({ modules })
+  });
+}
+
+export async function fetchAccessRequests(orgId: number = 1, status?: string, myOnly?: boolean) {
+  let url = `/orgs/${orgId}/access-requests`;
+  const params: string[] = [];
+  if (status && status !== 'All') params.push(`status=${encodeURIComponent(status)}`);
+  if (myOnly) params.push(`my_only=true`);
+  if (params.length) url += `?${params.join('&')}`;
+  return apiRequest(url);
+}
+
+export async function submitAccessRequest(orgId: number = 1, data: {
+  module: string;
+  can_view?: boolean;
+  can_create?: boolean;
+  can_edit?: boolean;
+  can_delete?: boolean;
+  reason: string;
+}) {
+  return apiRequest(`/orgs/${orgId}/access-requests`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function approveAccessRequest(orgId: number = 1, requestId: number | string, modifiedData?: unknown) {
+  return apiRequest(`/orgs/${orgId}/access-requests/${requestId}/approve`, {
+    method: 'POST',
+    body: modifiedData ? JSON.stringify(modifiedData) : JSON.stringify({})
+  });
+}
+
+export async function rejectAccessRequest(orgId: number = 1, requestId: number | string, rejectionReason: string) {
+  return apiRequest(`/orgs/${orgId}/access-requests/${requestId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ rejection_reason: rejectionReason })
+  });
+}
+
+export async function fetchUserPermissions(orgId: number = 1, userId?: number | string) {
+  let url = `/orgs/${orgId}/rbac/permissions`;
+  if (userId) url += `?user_id=${userId}`;
+  return apiRequest(url);
 }
 
 // ─── MODULE 05 & 06: INVOICING & CLIENT PROFILES ─────────────────────────────
@@ -432,11 +494,6 @@ export async function fetchAccountLedgerReport(orgId: number = 1, accountId?: nu
   return apiRequest(url);
 }
 
-// ─── RBAC & PERMISSIONS ───────────────────────────────────────────────────────
-
-export async function fetchUserPermissions(orgId: number = 1) {
-  return apiRequest(`/orgs/${orgId}/rbac/permissions`);
-}
 
 // ─── MODULE 04: DRIVER ATTENDANCE ─────────────────────────────────────────────
 

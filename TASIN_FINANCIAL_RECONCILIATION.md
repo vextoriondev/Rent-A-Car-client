@@ -44,3 +44,4 @@ $$\text{Net Payable to Owner} = \text{Agreed Monthly Vehicle Rent} - \text{Maint
   2. Transaction amount matching (credit vs debit).
   3. Reference code or description keyword similarity.
 - Unmatched bank rows are highlighted with variance values in the financial ledger view.
+

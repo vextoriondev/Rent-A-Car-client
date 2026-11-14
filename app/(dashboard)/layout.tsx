@@ -25,7 +25,9 @@ import {
   ChevronDown,
   CheckCircle2,
   Command,
-  ArrowRight
+  ArrowRight,
+  KeyRound,
+  ShieldCheck
 } from 'lucide-react';
 import {RentflowStoreProvider,useRentflowStore} from '@/lib/store-context';
 import {useBackendStatus} from '@/lib/use-backend-status';
@@ -36,7 +38,9 @@ import {LoadingState} from '@/components/shared/loading-state';
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from '@/components/ui/dialog';
 import {Input} from '@/components/ui/input';
 import {fetchUserPermissions, searchVehicles} from '@/lib/api';
-import {navItems, routeAllowed} from '@/lib/nav';
+import {navItems, routeAllowed, getModuleForRoute, isRouteAllowedDynamically} from '@/lib/nav';
+import {AccessRequestModal} from '@/components/shared/access-request-modal';
+import {AccessRestricted} from '@/components/shared/access-restricted';
 
 export default function DashboardLayout({children}:{children:React.ReactNode}){
   return (
@@ -60,20 +64,40 @@ function DashboardShell({children}:{children:React.ReactNode}){
   const [userRole, setUserRole] = useState('super_admin');
   const [roleTitle, setRoleTitle] = useState('Super Admin');
   const [username, setUsername] = useState('Admin');
+  const [isSuperAdmin, setIsSuperAdmin] = useState(true);
+  const [isMainAdmin, setIsMainAdmin] = useState(false);
+  const [allowedModules, setAllowedModules] = useState<string[]>([]);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+
+  // Access Request Modal state
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [requestTargetModule, setRequestTargetModule] = useState('');
 
   // Global Ctrl+K Search
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  useEffect(() => {
+  const refreshPermissions = () => {
     fetchUserPermissions(1).then((res: any) => {
       if (res && res.role) {
         setUserRole(res.role);
         setRoleTitle(res.role_title || res.role);
         setUsername(res.username || 'Admin');
+        setIsSuperAdmin(Boolean(res.is_super_admin));
+        setIsMainAdmin(Boolean(res.is_main_admin));
+        if (Array.isArray(res.allowed_modules)) {
+          setAllowedModules(res.allowed_modules);
+        }
+        if (typeof res.pending_requests_count === 'number') {
+          setPendingRequestsCount(res.pending_requests_count);
+        }
       }
     }).catch(() => {});
+  };
+
+  useEffect(() => {
+    refreshPermissions();
   }, []);
 
   // Keyboard shortcut Ctrl+K / Cmd+K
@@ -109,6 +133,9 @@ function DashboardShell({children}:{children:React.ReactNode}){
 
   if (!ready) return <div className="app-shell"><div className="main-shell"><main className="content"><LoadingState/></main></div></div>;
 
+  const currentModule = getModuleForRoute(pathname);
+  const isPageAuthorized = isRouteAllowedDynamically(pathname, isSuperAdmin, allowedModules, userRole);
+
   return (
     <div className="app-shell">
       {/* Mobile Backdrop overlay */}
@@ -140,9 +167,15 @@ function DashboardShell({children}:{children:React.ReactNode}){
           </button>
         </div>
 
-        {/* Sidebar Nav filtered by RBAC */}
+        {/* Sidebar Nav filtered dynamically by RBAC */}
         <nav style={{padding:'12px 10px',flex:1,overflowY:'auto'}}>
-          {navItems.filter(item => routeAllowed(item.href, userRole)).map(item => {
+          {navItems.filter(item => {
+            if (isSuperAdmin) return true;
+            if (item.moduleKey && allowedModules.length > 0) {
+              return allowedModules.includes(item.moduleKey);
+            }
+            return routeAllowed(item.href, userRole);
+          }).map(item => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             return (
@@ -173,8 +206,49 @@ function DashboardShell({children}:{children:React.ReactNode}){
           })}
         </nav>
 
-        {/* Sidebar Footer User Profile */}
+        {/* Sidebar Footer User Profile & Access Request */}
         <div style={{borderTop:'1px solid #1e3557',padding:'12px 16px',background:'#0a192f'}}>
+          {/* Request Workspace Access Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setRequestTargetModule('');
+              setRequestModalOpen(true);
+            }}
+            style={{
+              width: '100%',
+              padding: '7px 10px',
+              marginBottom: 10,
+              borderRadius: 8,
+              background: 'rgba(59, 130, 246, 0.15)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              color: '#93c5fd',
+              fontSize: 11.5,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <KeyRound size={13} className="text-blue-400" /> Request Access
+            </span>
+            {pendingRequestsCount > 0 && (
+              <span style={{
+                background: '#f59e0b',
+                color: '#0f172a',
+                padding: '1px 6px',
+                borderRadius: 10,
+                fontSize: 10,
+                fontWeight: 700
+              }}>
+                {pendingRequestsCount}
+              </span>
+            )}
+          </button>
+
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
             <div style={{
               width:38,
@@ -190,9 +264,9 @@ function DashboardShell({children}:{children:React.ReactNode}){
             }}>
               {username.slice(0, 2).toUpperCase()}
             </div>
-            <div style={{flex:1}}>
-              <strong style={{fontSize:13,color:'#ffffff',display:'block',lineHeight:1.2}}>{username}</strong>
-              <small style={{fontSize:11,color:'#94a3b8',display:'block'}}>{roleTitle}</small>
+            <div style={{flex:1, minWidth: 0}}>
+              <strong style={{fontSize:13,color:'#ffffff',display:'block',lineHeight:1.2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{username}</strong>
+              <small style={{fontSize:11,color:'#94a3b8',display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{roleTitle}</small>
             </div>
             <ChevronDown size={14} color="#94a3b8"/>
           </div>
@@ -258,6 +332,44 @@ function DashboardShell({children}:{children:React.ReactNode}){
               <kbd style={{fontSize:10,background:'#f1f5f9',padding:'1px 5px',borderRadius:4,border:'1px solid #cbd5e1'}}>Ctrl K</kbd>
             </button>
 
+            {/* Request Workspace Access Pill Button in Header */}
+            <button
+              type="button"
+              onClick={() => {
+                setRequestTargetModule('');
+                setRequestModalOpen(true);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '5px 11px',
+                borderRadius: 8,
+                fontSize: 11.5,
+                fontWeight: 600,
+                background: '#eff6ff',
+                color: '#1d4ed8',
+                border: '1px solid #bfdbfe',
+                cursor: 'pointer'
+              }}
+              title="Request Access to additional workspaces"
+            >
+              <KeyRound size={13} className="text-blue-600" />
+              <span className="hidden md:inline">Request Access</span>
+              {pendingRequestsCount > 0 && (
+                <span style={{
+                  background: '#f59e0b',
+                  color: '#ffffff',
+                  padding: '1px 5px',
+                  borderRadius: 10,
+                  fontSize: 10,
+                  fontWeight: 800
+                }}>
+                  {pendingRequestsCount}
+                </span>
+              )}
+            </button>
+
             {/* Backend Live Connection Status */}
             <div
               title={isConnected ? 'Backend API is connected & live' : 'Running in demo mode (backend offline)'}
@@ -319,11 +431,34 @@ function DashboardShell({children}:{children:React.ReactNode}){
           </div>
         </header>
 
-        {/* Content Shell */}
+        {/* Content Shell with Access Restriction Guard */}
         <main className="content" style={{maxWidth:1700,margin:'0 auto'}}>
-          {children}
+          {isPageAuthorized ? (
+            children
+          ) : (
+            <AccessRestricted
+              moduleName={currentModule.name}
+              moduleKey={currentModule.key}
+              roleTitle={roleTitle}
+              onRequestAccess={() => {
+                setRequestTargetModule(currentModule.key);
+                setRequestModalOpen(true);
+              }}
+            />
+          )}
         </main>
       </div>
+
+      {/* Global Access Request Modal */}
+      <AccessRequestModal
+        isOpen={requestModalOpen}
+        onClose={() => setRequestModalOpen(false)}
+        initialModule={requestTargetModule}
+        allowedModules={allowedModules}
+        onSubmitted={() => {
+          refreshPermissions();
+        }}
+      />
 
       {/* Global Omni-Search Dialog */}
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>

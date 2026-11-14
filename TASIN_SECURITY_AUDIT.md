@@ -48,3 +48,4 @@ TASIN ENTERPRISE enforces a strict 5-tier role hierarchy based on the client's o
   def delete(self, *args, **kwargs):
       raise RuntimeError("AuditEvent cannot be deleted.")
   ```
+
