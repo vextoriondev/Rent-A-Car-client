@@ -314,6 +314,7 @@ export default function AccessRequestsPage() {
         can_export: modExport,
         can_approve: modApprove,
         notes: adminNotes.trim(),
+        reviewer_username: 'admin',
       };
       await approveAccessRequest(1, activeRequest.id, payload);
       showToast(`✓ Access granted for ${activeRequest.user_name || activeRequest.username} to ${getModuleName(activeRequest.module)}`);
@@ -336,6 +337,7 @@ export default function AccessRequestsPage() {
         can_delete: req.can_delete,
         can_export: req.can_export,
         can_approve: req.can_approve,
+        reviewer_username: 'admin',
       });
       showToast(`✓ Access request #${req.id} approved directly`);
       loadData();

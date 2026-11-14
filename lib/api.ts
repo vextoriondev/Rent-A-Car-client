@@ -36,6 +36,15 @@ function csrf() {
   return document.cookie.split('; ').find(x => x.startsWith('csrftoken='))?.split('=')[1] || '';
 }
 
+export function getCurrentUsername(): string {
+  if (typeof window === 'undefined') return 'admin';
+  try {
+    return window.localStorage.getItem('rentflow_user') || 'admin';
+  } catch {
+    return 'admin';
+  }
+}
+
 export async function apiRequest(path: string, init?: RequestInit) {
   const method = init?.method || 'GET';
   if (method !== 'GET' && typeof window !== 'undefined') {
@@ -45,12 +54,14 @@ export async function apiRequest(path: string, init?: RequestInit) {
   }
   const token = csrf();
   const urlPath = method === 'GET' ? withBranch(path) : path;
+  const username = getCurrentUsername();
   const res = await fetch('/backend' + (urlPath.startsWith('/') ? urlPath : '/' + urlPath), {
     ...init,
     credentials: 'same-origin',
     headers: {
       ...(method !== 'GET' && token ? { 'X-CSRFToken': decodeURIComponent(token) } : {}),
       ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      'X-Username': username,
       'Accept-Language': serverLanguage(),
       ...init?.headers,
     },
@@ -69,7 +80,14 @@ export async function apiRequest(path: string, init?: RequestInit) {
 }
 
 export async function login(username: string, password: string) {
-  return apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+  const cleanUsername = username.trim();
+  const res = await apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ username: cleanUsername, password }) });
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem('rentflow_user', cleanUsername);
+    } catch {}
+  }
+  return res;
 }
 
 export async function register(payload: { organizationName: string; username: string; email: string; password: string }) {
@@ -85,11 +103,21 @@ export async function register(payload: { organizationName: string; username: st
 }
 
 export async function logout() {
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.removeItem('rentflow_user');
+    } catch {}
+  }
   return apiRequest('/auth/logout', { method: 'POST' });
 }
 
 export async function liveSnapshot(month = currentMonthRange().from, range?: { from: string; to: string }): Promise<LiveStore> {
   const me = await apiRequest('/me');
+  if (typeof window !== 'undefined' && me?.username) {
+    try {
+      window.localStorage.setItem('rentflow_user', me.username);
+    } catch {}
+  }
   const org = me.organizations?.find((x: { role: string }) =>
     ['admin', 'accountant', 'operations', 'viewer', 'mechanic'].includes(x.role)
   );
@@ -433,23 +461,45 @@ export async function submitAccessRequest(orgId: number = 1, data: {
 }
 
 export async function approveAccessRequest(orgId: number = 1, requestId: number | string, modifiedData?: unknown) {
+  const reviewer = getCurrentUsername();
+  const payloadObj = (modifiedData && typeof modifiedData === 'object') ? { ...modifiedData } : {};
+  const body = {
+    reviewer_username: reviewer,
+    ...payloadObj,
+  };
   return apiRequest(`/orgs/${orgId}/access-requests/${requestId}/approve`, {
     method: 'POST',
-    body: modifiedData ? JSON.stringify(modifiedData) : JSON.stringify({})
+    headers: {
+      'X-Username': reviewer,
+    },
+    body: JSON.stringify(body)
   });
 }
 
 export async function rejectAccessRequest(orgId: number = 1, requestId: number | string, rejectionReason: string) {
+  const reviewer = getCurrentUsername();
   return apiRequest(`/orgs/${orgId}/access-requests/${requestId}/reject`, {
     method: 'POST',
-    body: JSON.stringify({ rejection_reason: rejectionReason })
+    headers: {
+      'X-Username': reviewer,
+    },
+    body: JSON.stringify({
+      rejection_reason: rejectionReason,
+      reviewer_username: reviewer,
+    })
   });
 }
 
 export async function fetchUserPermissions(orgId: number = 1, userId?: number | string) {
   let url = `/orgs/${orgId}/rbac/permissions`;
   if (userId) url += `?user_id=${userId}`;
-  return apiRequest(url);
+  const res = await apiRequest(url);
+  if (typeof window !== 'undefined' && res?.username && res.username !== 'guest') {
+    try {
+      window.localStorage.setItem('rentflow_user', res.username);
+    } catch {}
+  }
+  return res;
 }
 
 // ─── MODULE 05 & 06: INVOICING & CLIENT PROFILES ─────────────────────────────
