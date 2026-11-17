@@ -7,7 +7,7 @@ const ctx = await b.newContext({viewport: {width: 1440, height: 900}});
 await ctx.addInitScript(() => { window.print = () => {}; });
 const page = await ctx.newPage();
 await page.goto(BASE + '/login');
-await page.fill('input[autocomplete="username"]', 'e2e_boss'); await page.fill('input[type="password"]', 'E2e-pass-12345');
+await page.fill('input[autocomplete="username"]', (process.env.E2E_USER || (()=>{throw new Error('set E2E_USER')})())); await page.fill('input[type="password"]', (process.env.E2E_PASS || (()=>{throw new Error('set E2E_PASS')})()));
 await page.click('button[type="submit"]'); await page.waitForURL(x => !x.pathname.startsWith('/login'));
 const ck = async () => (await ctx.cookies()).find(c => c.name === 'csrftoken')?.value || '';
 const me = await (await page.request.get(BASE + '/backend/me')).json(); const ORG = me.organizations[0].id;

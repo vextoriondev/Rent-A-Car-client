@@ -3,8 +3,8 @@ const BASE = 'http://127.0.0.1:3100';
 const b = await chromium.launch({channel: 'msedge', headless: true});
 const page = await (await b.newContext({viewport: {width: 360, height: 800}})).newPage();
 await page.goto(BASE + '/login');
-await page.fill('input[autocomplete="username"]', 'e2e_boss');
-await page.fill('input[type="password"]', 'E2e-pass-12345');
+await page.fill('input[autocomplete="username"]', (process.env.E2E_USER || (()=>{throw new Error('set E2E_USER')})()));
+await page.fill('input[type="password"]', (process.env.E2E_PASS || (()=>{throw new Error('set E2E_PASS')})()));
 await page.click('button[type="submit"]');
 await page.waitForURL(u => !u.pathname.startsWith('/login'));
 for (const route of process.argv.slice(2)) {
