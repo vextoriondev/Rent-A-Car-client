@@ -2,7 +2,7 @@
 import {useCallback, useEffect, useState} from 'react';
 import {Landmark, Printer, CalendarPlus, Banknote} from 'lucide-react';
 import {Card} from '@/components/ui/card';
-import {accrueRent, collectClientLedger, fetchClientFinance, fetchOwnerFinance, payOwnerLedger, previewRent, reverseRentAccrual} from '@/lib/finance-api';
+import {postOwnerCharge, accrueRent, collectClientLedger, fetchClientFinance, fetchOwnerFinance, payOwnerLedger, previewRent, reverseRentAccrual} from '@/lib/finance-api';
 import {Field, FormDialog, HistoryTable, Input, MethodSelect, Stat, errText, taka, thisMonth, todayISO, useIdemKey} from './common';
 import {OpeningBalanceDialog} from './opening-balance';
 
@@ -12,7 +12,7 @@ export function PartyFinancePanel({kind, partyId, partyName, onChanged}: {kind: 
   const [s, setS] = useState<Record<string, any> | null>(null);
   const [err, setErr] = useState('');
   const [from, setFrom] = useState(''); const [to, setTo] = useState('');
-  const [dlg, setDlg] = useState<'' | 'pay' | 'opening' | 'rent'>('');
+  const [dlg, setDlg] = useState<'' | 'pay' | 'opening' | 'rent' | 'charge'>('');
   const [toast, setToast] = useState('');
 
   const load = useCallback(() => {
@@ -37,6 +37,7 @@ export function PartyFinancePanel({kind, partyId, partyName, onChanged}: {kind: 
         <div style={{display: 'flex', gap: 6, flexWrap: 'wrap'}}>
           <button className="btn-reset" onClick={() => setDlg('opening')}><Landmark size={14} /> Opening balance</button>
           {isOwner && <button className="btn-reset" onClick={() => setDlg('rent')}><CalendarPlus size={14} /> Monthly rent accrual</button>}
+          {isOwner && <button className="btn-reset" onClick={() => setDlg('charge')}><Banknote size={14} /> Additional charge</button>}
           <button className="btn-primary-blue" style={{height: 34, padding: '0 14px', borderRadius: 8}} onClick={() => setDlg('pay')}><Banknote size={14} /> {isOwner ? 'Pay owner' : 'Receive payment'}</button>
         </div>
       </div>
@@ -81,6 +82,7 @@ export function PartyFinancePanel({kind, partyId, partyName, onChanged}: {kind: 
       <PayDialog open={dlg === 'pay'} onOpenChange={o => !o && setDlg('')} isOwner={isOwner} partyId={partyId} partyName={partyName}
         outstanding={isOwner ? Number(s?.currentPayable || 0) : Number(s?.outstandingReceivable || 0)} onDone={() => done(isOwner ? 'Payment recorded' : 'Collection recorded')} />
       <OpeningBalanceDialog open={dlg === 'opening'} onOpenChange={o => !o && setDlg('')} partyId={partyId} partyName={partyName} kind={kind} onDone={() => done('Opening balance recorded')} />
+      {isOwner && <ChargeDialog open={dlg === 'charge'} onOpenChange={o => !o && setDlg('')} ownerId={partyId} ownerName={partyName} onDone={() => done('Charge recorded')} />}
       {isOwner && <RentDialog open={dlg === 'rent'} onOpenChange={o => !o && setDlg('')} ownerId={partyId} accruals={s?.accruals || []} onDone={() => done('Rent accrual updated')} />}
     </Card>
   );
@@ -123,8 +125,10 @@ function RentDialog({open, onOpenChange, ownerId, accruals, onDone}: {open: bool
       <Field label="Billing month"><Input type="month" value={period} onChange={e => setPeriod(e.target.value)} /></Field>
       {err && <div role="alert" style={{color: '#b42318', fontSize: 12.5}}>{err}</div>}
       {!lines ? <div style={{fontSize: 12.5, color: '#64748b'}}>Loading eligible vehicles…</div> : lines.length === 0 ? <div style={{fontSize: 12.5, color: '#64748b'}}>No active vehicles with a rent agreement cover this month.</div> : (
-        <table style={{width: '100%', fontSize: 12.5, borderCollapse: 'collapse'}}><thead><tr style={{textAlign: 'left', background: '#f8fafc'}}><th style={{padding: 6}}>Vehicle</th><th style={{padding: 6}}>Rent</th><th style={{padding: 6}}>Status</th></tr></thead>
-          <tbody>{lines.map(l => <tr key={l.vehicleId} style={{borderTop: '1px solid #f1f5f9'}}><td style={{padding: 6}}>{l.registration}</td><td className="nums" style={{padding: 6}}>{taka(l.amount)}</td><td style={{padding: 6}}>{l.alreadyPosted ? 'Already posted' : 'To post'}</td></tr>)}</tbody></table>)}
+        <div style={{overflowX: 'auto'}}><table style={{width: '100%', fontSize: 12, borderCollapse: 'collapse'}}><thead><tr style={{textAlign: 'left', background: '#f8fafc'}}>{['Vehicle', 'Monthly rate', 'Basis', 'Days charged', 'Calculation', 'Amount', 'Status'].map(h => <th key={h} style={{padding: 6, whiteSpace: 'nowrap'}}>{h}</th>)}</tr></thead>
+          <tbody>{lines.map(l => <tr key={l.vehicleId} style={{borderTop: '1px solid #f1f5f9'}}><td style={{padding: 6}}>{l.registration}</td><td className="nums" style={{padding: 6}}>{taka(l.monthlyRate)}</td>
+            <td style={{padding: 6}}>{String(l.basis).replace(/_/g, ' ')}</td><td style={{padding: 6}}>{l.daysCharged} / {l.daysInBasis}</td><td style={{padding: 6}}>{l.calculation}</td>
+            <td className="nums" style={{padding: 6, fontWeight: 700}}>{taka(l.amount)}</td><td style={{padding: 6}}>{l.alreadyPosted ? `Posted ${taka(l.postedAmount)}` : 'To post'}</td></tr>)}</tbody></table></div>)}
       {accruals.filter(a => a.status === 'posted').length > 0 && (<>
         <h4 style={{fontSize: 12.5, margin: '6px 0 0'}}>Correct a posted accrual</h4>
         {accruals.filter(a => a.status === 'posted').map(a => (
@@ -136,6 +140,21 @@ function RentDialog({open, onOpenChange, ownerId, accruals, onDone}: {open: bool
             }}>Reverse</button>
           </div>))}
       </>)}
+    </FormDialog>
+  );
+}
+
+function ChargeDialog({open, onOpenChange, ownerId, ownerName, onDone}: {open: boolean; onOpenChange: (o: boolean) => void; ownerId: string; ownerName: string; onDone: () => void}) {
+  const [amount, setAmount] = useState(''); const [date, setDate] = useState(todayISO()); const [desc, setDesc] = useState(''); const [ref, setRef] = useState('');
+  const key = useIdemKey(open);
+  return (
+    <FormDialog open={open} onOpenChange={onOpenChange} title={`Additional charge – ${ownerName}`} description="An approved extra amount payable to the owner (not monthly rent)." submitLabel="Add charge"
+      disabled={!(Number(amount) > 0) || !desc.trim()} confirmText={`Add a payable of ${taka(amount)} to ${ownerName}?`}
+      onSubmit={async () => { try { await postOwnerCharge(ownerId, {amount, date, description: desc, reference: ref}, key.get()); key.renew(); setAmount(''); setDesc(''); setRef(''); onDone(); return null; } catch (e) { return errText(e); } }}>
+      <Field label="Amount (৳) *"><Input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} /></Field>
+      <Field label="Date"><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></Field>
+      <Field label="Description *"><Input value={desc} onChange={e => setDesc(e.target.value)} /></Field>
+      <Field label="Reference"><Input value={ref} onChange={e => setRef(e.target.value)} /></Field>
     </FormDialog>
   );
 }

@@ -100,9 +100,14 @@ export function BillingWorkspace(){
     <div className="settlement-buttons">
      <Can action="finance">
      <Button disabled={closed} onClick={()=>setDialog('charge')}><Plus size={16}/> {t('billing.billingWorkspace.addChargeOrCredit')}</Button>
-     <Button variant="outline" disabled={closed} onClick={()=>setDialog('split')}><Split size={16}/> {t('billing.billingWorkspace.splitAPayment')}</Button>
      <Button variant="outline" onClick={()=>setDialog('invoice')}><FilePlus2 size={16}/> {t('billing.billingWorkspace.invoice2')}</Button>
-     <Button variant="outline" disabled={busy||closed} onClick={()=>void carryForward()}><Landmark size={16}/> {t('billing.billingWorkspace.bringBalanceForward')}</Button>
+     <details className="billing-more" style={{display:'inline-block'}}>
+      <summary style={{cursor:'pointer',padding:'8px 12px',border:'1px solid #cbd5e1',borderRadius:8,fontSize:13,listStyle:'none'}}>More actions ▾</summary>
+      <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}>
+       <Button variant="outline" disabled={closed} onClick={()=>setDialog('split')}><Split size={16}/> {t('billing.billingWorkspace.splitAPayment')}</Button>
+       <Button variant="outline" disabled={busy||closed} onClick={()=>void carryForward()}><Landmark size={16}/> {t('billing.billingWorkspace.bringBalanceForward')}</Button>
+      </div>
+     </details>
      </Can>
     </div>
    </div>

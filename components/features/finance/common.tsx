@@ -40,9 +40,9 @@ export function Stat({label, value, tone}: {label: string; value: string; tone?:
 }
 
 /** Dialog wrapper with a submit button that shows progress, a confirm step for sensitive money actions, and an error line. */
-export function FormDialog({open, onOpenChange, title, description, submitLabel, onSubmit, children, disabled, confirmText, wide}: {
+export function FormDialog({open, onOpenChange, title, description, submitLabel, onSubmit, children, disabled, confirmText, wide, keepOpen}: {
   open: boolean; onOpenChange: (o: boolean) => void; title: string; description?: string; submitLabel: string;
-  onSubmit: () => Promise<string | null>; children: ReactNode; disabled?: boolean; confirmText?: string; wide?: boolean;
+  onSubmit: () => Promise<string | null>; children: ReactNode; disabled?: boolean; confirmText?: string; wide?: boolean; keepOpen?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -53,7 +53,7 @@ export function FormDialog({open, onOpenChange, title, description, submitLabel,
     setBusy(true); setError('');
     try {
       const err = await onSubmit();
-      if (err) { setError(err); setConfirming(false); } else onOpenChange(false);
+      if (err) { setError(err); setConfirming(false); } else { setConfirming(false); if (!keepOpen) onOpenChange(false); }
     } catch (e) { setError(errText(e)); setConfirming(false); } finally { setBusy(false); }
   }
   return (

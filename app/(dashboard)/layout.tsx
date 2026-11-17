@@ -308,7 +308,7 @@ function DashboardShell({children}:{children:React.ReactNode}){
       <div className="main-shell" style={{background:'#f0f4f9'}}>
         {/* Topbar */}
         <header className="topbar">
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div className="topbar-left" style={{display:'flex',alignItems:'center',gap:10}}>
             <button className="menu-button" onClick={()=>setMobileMenu(true)} aria-label="Open menu">
               <Menu size={20}/>
             </button>
@@ -322,7 +322,7 @@ function DashboardShell({children}:{children:React.ReactNode}){
             </div>
           </div>
 
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div className="topbar-right" style={{display:'flex',alignItems:'center',gap:10}}>
             {/* Global Search Button */}
             <button
               onClick={() => setSearchOpen(true)}

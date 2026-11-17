@@ -144,7 +144,9 @@ function SalaryDialog({open, onOpenChange, driverId, driverName, summary, onDone
   const [month, setMonth] = useState(thisMonth()); const [date, setDate] = useState(todayISO()); const [method, setMethod] = useState('Cash'); const [ref, setRef] = useState(''); const [notes, setNotes] = useState('');
   const [adv, setAdv] = useState(''); const [fuel, setFuel] = useState(''); const [mode, setMode] = useState('cash'); const [dir, setDir] = useState('driver_owes'); const [paid, setPaid] = useState('');
   const key = useIdemKey(open);
+  useEffect(() => { if (open) { setAdv(''); setFuel(''); setPaid(''); setRef(''); setNotes(''); setMonth(thisMonth()); setDate(todayISO()); } }, [open]);
   const accrued: string[] = summary.accruedPeriods || [];
+  const alreadyPaid = (summary.salaryPayments || []).some((p: any) => p.month === month && p.status === 'posted');
   const salaryDue = Number(summary.remainingSalaryDue) + (accrued.includes(month) ? 0 : Number(summary.monthlySalary));
   const advBal = Number(summary.remainingAdvanceDue);
   const fuelBal = Number(dir === 'driver_owes' ? summary.remainingFuelGas : summary.remainingFuelGasReimbursable);
@@ -158,6 +160,7 @@ function SalaryDialog({open, onOpenChange, driverId, driverName, summary, onDone
   if (deduction > salaryDue) errors.adv = errors.adv || 'Adjustments exceed the salary payable';
   const paidNum = paid === '' ? net : Number(paid);
   if (paidNum > net || paidNum < 0) errors.paid = `Amount paid must be between 0 and ${taka(net)}`;
+  if (alreadyPaid) errors.month = `Salary for ${month} has already been settled for this driver`;
   const ok = Object.keys(errors).length === 0 && salaryDue > 0;
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} wide title={`Pay salary – ${driverName}`} submitLabel="Pay salary" disabled={!ok}
@@ -174,14 +177,14 @@ function SalaryDialog({open, onOpenChange, driverId, driverName, summary, onDone
         <Stat label="Monthly salary" value={taka(summary.monthlySalary)} /><Stat label="Advance outstanding" value={taka(advBal)} /><Stat label="Fuel/Gas outstanding" value={taka(fuelBal)} />
       </div>
       <div className="form-grid">
-        <Field label="Salary month *"><Input type="month" value={month} onChange={e => setMonth(e.target.value)} /></Field>
+        <Field label="Salary month *" error={errors.month}><Input type="month" value={month} onChange={e => setMonth(e.target.value)} /></Field>
         <Field label="Payment date"><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></Field>
         <Field label="Advance adjustment (৳)" error={errors.adv} hint={`Remaining advance after: ${taka(advBal - a)}`}><Input type="number" min="0" step="0.01" value={adv} onChange={e => setAdv(e.target.value)} /></Field>
         <Field label="Fuel/Gas type"><NativeSelect value={dir} onChange={setDir}><option value="driver_owes">Money held by driver</option><option value="company_owes">Reimbursable to driver</option></NativeSelect></Field>
         <Field label="Fuel/Gas settlement (৳)" error={errors.fuel} hint={`Remaining after: ${taka(fuelBal - f)}`}><Input type="number" min="0" step="0.01" value={fuel} onChange={e => setFuel(e.target.value)} /></Field>
         <Field label="Settled by">
           <NativeSelect value={mode} onChange={setMode}>
-            {dir === 'driver_owes' ? <><option value="cash">Cash returned by driver (separate from salary)</option><option value="salary_deduction">Deduct from salary</option></> : <><option value="cash">Paid to driver in cash (separate)</option><option value="salary_addition">Add to salary</option></>}
+            {dir === 'driver_owes' ? <><option value="cash">Cash returned by driver (separate from salary)</option><option value="salary_deduction">Deduct from salary</option><option value="carry_forward">Leave outstanding (carry forward)</option></> : <><option value="cash">Paid to driver in cash (separate)</option><option value="salary_addition">Add to salary</option><option value="carry_forward">Leave outstanding (carry forward)</option></>}
           </NativeSelect>
         </Field>
         <Field label="Payment method"><MethodSelect value={method} onChange={setMethod} /></Field>

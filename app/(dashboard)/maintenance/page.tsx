@@ -35,6 +35,7 @@ import {
   Fuel,
   Droplet
 } from 'lucide-react';
+import {GaragePayables} from '@/components/features/finance/garage-and-settings';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
@@ -98,12 +99,12 @@ export default function MaintenancePage(){
     vehicle_reg: '',
     garage_name: '',
     date: new Date().toISOString().slice(0,10),
-    problem_description: 'Periodic maintenance checkup',
+    problem_description: '',
     service_type: 'General Service',
     custom_purpose: '',
     parts_details: '',
-    labour_cost: 1500,
-    parts_cost: 3500,
+    labour_cost: 0,
+    parts_cost: 0,
     expected_delivery: new Date().toISOString().slice(0,10),
     status: 'Pending'
   });
@@ -1283,6 +1284,8 @@ export default function MaintenancePage(){
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <GaragePayables/>
 
       {/* Toast notification */}
       {toast&&<div className="toast" role="status"><CheckCircle2 size={18}/>{toast}<button onClick={()=>setToast('')} aria-label="Dismiss"><X size={16}/></button></div>}

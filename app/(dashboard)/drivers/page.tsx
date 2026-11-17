@@ -3,7 +3,7 @@ import {useState,useMemo,useEffect} from 'react';
 import Link from 'next/link';
 import {DriverFinancePanel} from '@/components/features/finance/driver-finance-panel';
 import {ReplacementsPanel} from '@/components/features/finance/replacements-panel';
-import {fetchDrivers,createDriver,updateDriver,deleteDriver,fetchDriverAttendance,recordDriverAttendance} from '@/lib/api';
+import {fetchDuties,fetchDrivers,createDriver,updateDriver,deleteDriver,fetchDriverAttendance,recordDriverAttendance} from '@/lib/api';
 import {
   UserRound,
   CheckCircle2,
@@ -66,6 +66,7 @@ export default function DriversPage(){
   const [editOpen,setEditOpen]=useState(false);
   const [editDriver,setEditDriver]=useState<any>(null);
   const [panelRequest,setPanelRequest]=useState<'salary'|null>(null);
+  const [duties,setDuties]=useState<any[]>([]);
   const [newDriver,setNewDriver]=useState({
     name:'',
     phone:'',
@@ -140,21 +141,21 @@ export default function DriversPage(){
           const mapped: DriverRecord[] = data.map((d: any) => ({
             id: String(d.id),
             name: d.name,
-            phone: d.mobile || d.phone || '01712-345678',
-            licenseNo: d.licenseNo || 'DHA-2021-12345',
+            phone: d.mobile || d.phone || '—',
+            licenseNo: d.licenseNo || '—',
             licenseType: d.licenseType || 'Professional',
-            experience: d.experience || '5 Years',
+            experience: d.joiningDate ? `${Math.max(0, Math.floor((Date.now() - new Date(d.joiningDate).getTime()) / 31557600000))} yr(s) with us` : '—',
             salary: Number(d.monthlySalary) || 0,
             advanceDue: Number(d.advanceDue) || 0,
             fuelGasDue: Number(d.fuelGasDue) || 0,
-            status: (d.status === 'Active' || d.status === 'On Leave' ? d.status : 'Active') as DriverRecord['status'],
-            address: d.presentAddress || 'Dhaka',
-            joiningDate: d.joiningDate || '10 Jan 2021',
-            trips: Number(d.trips) || 120,
-            rating: d.rating || '4.8 / 5',
-            onTime: d.onTime || '95%',
-            workingDays: Number(d.workingDays) || 340,
-            earnings: Number(d.totalPaid) || 120000,
+            status: (d.status === 'Active' || d.status === 'On Leave' ? d.status : d.status === 'Inactive' ? 'Inactive' : 'Active') as DriverRecord['status'],
+            address: d.presentAddress || '—',
+            joiningDate: d.joiningDate || '—',
+            trips: 0,
+            rating: '',
+            onTime: '',
+            workingDays: 0,
+            earnings: Number(d.totalPaid) || 0,
           }));
           setDrivers(mapped);
           if (mapped.length > 0) {
@@ -168,6 +169,7 @@ export default function DriversPage(){
 
   useEffect(()=>{
     loadData();
+    fetchDuties(1).then((r:any)=>Array.isArray(r)&&setDuties(r)).catch(()=>{});
   }, []);
 
   const filtered=useMemo(()=>drivers.filter(d=>{
@@ -186,12 +188,14 @@ export default function DriversPage(){
   const paged = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const activeDriver = (selectedDriver && filtered.find(d => d.id === selectedDriver.id)) || filtered[0] || null;
+  const driverDuties = activeDriver ? duties.filter((x:any)=>x.driverId===activeDriver.id) : [];
+  const dutyDays = new Set(driverDuties.map((x:any)=>x.date)).size;
 
   // Real-time aggregates directly from database records
   const totalDriversCount = drivers.length;
   const activeDriversCount = drivers.filter(d => d.status === 'Active').length;
   const inactiveDriversCount = drivers.filter(d => d.status !== 'Active').length;
-  const totalTripsCount = drivers.reduce((acc, d) => acc + (d.trips || 0), 0);
+  const totalTripsCount = duties.filter((x:any)=>x.driverId).length;
 
   function handleReset(){
     setQ('');
@@ -699,60 +703,37 @@ export default function DriversPage(){
 
         {/* Middle: Performance Stats + Recent Duties */}
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
-          {/* 4 Mini Cards Row */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(90px, 1fr))',gap:8}}>
-            {/* Total Trips */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(110px, 1fr))',gap:8}}>
             <div style={{background:'#eff6ff',border:'1px solid #dbeafe',borderRadius:8,padding:'10px 8px',textAlign:'center'}}>
               <CarFront size={18} color="#1677ff" style={{margin:'0 auto 4px'}}/>
-              <span style={{fontSize:10,color:'#64748b',display:'block'}}>Total Trips</span>
-              <strong style={{fontSize:18,fontWeight:800,color:'#0f172a',display:'block',marginTop:2}}>{activeDriver?.trips ?? 0}</strong>
+              <span style={{fontSize:10,color:'#64748b',display:'block'}}>Total Duties</span>
+              <strong style={{fontSize:18,fontWeight:800,color:'#0f172a',display:'block',marginTop:2}}>{driverDuties.length}</strong>
             </div>
-
-            {/* Rating */}
-            <div style={{background:'#fffbeb',border:'1px solid #fef3c7',borderRadius:8,padding:'10px 8px',textAlign:'center'}}>
-              <Star size={18} color="#f59e0b" style={{margin:'0 auto 4px'}}/>
-              <span style={{fontSize:10,color:'#64748b',display:'block'}}>Rating</span>
-              <strong style={{fontSize:14,fontWeight:800,color:'#0f172a',display:'block',marginTop:4}}>{activeDriver?.rating ?? '4.8 / 5'}</strong>
-            </div>
-
-            {/* On-Time Rate */}
-            <div style={{background:'#f0fdf4',border:'1px solid #dcfce7',borderRadius:8,padding:'10px 8px',textAlign:'center'}}>
-              <Clock size={18} color="#16a34a" style={{margin:'0 auto 4px'}}/>
-              <span style={{fontSize:10,color:'#64748b',display:'block'}}>On-Time Rate</span>
-              <strong style={{fontSize:14,fontWeight:800,color:'#0f172a',display:'block',marginTop:4}}>{activeDriver?.onTime ?? '95%'}</strong>
-            </div>
-
-            {/* Working Days */}
             <div style={{background:'#faf5ff',border:'1px solid #f3e8ff',borderRadius:8,padding:'10px 8px',textAlign:'center'}}>
               <Trophy size={18} color="#9333ea" style={{margin:'0 auto 4px'}}/>
-              <span style={{fontSize:10,color:'#64748b',display:'block'}}>Working Days</span>
-              <strong style={{fontSize:16,fontWeight:800,color:'#0f172a',display:'block',marginTop:2}}>{activeDriver?.workingDays ?? 180}</strong>
+              <span style={{fontSize:10,color:'#64748b',display:'block'}}>Days on Duty</span>
+              <strong style={{fontSize:18,fontWeight:800,color:'#0f172a',display:'block',marginTop:2}}>{dutyDays}</strong>
             </div>
           </div>
 
-          {/* Recent Duties Table */}
           <Card style={{padding:'12px 16px',borderRadius:10,background:'#fff',border:'1px solid #e2e8f0',flex:1}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
               <h4 style={{fontSize:13,fontWeight:750,color:'#0f172a',margin:0}}>Recent Duties</h4>
               <Link href="/duties" style={{fontSize:11.5,color:'#1677ff',fontWeight:600,textDecoration:'none'}}>View All →</Link>
             </div>
-
             <div style={{display:'flex',flexDirection:'column',gap:6}}>
               <div style={{display:'grid',gridTemplateColumns:'90px 1fr 100px auto',fontSize:11,fontWeight:700,color:'#64748b',borderBottom:'1px solid #f1f5f9',paddingBottom:4}}>
                 <span>Date</span><span>Route / Destination</span><span>Vehicle</span><span>Amount</span>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'90px 1fr 100px auto',fontSize:12,color:'#334155',alignItems:'center'}}>
-                <span style={{color:'#64748b',fontSize:11}}>01 Nov 2026</span>
-                <span>Dhaka to Airport Drop</span>
-                <span style={{color:'#1677ff',fontSize:11}}>DHA-GA-19</span>
-                <strong style={{color:'#0f172a',fontWeight:700}}>৳ 2,500</strong>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'90px 1fr 100px auto',fontSize:12,color:'#334155',alignItems:'center'}}>
-                <span style={{color:'#64748b',fontSize:11}}>28 Oct 2026</span>
-                <span>Uttara to Gulshan Round</span>
-                <span style={{color:'#1677ff',fontSize:11}}>DHA-GA-22</span>
-                <strong style={{color:'#0f172a',fontWeight:700}}>৳ 3,200</strong>
-              </div>
+              {driverDuties.length===0 && <span style={{fontSize:12,color:'#64748b'}}>No duties recorded for this driver.</span>}
+              {driverDuties.slice(0,5).map((x:any)=>(
+                <div key={x.id} style={{display:'grid',gridTemplateColumns:'90px 1fr 100px auto',fontSize:12,color:'#334155',alignItems:'center'}}>
+                  <span style={{color:'#64748b',fontSize:11}}>{x.date}</span>
+                  <span>{x.pickupLocation} → {x.destination}</span>
+                  <span style={{color:'#1677ff',fontSize:11}}>{x.vehicleReg}</span>
+                  <strong style={{color:'#0f172a',fontWeight:700}}>{fmt(x.totalAmount)}</strong>
+                </div>
+              ))}
             </div>
           </Card>
         </div>

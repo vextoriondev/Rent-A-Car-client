@@ -705,7 +705,7 @@ export async function matchBankReconciliation(orgId: number = 1, accountId: numb
 // ─── MODULE 13: AD-HOC CUSTOM REPORT BUILDER ─────────────────────────────────
 
 export async function buildCustomReport(orgId: number = 1, payload: { module: string; fields?: string[]; start_date?: string; end_date?: string; status_filter?: string; filters?: any }) {
-  return apiRequest(`/orgs/${orgId}/reports/custom-builder`, {
+  return apiRequest(`/orgs/${orgId}/custom-report-builder`, {
     method: 'POST',
     body: JSON.stringify(payload)
   });
@@ -714,14 +714,14 @@ export async function buildCustomReport(orgId: number = 1, payload: { module: st
 // ─── SECURE FILE UPLOAD & DOCUMENTS ──────────────────────────────────────────
 
 export async function uploadDocument(orgId: number = 1, payload: { entity_type: string; entity_id: string; document_type: string; file_name: string; file_base64: string; mime_type?: string }) {
-  return apiRequest(`/orgs/${orgId}/documents/upload`, {
+  return apiRequest(`/orgs/${orgId}/private-documents/upload`, {
     method: 'POST',
     body: JSON.stringify(payload)
   });
 }
 
 export async function fetchDocuments(orgId: number = 1, entityType: string, entityId: string) {
-  return apiRequest(`/orgs/${orgId}/documents?entity_type=${encodeURIComponent(entityType)}&entity_id=${encodeURIComponent(entityId)}`);
+  return apiRequest(`/orgs/${orgId}/private-documents?entity_type=${encodeURIComponent(entityType)}&entity_id=${encodeURIComponent(entityId)}`);
 }
 
 export async function downloadDatabaseBackup(orgId: number = 1) {

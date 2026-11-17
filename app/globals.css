@@ -508,3 +508,28 @@ body{background:#f0f4f9!important}
     width: 100vw !important;
   }
 }
+
+
+/* ─── Responsive fixes (final round): no horizontal page overflow on phones ─── */
+.topbar-left{min-width:0;flex:1 1 auto}
+.topbar-title{min-width:0}
+.topbar-title h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-right{flex:0 1 auto;min-width:0}
+@media (max-width:560px){
+  .topbar-right{gap:6px!important}
+  .topbar-right kbd{display:none}
+  .topbar-right > div:has(.topbar-badge-text){display:none!important}
+  .topbar-right > button{flex:0 0 auto}
+}
+@media (max-width:640px){
+  /* page-level toolbars and header action rows wrap instead of pushing the page wider than the screen */
+  .content [style*="display: flex"]:not(.table-responsive-container *):not([style*="flex-direction: column"]){flex-wrap:wrap}
+  .content [style*="justify-content: space-between"] > *{min-width:0}
+  .content .btn-primary-blue,.content .btn-reset{max-width:100%}
+  .content .flex:not(.flex-col):not(.flex-nowrap):not(.table-responsive-container *){flex-wrap:wrap}
+}
+@media print{
+  .sidebar,.topbar,.toast,.mobile-close,.no-print{display:none!important}
+  .content{padding:0!important;max-width:none!important}
+  .main-shell{width:100%!important}
+}

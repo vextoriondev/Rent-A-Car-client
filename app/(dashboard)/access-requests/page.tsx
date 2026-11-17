@@ -519,7 +519,7 @@ export default function AccessRequestsPage() {
         {/* Filter Toolbar */}
         <div className="p-4 border-b border-slate-200 bg-slate-50/60 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           {/* Status Tabs */}
-          <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200">
+          <div className="flex flex-wrap items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 max-w-full">
             {(['All', 'Pending', 'Approved', 'Rejected'] as const).map(st => (
               <button
                 key={st}

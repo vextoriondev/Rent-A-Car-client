@@ -56,3 +56,10 @@ export const fetchAllDocuments = (p?: Record<string, string>) => get('/documents
 export const addVehicleDocument = (vehicleId: number | string, body: unknown) => post(`/vehicles/${vehicleId}/documents`, body);
 export const updateDocument = (id: number | string, body: unknown) => apiRequest(`/orgs/${ORG}/documents-all/${id}`, {method: 'PUT', body: j(body)});
 export const deleteDocument = (id: number | string) => apiRequest(`/orgs/${ORG}/documents-all/${id}`, {method: 'DELETE'});
+
+// finance policy, garage payables, owner charges, entry reversal
+export const fetchFinanceSettings = () => get('/finance-settings');
+export const saveFinanceSettings = (body: unknown) => apiRequest(`/orgs/${ORG}/finance-settings`, {method: 'PUT', body: j(body)});
+export const postOwnerCharge = (ownerId: number | string, body: unknown, key: string) => post(`/owners/${ownerId}/charges`, body, key);
+export const reverseLedgerEntry = (entryId: number | string, reason: string) => post(`/ledger-entries/${entryId}/reverse`, {reason});
+export const fetchExpenseSummary = (p: Record<string, string>) => get('/expense-summary', p);

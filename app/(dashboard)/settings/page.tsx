@@ -14,6 +14,7 @@ import {
   downloadDatabaseBackup
 } from '@/lib/api';
 import { Card } from '@/components/ui/card';
+import { FinanceSettingsCard } from '@/components/features/finance/garage-and-settings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -941,6 +942,7 @@ export default function SettingsPage() {
 
         {/* ─── TAB 1: COMPANY PROFILE ────────────────────────────────────────── */}
         <TabsContent value="company" className="mt-5 space-y-6">
+          <FinanceSettingsCard />
           <Card className="p-6 border-slate-200/80 shadow-sm rounded-xl">
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
               <div>
