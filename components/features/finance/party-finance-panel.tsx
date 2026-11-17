@@ -26,7 +26,7 @@ export function PartyFinancePanel({kind, partyId, partyName, onChanged}: {kind: 
     if (!s) return;
     const w = window.open('', '_blank', 'width=900,height=700'); if (!w) return;
     const rows = s.history.map((h: any) => `<tr><td>${h.date}</td><td>${String(h.account).replace(/_/g, ' ')}</td><td>${h.type}</td><td>${h.description || ''}</td><td>${h.reference || ''}</td><td style="text-align:right">${h.delta}</td></tr>`).join('');
-    w.document.write(`<html><head><title>Statement</title><style>body{font-family:Arial;padding:24px;font-size:12px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:4px 6px}</style></head><body><h2>${isOwner ? 'Owner' : 'Client'} statement – ${partyName}</h2><p>${from || 'Start'} to ${to || 'today'} · generated ${new Date().toLocaleString()}</p><table><tr><th>Date</th><th>Account</th><th>Type</th><th>Description</th><th>Ref</th><th>Amount</th></tr>${rows}</table></body></html>`);
+    w.document.write(`<html><head><title>Statement</title><style>body{font-family:Arial;font-size:12px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:4px 6px}@page{size:A4;margin:14mm}thead{display:table-header-group}tr{page-break-inside:avoid}tfoot{display:table-footer-group}</style></head><body><h2>${isOwner ? 'Owner' : 'Client'} statement – ${partyName}</h2><p>${from || 'Start'} to ${to || 'today'} · generated ${new Date().toLocaleString()}</p><table><thead><tr><th>Date</th><th>Account</th><th>Type</th><th>Description</th><th>Ref</th><th>Amount</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
     w.document.close(); w.print();
   }
 

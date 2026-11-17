@@ -30,7 +30,7 @@ export function DailyReport() {
 
   return (
     <div className="daily-report" style={{display: 'flex', flexDirection: 'column', gap: 14}}>
-      <style>{`@media print{body *{visibility:hidden}.daily-report-print,.daily-report-print *{visibility:visible}.daily-report-print{position:absolute;left:0;top:0;width:100%;padding:0}.no-print{display:none!important}@page{size:A4;margin:14mm}}`}</style>
+      <style>{`@media print{body *{visibility:hidden}.daily-report-print,.daily-report-print *{visibility:visible}.daily-report-print{position:absolute;left:0;top:0;width:100%;padding:0}.no-print{display:none!important}@page{size:A4;margin:14mm}.daily-report-print table{font-size:11px}.daily-report-print thead{display:table-header-group}.daily-report-print tr{break-inside:avoid;page-break-inside:avoid}.daily-report-print{box-shadow:none!important;border:0!important}}`}</style>
       <div className="no-print" style={{display: 'flex', gap: 12, alignItems: 'end', flexWrap: 'wrap'}}>
         <label><span className="field-label">Report date</span><Input type="date" value={day} onChange={e => setDay(e.target.value)} /></label>
         <button className="btn-primary-blue" style={{height: 38, padding: '0 16px', borderRadius: 8}} disabled={!r} onClick={() => window.print()}><Printer size={15} /> Print report</button>
