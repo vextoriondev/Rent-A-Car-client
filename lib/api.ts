@@ -45,8 +45,26 @@ export function getCurrentUsername(): string {
   }
 }
 
+let orgIdPromise: Promise<number> | null = null;
+/** Screens were written against organization 1; the real id is the signed-in user's organization (from /me). Falls back to 1. */
+function currentOrgId(): Promise<number> {
+  if (!orgIdPromise) {
+    orgIdPromise = fetch('/backend/me', {credentials: 'same-origin'})
+      .then(r => (r.ok ? r.json() : null))
+      .then(me => Number(me?.organizations?.[0]?.id) || 1)
+      .catch(() => 1);
+    orgIdPromise.then(id => { if (id === 1 && typeof window !== 'undefined') setTimeout(() => { orgIdPromise = null; }, 5000); });
+  }
+  return orgIdPromise;
+}
+export function resetOrgId() { orgIdPromise = null; }
+
 export async function apiRequest(path: string, init?: RequestInit) {
   const method = init?.method || 'GET';
+  if (typeof window !== 'undefined' && /^\/?orgs\/1(\/|$)/.test(path)) {
+    const id = await currentOrgId();
+    path = path.replace(/^(\/?orgs\/)1(?=\/|$)/, `$1${id}`);
+  }
   if (method !== 'GET' && typeof window !== 'undefined') {
     try {
       await fetch('/backend/csrf', { credentials: 'same-origin' });
@@ -82,6 +100,7 @@ export async function apiRequest(path: string, init?: RequestInit) {
 export async function login(username: string, password: string) {
   const cleanUsername = username.trim();
   const res = await apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ username: cleanUsername, password }) });
+  resetOrgId();
   if (typeof window !== 'undefined') {
     try {
       window.localStorage.setItem('rentflow_user', cleanUsername);

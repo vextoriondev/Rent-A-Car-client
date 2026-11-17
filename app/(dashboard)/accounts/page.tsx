@@ -1,5 +1,6 @@
 "use client";
 import {useState, useEffect, useMemo} from 'react';
+import {CustomTransactionDialog} from '@/components/features/finance/vehicle-payments';
 import Link from 'next/link';
 import {
   fetchFinancialAccounts,
@@ -46,6 +47,7 @@ export default function AccountsPage(){
   // Modals
   const [addAccOpen, setAddAccOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
   const [newAcc, setNewAcc] = useState({
     name: '',
     account_number: '',
@@ -175,6 +177,9 @@ export default function AccountsPage(){
         </div>
 
         <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <Button variant="outline" onClick={() => setCustomOpen(true)} style={{display:'flex',alignItems:'center',gap:6}}>
+            <Plus size={16}/> Custom Transaction
+          </Button>
           <Button variant="outline" onClick={() => setTransferOpen(true)} style={{display:'flex',alignItems:'center',gap:6}}>
             <ArrowRightLeft size={16}/> Transfer Funds
           </Button>
@@ -410,6 +415,8 @@ export default function AccountsPage(){
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CustomTransactionDialog open={customOpen} onOpenChange={setCustomOpen} onDone={loadData}/>
 
       {/* ─── Fund Transfer Modal ─── */}
       <Dialog open={transferOpen} onOpenChange={setTransferOpen}>

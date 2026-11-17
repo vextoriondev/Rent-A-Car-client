@@ -1,280 +1,146 @@
 "use client";
-import {useState,useMemo,useEffect} from 'react';
-import {FileText,Plus,Eye,Download,CheckCircle2,X,ChevronLeft,ChevronRight,Search,AlertTriangle,ShieldCheck,Calendar} from 'lucide-react';
-import {fetchVehicles,uploadVehiclePaper,fetchVehiclePapers} from '@/lib/api';
+import {useCallback, useEffect, useMemo, useState} from 'react';
+import {FileText, Plus, Eye, CheckCircle2, X, Search, AlertTriangle, ShieldCheck, Calendar, Edit2, Trash2} from 'lucide-react';
+import {fetchVehicles} from '@/lib/api';
+import {addVehicleDocument, deleteDocument, fetchAllDocuments, updateDocument} from '@/lib/finance-api';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
-import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/components/ui/select';
-import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogFooter,DialogDescription} from '@/components/ui/dialog';
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription} from '@/components/ui/dialog';
 import {EmptyState} from '@/components/shared/empty-state';
+import {errText} from '@/components/features/finance/common';
 
-export type DocCategory = 'Vehicle Document' | 'Driver Document' | 'Agreement' | 'Company Document';
-export type DocType = 'Fitness Certificate' | 'Tax Token' | 'Insurance' | 'Route Permit' | 'Registration Paper' | 'Driver License' | 'NID' | 'Contract Agreement' | 'Trade License';
-
-export interface SystemDoc {
-  id: string;
-  name: string;
-  category: DocCategory;
-  docType: DocType;
-  relatedEntity: string;
-  entityType: 'Vehicle' | 'Driver' | 'Owner' | 'Client' | 'Company';
-  documentNumber: string;
-  issueDate: string;
-  expiryDate?: string;
-  status: 'Valid' | 'Expiring Soon' | 'Expired';
-}
-
-const INITIAL_DOCS: SystemDoc[] = [
-  { id: 'DOC-001', name: 'Fitness Certificate – DHA-METRO-GA-19-7724', category: 'Vehicle Document', docType: 'Fitness Certificate', relatedEntity: 'DHA-METRO-GA-19-7724', entityType: 'Vehicle', documentNumber: 'FIT-2025-99812', issueDate: '2025-04-10', expiryDate: '2027-04-09', status: 'Valid' },
-  { id: 'DOC-002', name: 'Tax Token – DHA-METRO-GA-22-4811', category: 'Vehicle Document', docType: 'Tax Token', relatedEntity: 'DHA-METRO-GA-22-4811', entityType: 'Vehicle', documentNumber: 'TAX-2026-1102', issueDate: '2026-01-15', expiryDate: '2027-01-14', status: 'Valid' },
-  { id: 'DOC-003', name: 'Comprehensive Insurance – DHA-METRO-GA-18-9922', category: 'Vehicle Document', docType: 'Insurance', relatedEntity: 'DHA-METRO-GA-18-9922', entityType: 'Vehicle', documentNumber: 'INS-GR-00219', issueDate: '2025-11-20', expiryDate: '2026-11-19', status: 'Expiring Soon' },
-  { id: 'DOC-004', name: 'Driver License – Rafiqul Islam', category: 'Driver Document', docType: 'Driver License', relatedEntity: 'Rafiqul Islam (DRV-005)', entityType: 'Driver', documentNumber: 'B-678901-2017', issueDate: '2017-07-30', expiryDate: '2025-07-29', status: 'Expired' },
-  { id: 'DOC-005', name: 'Driver License – Hasan Ali', category: 'Driver Document', docType: 'Driver License', relatedEntity: 'Hasan Ali (DRV-002)', entityType: 'Driver', documentNumber: 'B-345678-2021', issueDate: '2021-08-22', expiryDate: '2026-08-21', status: 'Expiring Soon' },
-  { id: 'DOC-006', name: 'Master Lease Agreement – Farhana Rahman', category: 'Agreement', docType: 'Contract Agreement', relatedEntity: 'Farhana Rahman (OWN-001)', entityType: 'Owner', documentNumber: 'AGR-OWN-2026-01', issueDate: '2026-01-01', expiryDate: '2027-12-31', status: 'Valid' },
-  { id: 'DOC-007', name: 'Corporate Transport Agreement – Meridian Textiles Ltd.', category: 'Agreement', docType: 'Contract Agreement', relatedEntity: 'Meridian Textiles Ltd. (CLT-001)', entityType: 'Client', documentNumber: 'AGR-CLT-2026-01', issueDate: '2026-01-01', expiryDate: '2026-12-31', status: 'Expiring Soon' },
-  { id: 'DOC-008', name: 'Trade License – TASIN ENTERPRISE', category: 'Company Document', docType: 'Trade License', relatedEntity: 'TASIN ENTERPRISE (Dhaka)', entityType: 'Company', documentNumber: 'TRAD-DNCC-2024-88', issueDate: '2024-07-01', expiryDate: '2027-06-30', status: 'Valid' },
+/** Global Documents: reads and writes the same vehicle-paper records the Vehicle Profile uses (one source of truth). */
+const TYPES: {value: string; label: string}[] = [
+  {value: 'fitness', label: 'Fitness Certificate'}, {value: 'tax_token', label: 'Tax Token'}, {value: 'registration', label: 'Registration Certificate'},
+  {value: 'insurance', label: 'Insurance'}, {value: 'route_permit', label: 'Route Permit'}, {value: 'custom', label: 'Other Document'},
 ];
 
-const BLANK_FORM = {
-  name: '',
-  category: 'Vehicle Document' as DocCategory,
-  docType: 'Fitness Certificate' as DocType,
-  relatedEntity: 'DHA-METRO-GA-19-7724',
-  entityType: 'Vehicle' as 'Vehicle'|'Driver'|'Owner'|'Client'|'Company',
-  documentNumber: '',
-  issueDate: new Date().toISOString().slice(0,10),
-  expiryDate: new Date(Date.now() + 365*86400000).toISOString().slice(0,10),
-};
+interface Doc {
+  id: number; vehicleId: number; vehicle: string; paperType: string; typeLabel: string; title: string; paperNumber: string;
+  issueDate: string; expiryDate: string; status: 'Valid' | 'Expiring Soon' | 'Expired'; documentUrl: string;
+}
 
-export default function DocumentsPage(){
-  const [docs,setDocs]=useState<SystemDoc[]>(INITIAL_DOCS);
-  const [vehicles,setVehicles]=useState<any[]>([]);
-  const [q,setQ]=useState('');
-  const [catF,setCatF]=useState<string>('All');
-  const [statusF,setStatusF]=useState<string>('All');
-  const [page,setPage]=useState(1);
+const blank = () => ({vehicleId: '', paperType: 'fitness', title: '', paperNumber: '', issueDate: new Date().toISOString().slice(0, 10), expiryDate: '', documentUrl: ''});
 
-  const [addOpen,setAddOpen]=useState(false);
-  const [form,setForm]=useState(BLANK_FORM);
-  const [errors,setErrors]=useState<Record<string,string>>({});
-  const [viewDoc,setViewDoc]=useState<SystemDoc|null>(null);
-  const [toast,setToast]=useState('');
-  const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(''),3000)};
+export default function DocumentsPage() {
+  const [docs, setDocs] = useState<Doc[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [q, setQ] = useState('');
+  const [typeF, setTypeF] = useState('All');
+  const [statusF, setStatusF] = useState('All');
+  const [dlg, setDlg] = useState<null | {mode: 'add' | 'edit'; id?: number}>(null);
+  const [form, setForm] = useState(blank());
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [viewDoc, setViewDoc] = useState<Doc | null>(null);
+  const [toast, setToast] = useState('');
+  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(''), 3500); };
 
-  useEffect(() => {
-    fetchVehicles(1).then((data: any) => {
-      if (Array.isArray(data)) {
-        setVehicles(data);
-        if (data.length > 0) {
-          setForm(f => ({ ...f, relatedEntity: data[0].registration || data[0].regNo }));
-        }
-      }
-    }).catch(() => {});
+  const load = useCallback(() => {
+    setLoading(true);
+    fetchAllDocuments().then((r: any) => { setDocs(Array.isArray(r) ? r : []); setLoadError(''); }).catch(e => setLoadError(errText(e))).finally(() => setLoading(false));
   }, []);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { fetchVehicles(1).then((v: any) => Array.isArray(v) && setVehicles(v)).catch(() => {}); }, []);
+  // refetch when returning to the tab / page so another module's changes are always visible
+  useEffect(() => { const h = () => document.visibilityState === 'visible' && load(); document.addEventListener('visibilitychange', h); return () => document.removeEventListener('visibilitychange', h); }, [load]);
 
-  const filtered=useMemo(()=>docs.filter(d=>{
-    const qLower=q.toLowerCase();
-    const qMatch=!q||
-      d.name.toLowerCase().includes(qLower)||
-      d.relatedEntity.toLowerCase().includes(qLower)||
-      d.documentNumber.toLowerCase().includes(qLower);
-    const cMatch=catF==='All'||d.category===catF;
-    const sMatch=statusF==='All'||d.status===statusF;
-    return qMatch&&cMatch&&sMatch;
-  }),[docs,q,catF,statusF]);
+  const filtered = useMemo(() => docs.filter(d => {
+    const ql = q.toLowerCase();
+    return (!q || d.title.toLowerCase().includes(ql) || d.vehicle.toLowerCase().includes(ql) || d.paperNumber.toLowerCase().includes(ql))
+      && (typeF === 'All' || d.paperType === typeF) && (statusF === 'All' || d.status === statusF);
+  }), [docs, q, typeF, statusF]);
 
-  const kpi={
-    total:docs.length,
-    valid:docs.filter(d=>d.status==='Valid').length,
-    expiringSoon:docs.filter(d=>d.status==='Expiring Soon').length,
-    expired:docs.filter(d=>d.status==='Expired').length,
-  };
+  const kpi = {total: docs.length, valid: docs.filter(d => d.status === 'Valid').length, soon: docs.filter(d => d.status === 'Expiring Soon').length, expired: docs.filter(d => d.status === 'Expired').length};
 
-  function validate(){
-    const e:Record<string,string>={};
-    if(!form.name.trim())e.name='Document title is required';
-    if(!form.documentNumber.trim())e.documentNumber='Document certificate number is required';
+  function openAdd() { setForm({...blank(), vehicleId: vehicles[0] ? String(vehicles[0].id) : ''}); setErrors({}); setDlg({mode: 'add'}); }
+  function openEdit(d: Doc) {
+    setForm({vehicleId: String(d.vehicleId), paperType: d.paperType, title: d.title, paperNumber: d.paperNumber, issueDate: d.issueDate, expiryDate: d.expiryDate, documentUrl: d.documentUrl});
+    setErrors({}); setDlg({mode: 'edit', id: d.id});
+  }
+
+  async function save() {
+    const e: Record<string, string> = {};
+    if (!form.vehicleId) e.vehicleId = 'Choose a vehicle';
+    if (!form.paperNumber.trim()) e.paperNumber = 'Certificate number is required';
+    if (form.issueDate && form.expiryDate && form.expiryDate < form.issueDate) e.expiryDate = 'Expiry cannot be before the issue date';
     setErrors(e);
-    return Object.keys(e).length===0;
+    if (Object.keys(e).length) return;
+    setSaving(true);
+    const body = {paper_type: form.paperType, title: form.title.trim(), paper_number: form.paperNumber.trim(), issue_date: form.issueDate || null, expiry_date: form.expiryDate || null, document_url: form.documentUrl.trim()};
+    try {
+      if (dlg?.mode === 'edit') await updateDocument(dlg.id!, body); else await addVehicleDocument(form.vehicleId, body);
+      setDlg(null); showToast('Document saved'); load();
+    } catch (err) { setErrors({form: errText(err)}); } finally { setSaving(false); }
   }
 
-  async function handleAdd(){
-    if(!validate())return;
-    const newDoc:SystemDoc={
-      id:`DOC-00${docs.length+1}`,
-      name:form.name.trim(),
-      category:form.category,
-      docType:form.docType,
-      relatedEntity:form.relatedEntity,
-      entityType:form.entityType,
-      documentNumber:form.documentNumber.trim(),
-      issueDate:form.issueDate,
-      expiryDate:form.expiryDate||undefined,
-      status:'Valid',
-    };
-
-    if (form.entityType === 'Vehicle') {
-      const v = vehicles.find(x => (x.registration === form.relatedEntity || x.regNo === form.relatedEntity));
-      if (v) {
-        const paperTypeMap: Record<string, string> = {
-          'Fitness Certificate': 'fitness',
-          'Tax Token': 'tax_token',
-          'Insurance': 'insurance',
-          'Route Permit': 'route_permit',
-          'Registration Paper': 'registration'
-        };
-        uploadVehiclePaper(1, v.id, {
-          paper_type: paperTypeMap[form.docType] || 'custom',
-          paper_number: form.documentNumber.trim(),
-          issue_date: form.issueDate,
-          expiry_date: form.expiryDate,
-          status: 'Valid',
-          document_url: ''
-        }).catch(() => {});
-      }
-    }
-
-    setDocs(prev=>[newDoc,...prev]);
-    setAddOpen(false);
-    setForm(BLANK_FORM);
-    setErrors({});
-    showToast(`Document ${newDoc.name} saved to database`);
-  }
-
-  function handleDownload(doc: SystemDoc) {
-    const text = `TASIN ENTERPRISE - OFFICIAL DOCUMENT RECORD\n\n` +
-      `Document ID: ${doc.id}\n` +
-      `Document Name: ${doc.name}\n` +
-      `Category: ${doc.category}\n` +
-      `Document Type: ${doc.docType}\n` +
-      `Certificate Number: ${doc.documentNumber}\n` +
-      `Related Entity: ${doc.relatedEntity} (${doc.entityType})\n` +
-      `Issue Date: ${doc.issueDate}\n` +
-      `Expiry Date: ${doc.expiryDate || 'Permanent'}\n` +
-      `Status: ${doc.status}\n\n` +
-      `Generated by TASIN ENTERPRISE Fleet Management System\n`;
-    const element = document.createElement("a");
-    const file = new Blob([text], {type: 'text/plain'});
-    element.href = URL.createObjectURL(file);
-    element.download = `${doc.id}_${doc.name.replace(/\s+/g, '_')}.txt`;
-    document.body.appendChild(element);
-    element.click();
-    element.remove();
-    showToast(`Downloaded certificate for ${doc.name}`);
+  async function remove(d: Doc) {
+    if (!confirm(`Delete "${d.title}"? This removes it from the vehicle profile too.`)) return;
+    try { await deleteDocument(d.id); showToast('Document deleted'); load(); } catch (err) { showToast(errText(err)); }
   }
 
   return <>
-    {/* KPI Cards */}
-    <div className="kpi-grid-4" style={{marginBottom:16}}>
+    <div className="kpi-grid-4" style={{marginBottom: 16}}>
       {[
-        {label:'Total Active Documents',value:kpi.total,color:'blue',icon:FileText},
-        {label:'Valid & Verified',value:kpi.valid,color:'blue',icon:ShieldCheck},
-        {label:'Expiring Soon (<30 Days)',value:kpi.expiringSoon,color:'gold',icon:Calendar},
-        {label:'Expired (Requires Renewal)',value:kpi.expired,color:'gold',icon:AlertTriangle},
-      ].map(c=>{
-        const Icon=c.icon;
-        return (
-          <Card key={c.label} className="metric">
-            <div className="metric-top">
-              <span>{c.label}</span>
-              <span className={`metric-icon ${c.color}`}><Icon size={17}/></span>
-            </div>
-            <strong className="nums" style={{fontSize:26}}>{c.value}</strong>
-          </Card>
-        );
-      })}
+        {label: 'Total Documents', value: kpi.total, color: 'blue', icon: FileText},
+        {label: 'Valid', value: kpi.valid, color: 'blue', icon: ShieldCheck},
+        {label: 'Expiring Soon (<30 Days)', value: kpi.soon, color: 'gold', icon: Calendar},
+        {label: 'Expired (Requires Renewal)', value: kpi.expired, color: 'gold', icon: AlertTriangle},
+      ].map(c => { const Icon = c.icon; return (
+        <Card key={c.label} className="metric"><div className="metric-top"><span>{c.label}</span><span className={`metric-icon ${c.color}`}><Icon size={17} /></span></div><strong className="nums" style={{fontSize: 26}}>{c.value}</strong></Card>
+      ); })}
     </div>
 
-    {/* Expiry Warning Callout */}
-    {kpi.expired>0&&(
-      <div style={{padding:'12px 16px',background:'#fbebeb',border:'1px solid #e8b3b0',borderRadius:8,marginBottom:16,display:'flex',flexWrap:'wrap',gap:12,justifyContent:'space-between',alignItems:'center'}}>
-        <div style={{display:'flex',gap:10,alignItems:'center',flex:1,minWidth:240}}>
-          <AlertTriangle size={18} color="#b04b46" style={{flexShrink:0}}/>
-          <span style={{fontSize:13,color:'#852a25'}}><b>Attention:</b> {kpi.expired} document(s) have expired and require immediate renewal to maintain regulatory compliance.</span>
-        </div>
-        <Button size="sm" variant="outline" onClick={()=>setStatusF('Expired')} style={{borderColor:'#b04b46',color:'#852a25'}}>
-          View Expired Docs
-        </Button>
+    {kpi.expired > 0 && (
+      <div style={{padding: '12px 16px', background: '#fbebeb', border: '1px solid #e8b3b0', borderRadius: 8, marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'center'}}>
+        <div style={{display: 'flex', gap: 10, alignItems: 'center', flex: 1, minWidth: 240}}><AlertTriangle size={18} color="#b04b46" style={{flexShrink: 0}} />
+          <span style={{fontSize: 13, color: '#852a25'}}><b>Attention:</b> {kpi.expired} document(s) have expired and need renewal.</span></div>
+        <Button size="sm" variant="outline" onClick={() => setStatusF('Expired')} style={{borderColor: '#b04b46', color: '#852a25'}}>View Expired Docs</Button>
       </div>
     )}
 
-    {/* Toolbar */}
-    <div className="toolbar search-filter-responsive" style={{marginBottom:16,flexWrap:'wrap',gap:10}}>
-      <div className="global-search" style={{flex:'1 1 220px',maxWidth:320}}>
-        <Search size={15}/>
-        <Input
-          placeholder="Search document name, entity, doc no…"
-          value={q}
-          onChange={e=>{setQ(e.target.value);setPage(1)}}
-        />
-      </div>
-
-      <Select value={catF} onValueChange={v=>{setCatF(v);setPage(1)}}>
-        <SelectTrigger style={{minWidth:160}}><SelectValue placeholder="Category"/></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="All">All Categories</SelectItem>
-          <SelectItem value="Vehicle Document">Vehicle Documents</SelectItem>
-          <SelectItem value="Driver Document">Driver Documents</SelectItem>
-          <SelectItem value="Agreement">Agreements</SelectItem>
-          <SelectItem value="Company Document">Company Documents</SelectItem>
-        </SelectContent>
+    <div className="toolbar search-filter-responsive" style={{marginBottom: 16, flexWrap: 'wrap', gap: 10}}>
+      <div className="global-search" style={{flex: '1 1 220px', maxWidth: 320}}><Search size={15} />
+        <Input placeholder="Search title, vehicle, certificate no…" value={q} onChange={e => setQ(e.target.value)} /></div>
+      <Select value={typeF} onValueChange={setTypeF}>
+        <SelectTrigger style={{minWidth: 180}}><SelectValue placeholder="Document type" /></SelectTrigger>
+        <SelectContent><SelectItem value="All">All Document Types</SelectItem>{TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
       </Select>
-
-      <Select value={statusF} onValueChange={v=>{setStatusF(v);setPage(1)}}>
-        <SelectTrigger style={{minWidth:140}}><SelectValue placeholder="Status"/></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="All">All Status</SelectItem>
-          <SelectItem value="Valid">Valid</SelectItem>
-          <SelectItem value="Expiring Soon">Expiring Soon</SelectItem>
-          <SelectItem value="Expired">Expired</SelectItem>
-        </SelectContent>
+      <Select value={statusF} onValueChange={setStatusF}>
+        <SelectTrigger style={{minWidth: 140}}><SelectValue placeholder="Status" /></SelectTrigger>
+        <SelectContent><SelectItem value="All">All Status</SelectItem><SelectItem value="Valid">Valid</SelectItem><SelectItem value="Expiring Soon">Expiring Soon</SelectItem><SelectItem value="Expired">Expired</SelectItem></SelectContent>
       </Select>
-
-      <div style={{marginLeft:'auto',display:'flex',gap:8}}>
-        <Button onClick={()=>{setForm(BLANK_FORM);setErrors({});setAddOpen(true)}}>
-          <Plus size={16}/> Upload Document
-        </Button>
-      </div>
+      <div style={{marginLeft: 'auto'}}><Button onClick={openAdd}><Plus size={16} /> Add Document</Button></div>
     </div>
 
-    {/* Document Table */}
+    {loadError && <div role="alert" style={{background: '#fef3f2', border: '1px solid #fecdca', color: '#b42318', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 13}}>
+      Could not load documents: {loadError} <button className="text-button" onClick={load}>Retry</button></div>}
+
     <Card>
       <div className="table-responsive-container">
         <div className="billing-table">
-          <div className="head" style={{gridTemplateColumns:'100px 1.5fr 130px 1.3fr 120px 100px 100px 100px 100px',minWidth:900}}>
-            <span>Doc ID</span>
-            <span>Document Title</span>
-            <span>Category</span>
-            <span>Related Entity</span>
-            <span>Doc Number</span>
-            <span>Issue Date</span>
-            <span>Expiry Date</span>
-            <span>Status</span>
-            <span>Actions</span>
+          <div className="head" style={{gridTemplateColumns: '1.6fr 1.2fr 150px 130px 100px 100px 100px 110px', minWidth: 900}}>
+            <span>Document Title</span><span>Vehicle</span><span>Type</span><span>Certificate No.</span><span>Issue Date</span><span>Expiry Date</span><span>Status</span><span>Actions</span>
           </div>
-
-          {filtered.length===0&&<div style={{padding:'40px 0'}}><EmptyState title="No documents found" description="Adjust your filters or upload a new record"/></div>}
-
-          {filtered.map(d=>(
-            <div key={d.id} style={{gridTemplateColumns:'100px 1.5fr 130px 1.3fr 120px 100px 100px 100px 100px',minWidth:900}}>
-              <span style={{fontSize:11,color:'#6a7c83'}}>{d.id}</span>
-              <span><b style={{fontSize:12,color:'#1e3947'}}>{d.name}</b></span>
-              <span><span className="badge badge-neutral" style={{fontSize:10}}>{d.category}</span></span>
-              <span style={{fontSize:11,color:'#1e3947'}}>{d.relatedEntity}</span>
-              <span style={{fontSize:11,color:'#6a7c83'}}>{d.documentNumber}</span>
-              <span style={{fontSize:11,color:'#6a7c83'}}>{d.issueDate}</span>
-              <span style={{fontSize:11,fontWeight:500,color:d.status==='Expired'?'#b04b46':d.status==='Expiring Soon'?'#a57a2b':'#277b55'}}>
-                {d.expiryDate||'Permanent'}
-              </span>
-              <span>
-                <span className={`badge ${d.status==='Valid'?'badge-good':d.status==='Expiring Soon'?'badge-warn':'badge-bad'}`}>
-                  {d.status}
-                </span>
-              </span>
+          {loading && <div style={{padding: '30px 0', textAlign: 'center', color: '#64748b', fontSize: 13}}>Loading documents…</div>}
+          {!loading && filtered.length === 0 && <div style={{padding: '40px 0'}}><EmptyState title="No documents found" description={docs.length ? 'Adjust your filters.' : 'Add the first vehicle document.'} /></div>}
+          {filtered.map(d => (
+            <div key={d.id} style={{gridTemplateColumns: '1.6fr 1.2fr 150px 130px 100px 100px 100px 110px', minWidth: 900}}>
+              <span><b style={{fontSize: 12, color: '#1e3947'}}>{d.title}</b></span>
+              <span style={{fontSize: 11.5}}>{d.vehicle}</span>
+              <span><span className="badge badge-neutral" style={{fontSize: 10}}>{d.typeLabel}</span></span>
+              <span style={{fontSize: 11, color: '#6a7c83'}}>{d.paperNumber || '—'}</span>
+              <span style={{fontSize: 11, color: '#6a7c83'}}>{d.issueDate || '—'}</span>
+              <span style={{fontSize: 11, fontWeight: 500, color: d.status === 'Expired' ? '#b04b46' : d.status === 'Expiring Soon' ? '#a57a2b' : '#277b55'}}>{d.expiryDate || 'No expiry'}</span>
+              <span><span className={`badge ${d.status === 'Valid' ? 'badge-good' : d.status === 'Expiring Soon' ? 'badge-warn' : 'badge-bad'}`}>{d.status}</span></span>
               <span className="row-actions">
-                <button className="text-button" onClick={()=>setViewDoc(d)} title="View Document"><Eye size={14}/></button>
-                <button className="text-button" onClick={()=>handleDownload(d)} style={{color:'#236d80'}} title="Download"><Download size={14}/></button>
+                <button className="text-button" onClick={() => setViewDoc(d)} title="View"><Eye size={14} /></button>
+                <button className="text-button" onClick={() => openEdit(d)} title="Edit"><Edit2 size={14} /></button>
+                <button className="text-button" onClick={() => remove(d)} title="Delete" style={{color: '#b04b46'}}><Trash2 size={14} /></button>
               </span>
             </div>
           ))}
@@ -282,109 +148,55 @@ export default function DocumentsPage(){
       </div>
     </Card>
 
-    {/* Add Document Modal */}
-    <Dialog open={addOpen} onOpenChange={setAddOpen}>
-      <DialogContent style={{maxWidth:580}}>
+    <Dialog open={!!dlg} onOpenChange={o => !o && setDlg(null)}>
+      <DialogContent style={{maxWidth: 560, maxHeight: '92vh', overflowY: 'auto'}}>
         <DialogHeader>
-          <DialogTitle>Upload Document / Certificate</DialogTitle>
-          <DialogDescription>Attach compliance papers, fitness records, licenses, or agreements.</DialogDescription>
+          <DialogTitle>{dlg?.mode === 'edit' ? 'Edit Document' : 'Add Vehicle Document'}</DialogTitle>
+          <DialogDescription>Saved to the vehicle record, so it appears in the Vehicle Profile and here.</DialogDescription>
         </DialogHeader>
-
         <div className="entry-form">
-          <label>
-            <span className="field-label">Document Title *</span>
-            <Input placeholder="e.g. Fitness Certificate – 2026/2027" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
-            {errors.name&&<span className="field-error">{errors.name}</span>}
-          </label>
-
           <div className="form-grid">
-            <label>
-              <span className="field-label">Category *</span>
-              <Select value={form.category} onValueChange={v=>setForm(f=>({...f,category:v as DocCategory}))}>
-                <SelectTrigger><SelectValue/></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Vehicle Document">Vehicle Document</SelectItem>
-                  <SelectItem value="Driver Document">Driver Document</SelectItem>
-                  <SelectItem value="Agreement">Agreement</SelectItem>
-                  <SelectItem value="Company Document">Company Document</SelectItem>
-                </SelectContent>
-              </Select>
-            </label>
-
-            <label>
-              <span className="field-label">Document Certificate Number *</span>
-              <Input placeholder="e.g. BRTA-88120" value={form.documentNumber} onChange={e=>setForm(f=>({...f,documentNumber:e.target.value}))}/>
-              {errors.documentNumber&&<span className="field-error">{errors.documentNumber}</span>}
-            </label>
-
-            <label>
-              <span className="field-label">Related Entity Registration / Name</span>
-              <Input placeholder="e.g. DHA-METRO-GA-19-7724" value={form.relatedEntity} onChange={e=>setForm(f=>({...f,relatedEntity:e.target.value}))}/>
-            </label>
-
-            <label>
-              <span className="field-label">Issue Date</span>
-              <Input type="date" value={form.issueDate} onChange={e=>setForm(f=>({...f,issueDate:e.target.value}))}/>
-            </label>
-
-            <label>
-              <span className="field-label">Expiry Date</span>
-              <Input type="date" value={form.expiryDate} onChange={e=>setForm(f=>({...f,expiryDate:e.target.value}))}/>
-            </label>
+            <label><span className="field-label">Vehicle *</span>
+              <Select value={form.vehicleId} onValueChange={v => setForm(f => ({...f, vehicleId: v}))} disabled={dlg?.mode === 'edit'}>
+                <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
+                <SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={String(v.id)}>{v.registration}</SelectItem>)}</SelectContent>
+              </Select>{errors.vehicleId && <span className="field-error">{errors.vehicleId}</span>}</label>
+            <label><span className="field-label">Document type *</span>
+              <Select value={form.paperType} onValueChange={v => setForm(f => ({...f, paperType: v}))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+              </Select></label>
           </div>
-
-          <div style={{border:'2px dashed #cfd9d9',borderRadius:8,padding:20,textAlign:'center',background:'#fbfcfc',marginTop:6}}>
-            <FileText size={24} style={{color:'#6a7c83',margin:'0 auto 6px'}}/>
-            <span style={{fontSize:12,color:'#4f6169',display:'block'}}>Drag & drop PDF / JPG scan here, or browse files</span>
-            <span style={{fontSize:10,color:'#94a3b8'}}>Accepted formats: PDF, PNG, JPG (up to 10MB)</span>
+          <label><span className="field-label">Document title (optional)</span>
+            <Input placeholder="Defaults to the type and vehicle, e.g. Tax Token – DHAKA-METRO-1" value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} /></label>
+          <div className="form-grid">
+            <label><span className="field-label">Certificate number *</span>
+              <Input value={form.paperNumber} onChange={e => setForm(f => ({...f, paperNumber: e.target.value}))} />{errors.paperNumber && <span className="field-error">{errors.paperNumber}</span>}</label>
+            <label><span className="field-label">Issue date</span><Input type="date" value={form.issueDate} onChange={e => setForm(f => ({...f, issueDate: e.target.value}))} /></label>
+            <label><span className="field-label">Expiry date</span><Input type="date" value={form.expiryDate} onChange={e => setForm(f => ({...f, expiryDate: e.target.value}))} />{errors.expiryDate && <span className="field-error">{errors.expiryDate}</span>}</label>
+            <label><span className="field-label">Scan / file link (optional)</span><Input placeholder="https://…" value={form.documentUrl} onChange={e => setForm(f => ({...f, documentUrl: e.target.value}))} /></label>
           </div>
+          {errors.form && <div role="alert" style={{color: '#b42318', fontSize: 12.5}}>{errors.form}</div>}
         </div>
-
         <DialogFooter>
-          <Button variant="outline" onClick={()=>setAddOpen(false)}>Cancel</Button>
-          <Button onClick={handleAdd}>Save Document</Button>
+          <Button variant="outline" onClick={() => setDlg(null)} disabled={saving}>Cancel</Button>
+          <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save Document'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
 
-    {/* View Document Modal */}
-    <Dialog open={!!viewDoc} onOpenChange={o=>!o&&setViewDoc(null)}>
-      <DialogContent style={{maxWidth:500}}>
-        <DialogHeader>
-          <DialogTitle>Document Details</DialogTitle>
-          <DialogDescription>{viewDoc?.id} · {viewDoc?.category}</DialogDescription>
-        </DialogHeader>
-
-        {viewDoc&&(
-          <div>
-            <div className="detail-relations" style={{gridTemplateColumns:'1fr 1fr',gap:11,marginTop:12}}>
-              {[
-                ['Document ID',viewDoc.id],
-                ['Category',viewDoc.category],
-                ['Related Entity',viewDoc.relatedEntity],
-                ['Certificate No.',viewDoc.documentNumber],
-                ['Issue Date',viewDoc.issueDate],
-                ['Expiry Date',viewDoc.expiryDate||'Permanent'],
-                ['Current Status',viewDoc.status],
-              ].map(([k,v])=><div key={k}><span>{k}</span><b>{v}</b></div>)}
-            </div>
-
-            <div style={{marginTop:16,padding:16,background:'#f0f4f5',borderRadius:8,textAlign:'center'}}>
-              <FileText size={32} style={{color:'#215b70',margin:'0 auto 8px'}}/>
-              <strong style={{fontSize:13,color:'#1e3947',display:'block'}}>{viewDoc.name}</strong>
-              <span style={{fontSize:11,color:'#6a7c83'}}>Simulated scan preview available for download</span>
-              <div style={{marginTop:12}}>
-                <Button size="sm" onClick={()=>handleDownload(viewDoc)}>
-                  <Download size={14}/> Download Certificate
-                </Button>
-              </div>
-            </div>
+    <Dialog open={!!viewDoc} onOpenChange={o => !o && setViewDoc(null)}>
+      <DialogContent style={{maxWidth: 480}}>
+        <DialogHeader><DialogTitle>Document Details</DialogTitle><DialogDescription>{viewDoc?.typeLabel} · {viewDoc?.vehicle}</DialogDescription></DialogHeader>
+        {viewDoc && (
+          <div className="detail-relations" style={{gridTemplateColumns: '1fr 1fr', gap: 11, marginTop: 12}}>
+            {[['Title', viewDoc.title], ['Type', viewDoc.typeLabel], ['Vehicle', viewDoc.vehicle], ['Certificate No.', viewDoc.paperNumber || '—'], ['Issue Date', viewDoc.issueDate || '—'], ['Expiry Date', viewDoc.expiryDate || 'No expiry'], ['Status', viewDoc.status]].map(([k, v]) => <div key={k}><span>{k}</span><b>{v}</b></div>)}
+            {viewDoc.documentUrl && <div style={{gridColumn: '1 / -1'}}><a href={viewDoc.documentUrl} target="_blank" rel="noopener noreferrer" style={{color: '#1677ff'}}>Open scan / file</a></div>}
           </div>
         )}
       </DialogContent>
     </Dialog>
 
-    {/* Toast notification */}
-    {toast&&<div className="toast" role="status"><CheckCircle2 size={18}/>{toast}<button onClick={()=>setToast('')} aria-label="Dismiss"><X size={16}/></button></div>}
+    {toast && <div className="toast" role="status"><CheckCircle2 size={18} />{toast}<button onClick={() => setToast('')} aria-label="Dismiss"><X size={16} /></button></div>}
   </>;
 }

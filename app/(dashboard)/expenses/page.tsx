@@ -1,5 +1,6 @@
 "use client";
 import {useState,useMemo,useEffect} from 'react';
+import Link from 'next/link';
 import {Receipt,Plus,Eye,CheckCircle2,X,ChevronLeft,ChevronRight,Search,Filter,PieChart as PieIcon} from 'lucide-react';
 import {fetchExpenses,createExpense,fetchVehicles,fetchFinancialAccounts} from '@/lib/api';
 import {Expense,ExpenseCategory,PaymentMethod} from '@/lib/tasin-data';
@@ -258,6 +259,7 @@ export default function ExpensesPage(){
         <Button onClick={()=>{setForm(BLANK_FORM);setErrors({});setAddOpen(true)}} style={{width:'100%'}}>
           <Plus size={16}/> Record Expense
         </Button>
+        <Link href="/expenses/daily-report" style={{marginTop:8,fontSize:12.5,color:'#1677ff',fontWeight:600}}>Open Daily Income &amp; Expense Report →</Link>
       </Card>
     </div>
 

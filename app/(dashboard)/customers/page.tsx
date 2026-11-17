@@ -1,6 +1,9 @@
 "use client";
 import {useState,useMemo,useEffect} from 'react';
 import Link from 'next/link';
+import {PartyFinancePanel} from '@/components/features/finance/party-finance-panel';
+import {OpeningBalanceFields,blankOpening,openingPayload,type OpeningValue} from '@/components/features/finance/opening-balance';
+import {errText} from '@/components/features/finance/common';
 import {fetchClients,createClient,updateClient,deleteClient,recordClientCollection} from '@/lib/api';
 import {
   Briefcase,
@@ -64,6 +67,7 @@ export default function CustomersPage(){
   const [colOpen,setColOpen]=useState(false);
 
   // Form states
+  const [opening,setOpening]=useState<OpeningValue>(blankOpening('receivable'));
   const [formClient,setFormClient]=useState({
     name:'',
     contactPerson:'',
@@ -195,15 +199,17 @@ export default function CustomersPage(){
       address: formClient.address.trim(),
       email: formClient.email.trim(),
       trade_license: formClient.tradeLicense.trim(),
-      status: formClient.status
+      status: formClient.status,
+      ...openingPayload(opening),
     };
     try {
       await createClient(1, payload);
       loadData();
       setAddOpen(false);
+      setOpening(blankOpening('receivable'));
       showToast(`Client ${payload.name} created successfully`);
-    } catch {
-      showToast('Error saving client to database');
+    } catch (e) {
+      showToast(errText(e));
     }
   }
 
@@ -256,8 +262,8 @@ export default function CustomersPage(){
       setColOpen(false);
       setColData({amount:'',method:'Cash',reference:'',note:''});
       showToast(`Collected ${fmt(amt)} from ${activeClient.name}`);
-    } catch {
-      showToast('Error recording payment collection');
+    } catch (e) {
+      showToast(errText(e));
     }
   }
 
@@ -664,6 +670,10 @@ export default function CustomersPage(){
         </Card>
       </div>
 
+      {activeClient && (
+        <PartyFinancePanel kind="customer" partyId={activeClient.id} partyName={activeClient.name} onChanged={loadData}/>
+      )}
+
       {/* ─── Collect Due Modal ─── */}
       <Dialog open={colOpen} onOpenChange={setColOpen}>
         <DialogContent style={{maxWidth:480}}>
@@ -804,6 +814,8 @@ export default function CustomersPage(){
                 onChange={e=>setFormClient(f=>({...f,address:e.target.value}))}
               />
             </label>
+
+            <OpeningBalanceFields kind="customer" value={opening} onChange={setOpening}/>
           </div>
 
           <DialogFooter>

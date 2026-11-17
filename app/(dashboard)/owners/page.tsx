@@ -1,6 +1,9 @@
 "use client";
 import {useState,useMemo,useEffect} from 'react';
 import Link from 'next/link';
+import {PartyFinancePanel} from '@/components/features/finance/party-finance-panel';
+import {OpeningBalanceFields,blankOpening,openingPayload,type OpeningValue} from '@/components/features/finance/opening-balance';
+import {errText} from '@/components/features/finance/common';
 import {fetchOwners,createOwner,updateOwner,deleteOwner,recordOwnerPayment} from '@/lib/api';
 import {
   Users,
@@ -52,6 +55,7 @@ export default function OwnersPage(){
   const [page,setPage]=useState(1);
   const [pageSize,setPageSize]=useState(10);
   const [addOpen,setAddOpen]=useState(false);
+  const [opening,setOpening]=useState<OpeningValue>(blankOpening('payable'));
   const [newOwner,setNewOwner]=useState({name:'',phone:'',cars:1,rent:55000,nid:'',address:'',bank:'',email:''});
   const [editOpen, setEditOpen] = useState(false);
   const [editOwner, setEditOwner] = useState<any>(null);
@@ -133,19 +137,21 @@ export default function OwnersPage(){
     const payload = {
       name: newOwner.name.trim(),
       phone: newOwner.phone.trim(),
-      present_address: newOwner.address || 'Dhaka, Bangladesh',
-      nid: newOwner.nid || '1234567890123',
-      email: newOwner.email || 'owner@gmail.com',
-      bank_name: newOwner.bank || 'Dhaka Bank Ltd.',
+      present_address: newOwner.address,
+      nid: newOwner.nid,
+      email: newOwner.email,
+      bank_name: newOwner.bank,
+      ...openingPayload(opening),
     };
     try {
       await createOwner(1, payload);
       loadData();
       setAddOpen(false);
       setNewOwner({name:'',phone:'',cars:1,rent:55000,nid:'',address:'',bank:'',email:''});
+      setOpening(blankOpening('payable'));
       showToast(`Owner ${payload.name} saved to database`);
-    } catch {
-      showToast('Error saving owner to database');
+    } catch (e) {
+      showToast(errText(e));
     }
   }
 
@@ -588,6 +594,10 @@ export default function OwnersPage(){
         </Card>
       </div>
 
+      {activeOwner && (
+        <PartyFinancePanel kind="owner" partyId={activeOwner.id} partyName={activeOwner.name} onChanged={loadData}/>
+      )}
+
       {/* Edit Owner Modal */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent style={{maxWidth:560}}>
@@ -739,6 +749,8 @@ export default function OwnersPage(){
               <span className="field-label">Address</span>
               <Input placeholder="Mirpur, Dhaka" value={newOwner.address} onChange={e=>setNewOwner(f=>({...f,address:e.target.value}))}/>
             </label>
+
+            <OpeningBalanceFields kind="owner" value={opening} onChange={setOpening}/>
           </div>
 
           <DialogFooter>

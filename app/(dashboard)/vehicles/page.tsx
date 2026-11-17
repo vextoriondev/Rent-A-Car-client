@@ -1,6 +1,7 @@
 "use client";
 import {useState,useMemo,useEffect} from 'react';
 import Link from 'next/link';
+import {VehiclePaymentsCard} from '@/components/features/finance/vehicle-payments';
 import {fetchVehicles,createVehicle,updateVehicle,deleteVehicle,fetchVehicleStatement} from '@/lib/api';
 import {
   CarFront,
@@ -672,55 +673,19 @@ export default function VehiclesPage(){
                 <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                   <span style={{display:'flex',alignItems:'center',gap:6,color:'#334155',textTransform:'capitalize'}}>
                     <span style={{width:7,height:7,borderRadius:'50%',background:p.status==='Valid'?'#16a34a':'#ef4444'}}/>
-                    {p.type?.replace('_', ' ')}
+                    {p.title || p.type?.replace('_', ' ')}
                   </span>
                   <span style={{color:'#64748b',fontSize:11}}>{p.expiry || 'Active'}</span>
                 </div>
               ))
             ) : (
-              <>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <span style={{display:'flex',alignItems:'center',gap:6,color:'#334155'}}>
-                    <span style={{width:7,height:7,borderRadius:'50%',background:'#16a34a'}}/> Fitness Token
-                  </span>
-                  <span style={{color:'#64748b',fontSize:11}}>Valid</span>
-                </div>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <span style={{display:'flex',alignItems:'center',gap:6,color:'#334155'}}>
-                    <span style={{width:7,height:7,borderRadius:'50%',background:'#16a34a'}}/> Tax Token
-                  </span>
-                  <span style={{color:'#64748b',fontSize:11}}>Valid</span>
-                </div>
-              </>
+              <span style={{color:'#64748b'}}>No documents recorded for this vehicle.</span>
             )}
           </div>
         </Card>
 
-        {/* Recent Payments */}
-        <Card style={{padding:16,borderRadius:12,background:'#fff',border:'1px solid #e2e8f0'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-            <h4 style={{fontSize:13,fontWeight:750,color:'#0f172a',margin:0,display:'flex',alignItems:'center',gap:6}}>
-              <FileText size={15} color="#1677ff"/> Recent Payments
-            </h4>
-            <Link href="/due-collection" style={{fontSize:11.5,color:'#1677ff',fontWeight:600,textDecoration:'none'}}>View All →</Link>
-          </div>
-
-          <div style={{display:'flex',flexDirection:'column',gap:8,fontSize:11.5}}>
-            <div style={{display:'grid',gridTemplateColumns:'85px 1fr auto',fontWeight:700,color:'#64748b',borderBottom:'1px solid #f1f5f9',paddingBottom:4}}>
-              <span>Date</span><span>Description</span><span>Amount</span>
-            </div>
-            <div style={{display:'grid',gridTemplateColumns:'85px 1fr auto',color:'#334155',alignItems:'center'}}>
-              <span style={{color:'#64748b'}}>01 Nov 2026</span>
-              <span>Monthly Rent</span>
-              <strong style={{color:'#16a34a',fontWeight:700}}>{fmt(activeVeh?.monthlyRent ?? 50000)}</strong>
-            </div>
-            <div style={{display:'grid',gridTemplateColumns:'85px 1fr auto',color:'#334155',alignItems:'center'}}>
-              <span style={{color:'#64748b'}}>01 Oct 2026</span>
-              <span>Monthly Rent</span>
-              <strong style={{color:'#16a34a',fontWeight:700}}>{fmt(activeVeh?.monthlyRent ?? 50000)}</strong>
-            </div>
-          </div>
-        </Card>
+        {/* Billing & Payments (real data) */}
+        {activeVeh && <VehiclePaymentsCard vehicleId={String(activeVeh.id)} registration={activeVeh.regNo}/>}
       </div>
 
       {/* Add Vehicle Modal */}

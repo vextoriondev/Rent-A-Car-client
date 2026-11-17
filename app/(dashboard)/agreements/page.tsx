@@ -17,6 +17,8 @@ import {PartyChip} from '@/components/shared/party-chip';
 import {t,tn} from '@/lib/copy';
 import {statusLabel} from '@/lib/copy/labels';
 
+import {TasinAgreements} from '@/components/features/finance/tasin-agreements';
+
 export default function AgreementsPage(){
  const rf=useRentflowStore();
  const [sorting,onSortingChange]=useSortParam('customer');
@@ -28,9 +30,10 @@ export default function AgreementsPage(){
   {id:'rent',header:t('common.customerRent'),accessorFn:a=>a.rent,meta:{align:'right'},cell:({row:{original:a}})=>money(a.rent)},
   {id:'status',header:t('ledger.status'),enableSorting:false,cell:({row:{original:a}})=><Badge tone="good">{statusLabel(a.status)}</Badge>},
  ],[]);
- return <Card>
+ return <><Card>
   <SectionHeading title={t('agreements.rentalAgreements')} subtitle={tn('agreements.shown', rows.length)} action={<Button onClick={()=>{rf.setAgreementOpen(true)}}><Plus size={16}/> {t('common.newAgreement')}</Button>}/>
   <FilterToolbar filters={[{param:'owner',label: t('common.filterByOwner'),allValue:ALL_OWNERS,allLabel:t('common.allOwners'),options:owners}]}/>
   <LedgerTable data={rows} columns={columns} getRowId={a=>a.id} sorting={sorting} onSortingChange={onSortingChange} onRowClick={a=>rf.setSelected(a.id)} rowActionLabel={a=>t('table.openRow',{id:a.id})} empty={<EmptyState title={t('agreements.noAgreementsMatchThis')} description={t('agreements.clearYourFiltersTo')}/>}/>
- </Card>;
+ </Card>
+ <TasinAgreements/></>;
 }

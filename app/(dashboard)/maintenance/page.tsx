@@ -100,6 +100,7 @@ export default function MaintenancePage(){
     date: new Date().toISOString().slice(0,10),
     problem_description: 'Periodic maintenance checkup',
     service_type: 'General Service',
+    custom_purpose: '',
     parts_details: '',
     labour_cost: 1500,
     parts_cost: 3500,
@@ -160,7 +161,7 @@ export default function MaintenancePage(){
       ];
     }
     maintenanceList.forEach(m => {
-      const s = m.serviceType || 'General Service';
+      const s = m.purpose || m.serviceType || 'General Service';
       counts[s] = (counts[s] || 0) + 1;
     });
     const total = maintenanceList.length;
@@ -178,6 +179,10 @@ export default function MaintenancePage(){
       showToast('Please select vehicle registration and garage name');
       return;
     }
+    if (newMnt.service_type === 'Custom' && !newMnt.custom_purpose.trim()) {
+      showToast('Enter the custom maintenance purpose');
+      return;
+    }
     try {
       await createMaintenance(1, {
         vehicle_reg: newMnt.vehicle_reg,
@@ -185,6 +190,7 @@ export default function MaintenancePage(){
         date: newMnt.date,
         problem_description: newMnt.problem_description,
         service_type: newMnt.service_type,
+        custom_purpose: newMnt.service_type === 'Custom' ? newMnt.custom_purpose : '',
         parts_details: newMnt.parts_details,
         labour_cost: Number(newMnt.labour_cost) || 0,
         parts_cost: Number(newMnt.parts_cost) || 0,
@@ -194,8 +200,8 @@ export default function MaintenancePage(){
       loadData();
       setAddMntOpen(false);
       showToast('Maintenance job scheduled successfully');
-    } catch {
-      showToast('Error scheduling maintenance');
+    } catch (e: any) {
+      showToast(e?.message || 'Error scheduling maintenance');
     }
   }
 
@@ -208,6 +214,7 @@ export default function MaintenancePage(){
         date: editMnt.date,
         problem_description: editMnt.problemDescription || '',
         service_type: editMnt.serviceType || 'General Service',
+        custom_purpose: editMnt.serviceType === 'Custom' ? (editMnt.customPurpose || '') : '',
         parts_details: editMnt.partsDetails || '',
         labour_cost: Number(editMnt.labourCost) || 0,
         parts_cost: Number(editMnt.partsCost) || 0,
@@ -219,8 +226,8 @@ export default function MaintenancePage(){
       setEditMntOpen(false);
       setEditMnt(null);
       showToast('Maintenance job updated');
-    } catch {
-      showToast('Error updating maintenance job');
+    } catch (e: any) {
+      showToast(e?.message || 'Error updating maintenance job');
     }
   }
 
@@ -498,7 +505,7 @@ export default function MaintenancePage(){
                   upcomingJobs.map((r, i) => (
                     <tr key={r.id || i} style={{borderBottom:'1px solid #f8fafc',height:42}}>
                       <td style={{padding:'0 8px',fontWeight:700,color:'#0f172a'}}>{r.vehicleReg}</td>
-                      <td style={{padding:'0 8px',color:'#475569'}}>{r.serviceType}</td>
+                      <td style={{padding:'0 8px',color:'#475569'}}>{r.purpose || r.serviceType}</td>
                       <td style={{padding:'0 8px',color:'#64748b'}}>{r.garageName}</td>
                       <td style={{padding:'0 8px',color:'#64748b'}}>{r.date}</td>
                       <td style={{padding:'0 8px',fontWeight:700,color:'#0f172a'}}>{fmt(r.totalCost)}</td>
@@ -943,9 +950,17 @@ export default function MaintenancePage(){
                     <SelectItem value="Battery">Battery Service</SelectItem>
                     <SelectItem value="Electrical">Electrical Works</SelectItem>
                     <SelectItem value="Other">Other</SelectItem>
+                    <SelectItem value="Custom">Custom purpose…</SelectItem>
                   </SelectContent>
                 </Select>
               </label>
+
+              {newMnt.service_type === 'Custom' && (
+                <label>
+                  <span className="field-label">Custom Purpose *</span>
+                  <Input maxLength={120} placeholder="e.g. Wiper motor replacement" value={newMnt.custom_purpose} onChange={e => setNewMnt(m => ({ ...m, custom_purpose: e.target.value }))}/>
+                </label>
+              )}
 
               <label>
                 <span className="field-label">Service Date</span>
@@ -1026,9 +1041,17 @@ export default function MaintenancePage(){
                       <SelectItem value="Engine">Engine</SelectItem>
                       <SelectItem value="AC">AC</SelectItem>
                       <SelectItem value="Other">Other</SelectItem>
+                      <SelectItem value="Custom">Custom purpose…</SelectItem>
                     </SelectContent>
                   </Select>
                 </label>
+
+                {editMnt.serviceType === 'Custom' && (
+                  <label>
+                    <span className="field-label">Custom Purpose *</span>
+                    <Input maxLength={120} value={editMnt.customPurpose || ''} onChange={e => setEditMnt((m: any) => ({ ...m, customPurpose: e.target.value }))}/>
+                  </label>
+                )}
               </div>
 
               <label>

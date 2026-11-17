@@ -1,7 +1,9 @@
 "use client";
 import {useState,useMemo,useEffect} from 'react';
 import Link from 'next/link';
-import {fetchDrivers,createDriver,updateDriver,deleteDriver,recordDriverPayment,fetchDriverAttendance,recordDriverAttendance} from '@/lib/api';
+import {DriverFinancePanel} from '@/components/features/finance/driver-finance-panel';
+import {ReplacementsPanel} from '@/components/features/finance/replacements-panel';
+import {fetchDrivers,createDriver,updateDriver,deleteDriver,fetchDriverAttendance,recordDriverAttendance} from '@/lib/api';
 import {
   UserRound,
   CheckCircle2,
@@ -38,6 +40,9 @@ interface DriverRecord {
   licenseNo: string;
   licenseType: string;
   experience: string;
+  salary: number;
+  advanceDue: number;
+  fuelGasDue: number;
   status: 'Active' | 'On Leave' | 'Inactive';
   address: string;
   joiningDate: string;
@@ -60,12 +65,7 @@ export default function DriversPage(){
   const [addOpen,setAddOpen]=useState(false);
   const [editOpen,setEditOpen]=useState(false);
   const [editDriver,setEditDriver]=useState<any>(null);
-  const [payOpen,setPayOpen]=useState(false);
-  const [payDriverTarget,setPayDriverTarget]=useState<DriverRecord | null>(null);
-  const [payAmount,setPayAmount]=useState(0);
-  const [payMethod,setPayMethod]=useState('Cash');
-  const [payRef,setPayRef]=useState('');
-  const [payNote,setPayNote]=useState('');
+  const [panelRequest,setPanelRequest]=useState<'salary'|null>(null);
   const [newDriver,setNewDriver]=useState({
     name:'',
     phone:'',
@@ -73,13 +73,17 @@ export default function DriversPage(){
     licenseType:'Professional',
     experience:'5 Years',
     address:'Dhaka',
+    salary:'',
+    advance:'',
+    prevSalary:'',
+    prevFuelGas:'',
     joiningDate:new Date().toISOString().slice(0,10)
   });
   const [toast,setToast]=useState('');
   const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(''),3000)};
 
   // ─── Module 04: Attendance State ──────────────────────────────────────────
-  const [mainTab, setMainTab] = useState<'directory' | 'attendance'>('directory');
+  const [mainTab, setMainTab] = useState<'directory' | 'attendance' | 'replacements'>('directory');
   const [attYear, setAttYear] = useState<number>(new Date().getFullYear());
   const [attMonth, setAttMonth] = useState<number>(new Date().getMonth() + 1);
   const [attendanceData, setAttendanceData] = useState<any>(null);
@@ -140,6 +144,9 @@ export default function DriversPage(){
             licenseNo: d.licenseNo || 'DHA-2021-12345',
             licenseType: d.licenseType || 'Professional',
             experience: d.experience || '5 Years',
+            salary: Number(d.monthlySalary) || 0,
+            advanceDue: Number(d.advanceDue) || 0,
+            fuelGasDue: Number(d.fuelGasDue) || 0,
             status: (d.status === 'Active' || d.status === 'On Leave' ? d.status : 'Active') as DriverRecord['status'],
             address: d.presentAddress || 'Dhaka',
             joiningDate: d.joiningDate || '10 Jan 2021',
@@ -201,12 +208,16 @@ export default function DriversPage(){
       license_no: newDriver.licenseNo.trim(),
       license_type: newDriver.licenseType,
       present_address: newDriver.address,
+      monthly_salary: newDriver.salary || '0',
+      advance: newDriver.advance || '0',
+      previous_salary_due: newDriver.prevSalary || '0',
+      previous_fuel_gas_due: newDriver.prevFuelGas || '0',
     };
     try {
       await createDriver(1, payload);
       loadData();
       setAddOpen(false);
-      setNewDriver({name:'',phone:'',licenseNo:'',licenseType:'Professional',experience:'5 Years',address:'Dhaka',joiningDate:new Date().toISOString().slice(0,10)});
+      setNewDriver({name:'',phone:'',licenseNo:'',licenseType:'Professional',experience:'5 Years',address:'Dhaka',salary:'',advance:'',prevSalary:'',prevFuelGas:'',joiningDate:new Date().toISOString().slice(0,10)});
       showToast(`Driver ${payload.name} saved to database`);
     } catch {
       showToast('Error saving driver to database');
@@ -241,27 +252,6 @@ export default function DriversPage(){
       showToast(`Driver ${name} deactivated`);
     } catch {
       showToast('Error deactivating driver');
-    }
-  }
-
-  async function handleRecordSalaryPayout(){
-    if(!payDriverTarget || payAmount <= 0) return;
-    try {
-      await recordDriverPayment(1, payDriverTarget.id, {
-        amount: payAmount,
-        payment_method: payMethod,
-        reference: payRef,
-        note: payNote
-      });
-      loadData();
-      setPayOpen(false);
-      setPayDriverTarget(null);
-      setPayAmount(0);
-      setPayRef('');
-      setPayNote('');
-      showToast(`Salary payment of ৳ ${payAmount.toLocaleString()} recorded for ${payDriverTarget.name}`);
-    } catch {
-      showToast('Error recording driver salary');
     }
   }
 
@@ -326,9 +316,29 @@ export default function DriversPage(){
         >
           <CalendarDays size={16}/> Daily Attendance Register
         </button>
+        <button
+          onClick={()=>setMainTab('replacements')}
+          style={{
+            padding:'10px 16px',
+            borderBottom: mainTab==='replacements'?'2px solid #1677ff':'2px solid transparent',
+            fontWeight: mainTab==='replacements'?700:500,
+            color: mainTab==='replacements'?'#1677ff':'#64748b',
+            background:'none',
+            borderTop:0,borderLeft:0,borderRight:0,
+            cursor:'pointer',
+            fontSize:13,
+            display:'flex',
+            alignItems:'center',
+            gap:6
+          }}
+        >
+          <UserRound size={16}/> Replacement Drivers
+        </button>
       </div>
 
-      {mainTab === 'attendance' ? (
+      {mainTab === 'replacements' ? (
+        <ReplacementsPanel/>
+      ) : mainTab === 'attendance' ? (
         <Card style={{padding:16}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:12}}>
             <div style={{display:'flex',alignItems:'center',gap:12}}>
@@ -501,6 +511,7 @@ export default function DriversPage(){
                 <th style={{padding:'0 16px'}}>License No.</th>
                 <th style={{padding:'0 16px'}}>License Type</th>
                 <th style={{padding:'0 16px'}}>Experience</th>
+                <th style={{padding:'0 16px',textAlign:'right'}}>Monthly Salary</th>
                 <th style={{padding:'0 16px'}}>Status</th>
                 <th style={{padding:'0 16px',textAlign:'center'}}>Action</th>
               </tr>
@@ -508,7 +519,7 @@ export default function DriversPage(){
             <tbody>
               {paged.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{padding:'32px 16px',textAlign:'center',color:'#64748b'}}>
+                  <td colSpan={9} style={{padding:'32px 16px',textAlign:'center',color:'#64748b'}}>
                     {loading ? 'Loading drivers from database...' : 'No drivers found in database.'}
                   </td>
                 </tr>
@@ -533,6 +544,7 @@ export default function DriversPage(){
                       <td style={{padding:'0 16px',color:'#475569'}}>{d.licenseNo}</td>
                       <td style={{padding:'0 16px',color:'#475569'}}>{d.licenseType}</td>
                       <td style={{padding:'0 16px',color:'#475569'}}>{d.experience}</td>
+                      <td className="nums" style={{padding:'0 16px',color:'#0f172a',fontWeight:600,textAlign:'right',whiteSpace:'nowrap'}}>{fmt(d.salary)}</td>
                       <td style={{padding:'0 16px'}}>
                         <span style={{
                           background:d.status==='Active'?'#e6f9f0':d.status==='On Leave'?'#fff3e6':'#fee2e2',
@@ -553,7 +565,7 @@ export default function DriversPage(){
                           <button className="action-btn action-btn-blue" title="Edit Driver" onClick={(e)=>{e.stopPropagation();setEditDriver({...d});setEditOpen(true);}}>
                             <Edit2 size={14}/>
                           </button>
-                          <button className="action-btn action-btn-green" title="Pay Salary" onClick={(e)=>{e.stopPropagation();setPayDriverTarget(d);setPayAmount(18000);setPayOpen(true);}} style={{background:'#dcfce7',color:'#16a34a',border:'none',borderRadius:4,padding:4,cursor:'pointer'}}>
+                          <button className="action-btn action-btn-green" title="Pay Salary" onClick={(e)=>{e.stopPropagation();setSelectedDriver(d);setPanelRequest('salary');setTimeout(()=>document.getElementById('driver-finance')?.scrollIntoView({behavior:'smooth'}),50);}} style={{background:'#dcfce7',color:'#16a34a',border:'none',borderRadius:4,padding:4,cursor:'pointer'}}>
                             <Wallet size={14}/>
                           </button>
                           <button className="action-btn action-btn-red" title="Deactivate" onClick={(e)=>{e.stopPropagation();handleDeleteDriver(d.id, d.name);}}>
@@ -753,7 +765,7 @@ export default function DriversPage(){
             </button>
           </Link>
 
-          <button onClick={()=>{ if(activeDriver) { setPayDriverTarget(activeDriver); setPayAmount(18000); setPayOpen(true); } }} style={{width:'100%',background:'#10b981',color:'#fff',border:0,borderRadius:8,padding:'11px 16px',display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
+          <button onClick={()=>{ if(activeDriver) { setPanelRequest('salary'); setTimeout(()=>document.getElementById('driver-finance')?.scrollIntoView({behavior:'smooth'}),50); } }} style={{width:'100%',background:'#10b981',color:'#fff',border:0,borderRadius:8,padding:'11px 16px',display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
             <Wallet size={18}/> Pay Driver Salary
           </button>
 
@@ -762,6 +774,10 @@ export default function DriversPage(){
           </button>
         </Card>
       </div>
+
+      {activeDriver && (
+        <DriverFinancePanel driverId={activeDriver.id} driverName={activeDriver.name} request={panelRequest} onRequestHandled={()=>setPanelRequest(null)} onChanged={loadData}/>
+      )}
       </>
       )}
 
@@ -830,50 +846,6 @@ export default function DriversPage(){
         </DialogContent>
       </Dialog>
 
-      {/* Pay Driver Modal */}
-      <Dialog open={payOpen} onOpenChange={setPayOpen}>
-        <DialogContent style={{maxWidth:500}}>
-          <DialogHeader>
-            <DialogTitle>Disburse Driver Salary / Advance</DialogTitle>
-            <DialogDescription>Submit salary payment for driver {payDriverTarget?.name}.</DialogDescription>
-          </DialogHeader>
-
-          <div style={{display:'flex',flexDirection:'column',gap:12,padding:'8px 0'}}>
-            <label>
-              <span className="field-label">Payment Amount (৳) *</span>
-              <Input type="number" value={payAmount} onChange={e=>setPayAmount(Number(e.target.value))}/>
-            </label>
-
-            <label>
-              <span className="field-label">Payment Method</span>
-              <Select value={payMethod} onValueChange={setPayMethod}>
-                <SelectTrigger><SelectValue/></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Cash">Cash (Main Cash Box)</SelectItem>
-                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                  <SelectItem value="bKash / Nagad">Mobile Banking</SelectItem>
-                </SelectContent>
-              </Select>
-            </label>
-
-            <label>
-              <span className="field-label">Reference / Voucher No.</span>
-              <Input placeholder="e.g. SL-2026-DRV-01" value={payRef} onChange={e=>setPayRef(e.target.value)}/>
-            </label>
-
-            <label>
-              <span className="field-label">Payment Notes</span>
-              <Input placeholder="Monthly salary disbursement note" value={payNote} onChange={e=>setPayNote(e.target.value)}/>
-            </label>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={()=>setPayOpen(false)}>Cancel</Button>
-            <Button onClick={handleRecordSalaryPayout} disabled={payAmount <= 0} style={{background:'#10b981'}}>Confirm Salary Disbursement</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Add Driver Modal */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent style={{maxWidth:560}}>
@@ -921,6 +893,20 @@ export default function DriversPage(){
               <span className="field-label">Present Address</span>
               <Input placeholder="Mirpur, Dhaka" value={newDriver.address} onChange={e=>setNewDriver(f=>({...f,address:e.target.value}))}/>
             </label>
+
+            <label>
+              <span className="field-label">Monthly Salary (৳)</span>
+              <Input type="number" min="0" step="0.01" placeholder="e.g. 20000" value={newDriver.salary} onChange={e=>setNewDriver(f=>({...f,salary:e.target.value}))}/>
+            </label>
+
+            <fieldset style={{border:'1px dashed #cbd5e1',borderRadius:10,padding:12}}>
+              <legend style={{fontSize:12,fontWeight:700,color:'#475569',padding:'0 6px'}}>Previous dues (optional)</legend>
+              <div className="form-grid">
+                <label><span className="field-label">Previous advance due (৳)</span><Input type="number" min="0" step="0.01" value={newDriver.advance} onChange={e=>setNewDriver(f=>({...f,advance:e.target.value}))}/></label>
+                <label><span className="field-label">Previous salary due (৳)</span><Input type="number" min="0" step="0.01" value={newDriver.prevSalary} onChange={e=>setNewDriver(f=>({...f,prevSalary:e.target.value}))}/></label>
+                <label><span className="field-label">Previous fuel/gas due (৳)</span><Input type="number" min="0" step="0.01" value={newDriver.prevFuelGas} onChange={e=>setNewDriver(f=>({...f,prevFuelGas:e.target.value}))}/></label>
+              </div>
+            </fieldset>
           </div>
 
           <DialogFooter>
