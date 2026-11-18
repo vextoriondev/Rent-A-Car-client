@@ -1,11 +1,12 @@
 "use client";
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {Printer, Wallet, HandCoins, Fuel, Landmark} from 'lucide-react';
 import {fetchDriverFinance, issueDriverAdvance, issueDriverFuelGas, payDriverSalary, reverseSalaryPayment} from '@/lib/finance-api';
 import {fetchVehicles} from '@/lib/api';
 import {Field, FormDialog, HistoryTable, Input, MethodSelect, NativeSelect, Stat, errText, taka, thisMonth, todayISO, useIdemKey} from './common';
 import {OpeningBalanceDialog} from './opening-balance';
 import {Card} from '@/components/ui/card';
+import {printDoc} from '@/lib/print-doc';
 
 type Summary = Record<string, any>;
 
@@ -18,24 +19,41 @@ export function DriverFinancePanel({driverId, driverName, onChanged, request, on
   const [dlg, setDlg] = useState<'' | 'advance' | 'fuel' | 'salary' | 'opening'>('');
   const [toast, setToast] = useState('');
 
+  const latest = useRef(0);
   const load = useCallback(() => {
+    const ticket = ++latest.current;   // only the latest request may update the panel (driver or date filters may have changed)
     setErr('');
-    fetchDriverFinance(driverId, from || undefined, to || undefined).then(setS).catch(e => setErr(errText(e)));
+    fetchDriverFinance(driverId, from || undefined, to || undefined)
+      .then(x => { if (ticket === latest.current) setS(x); })
+      .catch(e => { if (ticket === latest.current) setErr(errText(e)); });
   }, [driverId, from, to]);
   useEffect(() => { setS(null); load(); }, [load]);
   useEffect(() => { if (request) { setDlg(request); onRequestHandled?.(); } }, [request]); // eslint-disable-line react-hooks/exhaustive-deps
   const done = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3500); load(); onChanged?.(); };
 
+  const [report, setReport] = useState<'all' | 'salary' | 'advance' | 'fuel'>('all');
+  const REPORTS: Record<string, {title: string; accounts: string[] | null}> = {
+    all: {title: 'Driver Financial Statement', accounts: null},
+    salary: {title: 'Driver Salary Report', accounts: ['driver_salary']},
+    advance: {title: 'Driver Advance Report', accounts: ['driver_advance']},
+    fuel: {title: 'Driver Fuel/Gas Report', accounts: ['driver_fuel_gas', 'driver_fuel_reimb']},
+  };
   function printStatement() {
     if (!s) return;
-    const w = window.open('', '_blank', 'width=900,height=700');
-    if (!w) return;
-    const rows = s.history.map((h: any) => `<tr><td>${h.date}</td><td>${String(h.account).replace(/_/g, ' ')}</td><td>${h.type}</td><td>${h.description || ''}</td><td>${h.reference || ''}</td><td style="text-align:right">${h.delta}</td></tr>`).join('');
-    w.document.write(`<html><head><title>Driver statement</title><style>body{font-family:Arial;font-size:12px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:4px 6px}h2{margin:0 0 4px}@page{size:A4;margin:14mm}thead{display:table-header-group}tr{page-break-inside:avoid}tfoot{display:table-footer-group}</style></head><body>
-      <h2>Driver Financial Statement – ${driverName}</h2><p>${from || 'Start'} to ${to || 'today'} · generated ${new Date().toLocaleString()}</p>
-      <p>Monthly salary ${s.monthlySalary} · Salary due ${s.remainingSalaryDue} · Advance due ${s.remainingAdvanceDue} · Fuel/Gas due ${s.remainingFuelGas}</p>
-      <table><thead><tr><th>Date</th><th>Account</th><th>Type</th><th>Description</th><th>Ref</th><th>Amount</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
-    w.document.close(); w.print();
+    const def = REPORTS[report];
+    const rows = (s.history as any[]).filter(h => !def.accounts || def.accounts.includes(h.account));
+    const total = rows.reduce((a, h) => a + Number(h.delta), 0);
+    const balances: [string, string][] = report === 'salary' ? [['Salary due', s.remainingSalaryDue], ['Total salary paid', s.totalSalaryPaid]]
+      : report === 'advance' ? [['Advance received', s.totalAdvanceReceived], ['Advance adjusted', s.totalAdvanceAdjusted], ['Remaining advance due', s.remainingAdvanceDue]]
+      : report === 'fuel' ? [['Fuel/Gas money total', s.totalFuelGas], ['Settled', s.fuelGasSettled], ['Remaining fuel/gas', s.remainingFuelGas], ['Reimbursable to driver', s.remainingFuelGasReimbursable]]
+      : [['Monthly salary', s.monthlySalary], ['Salary due', s.remainingSalaryDue], ['Advance due', s.remainingAdvanceDue], ['Fuel/Gas due', s.remainingFuelGas]];
+    const ok = printDoc({
+      title: `${def.title} – ${driverName}`, subtitle: `${from || 'Start'} to ${to || 'today'}`,
+      columns: [{label: 'Date'}, {label: 'Account'}, {label: 'Type'}, {label: 'Description'}, {label: 'Reference'}, {label: 'Amount (৳)', align: 'right'}],
+      rows: rows.map(h => [h.date, String(h.account).replace(/_/g, ' '), h.type, h.description || '', h.reference || '', Number(h.delta).toLocaleString('en-US', {minimumFractionDigits: 2})]),
+      totals: [...balances.map(([k, v]) => [k, '৳ ' + Number(v).toLocaleString('en-US', {minimumFractionDigits: 2})] as [string, string]), ['Net movement in this period', '৳ ' + total.toLocaleString('en-US', {minimumFractionDigits: 2})]],
+    });
+    if (!ok) setErr('Allow pop-ups to print the statement');
   }
 
   return (
@@ -89,7 +107,8 @@ export function DriverFinancePanel({driverId, driverName, onChanged, request, on
           <h4 style={{fontSize: 13, margin: 0, flex: 1}}>Transaction history</h4>
           <label><span className="field-label">From</span><Input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
           <label><span className="field-label">To</span><Input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
-          <button className="btn-reset" onClick={printStatement}><Printer size={14} /> Print statement</button>
+          <label><span className="field-label">Report</span><select value={report} onChange={e => setReport(e.target.value as any)} style={{height: 38, border: '1px solid #cbd5e1', borderRadius: 8, padding: '0 8px', background: '#fff'}}><option value="all">Full statement</option><option value="salary">Salary</option><option value="advance">Advance</option><option value="fuel">Fuel/Gas</option></select></label>
+          <button className="btn-reset" onClick={printStatement}><Printer size={14} /> Print</button>
         </div>
         <HistoryTable rows={s.history} />
       </>)}

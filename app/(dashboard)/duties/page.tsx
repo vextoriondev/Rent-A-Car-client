@@ -6,7 +6,7 @@ import {
   Filter, Car, Users, TrendingUp, AlertCircle, Clock, CheckCheck,
   ChevronUp, ChevronDown, ChevronsUpDown, X, Search, Send, Smartphone,
 } from 'lucide-react';
-import {fetchDuties, createDuty, updateDutyStatus, fetchClients, fetchVehicles, fetchDrivers, dispatchTripSheet} from '@/lib/api';
+import {fetchDuties, createDuty, updateDuty, updateDutyStatus, fetchClients, fetchVehicles, fetchDrivers, dispatchTripSheet} from '@/lib/api';
 import {
   Duty, DutyStatus, DutyType,
 } from '@/lib/tasin-data';
@@ -211,6 +211,8 @@ export default function DutiesPage() {
   const [form, setForm] = useState<FormData>(emptyForm());
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [addErr, setAddErr] = useState('');
+  const [editErr, setEditErr] = useState('');
 
   // ── Edit form state ──
   const [editForm, setEditForm] = useState<FormData>(emptyForm());
@@ -282,73 +284,50 @@ export default function DutiesPage() {
   };
 
   // ─── Submission ──────────────────────────────────────────────────────────────
-  const handleAddSubmit = () => {
+  const dutyPayload = (f: typeof form) => {
+    const client  = clients.find(c => c.id === f.clientId);
+    const vehicle = vehicles.find(v => v.id === f.vehicleId);
+    const driver  = drivers.find(d => d.id === f.driverId);
+    return {
+      date: f.date,
+      client_id: f.clientId, client_name: client?.name || '',
+      vehicle_id: f.vehicleId, vehicle_reg: vehicle?.registration || vehicle?.regNo || '',
+      driver_id: f.driverId, driver_name: driver?.name || '',
+      pickup_location: f.pickupLocation,
+      destination: f.destination,
+      start_time: f.startTime,
+      end_time: f.endTime || '',
+      duty_type: f.dutyType,
+      customer_contact: f.customerContact,
+      description: f.description || '',
+      agreed_rent: Number(f.agreedRent),
+      fuel_cost: Number(f.fuelCost) || 0,
+      overtime_charge: Number(f.overtimeCharge) || 0,
+      driver_allowance: Number(f.driverAllowance) || 0,
+      additional_charge: Number(f.additionalCharge) || 0,
+      discount: Number(f.discount) || 0,
+    };
+  };
+
+  // The server is the source of truth: the dialog closes and the list changes only after the API confirms.
+  const handleAddSubmit = async () => {
     const errs = validateForm(form);
     if (Object.keys(errs).length) { setFormErrors(errs); return; }
+    setAddErr('');
     setSubmitting(true);
-
-    const nextId = `DTY-${String(duties.length + 1).padStart(3, '0')}`;
-    const client  = clients.find(c => c.id === form.clientId) || { name: 'Client' };
-    const vehicle = vehicles.find(v => v.id === form.vehicleId) || { registration: 'DHA-METRO' };
-    const driver  = drivers.find(d => d.id === form.driverId) || { name: 'Driver' };
-    const total   = computeTotal(form);
-
-    const newDuty: Duty = {
-      id: nextId,
-      date: form.date,
-      clientId: form.clientId,
-      clientName: client.name,
-      vehicleId: form.vehicleId,
-      vehicleReg: vehicle.registration,
-      driverId: form.driverId,
-      driverName: driver.name,
-      pickupLocation: form.pickupLocation,
-      destination: form.destination,
-      startTime: form.startTime,
-      endTime: form.endTime || undefined,
-      dutyType: form.dutyType as DutyType,
-      customerContact: form.customerContact,
-      description: form.description || undefined,
-      agreedRent: Number(form.agreedRent),
-      fuelCost: Number(form.fuelCost) || 0,
-      overtimeCharge: Number(form.overtimeCharge) || 0,
-      driverAllowance: Number(form.driverAllowance) || 0,
-      additionalCharge: Number(form.additionalCharge) || 0,
-      discount: Number(form.discount) || 0,
-      totalAmount: total,
-      status: 'Scheduled',
-    };
-
-    createDuty(1, {
-      date: form.date,
-      client_name: client.name,
-      vehicle_reg: vehicle.registration,
-      driver_name: driver.name,
-      pickup_location: form.pickupLocation,
-      destination: form.destination,
-      start_time: form.startTime,
-      end_time: form.endTime || '',
-      duty_type: form.dutyType,
-      customer_contact: form.customerContact,
-      description: form.description || '',
-      agreed_rent: Number(form.agreedRent),
-      fuel_cost: Number(form.fuelCost) || 0,
-      overtime_charge: Number(form.overtimeCharge) || 0,
-      driver_allowance: Number(form.driverAllowance) || 0,
-      additional_charge: Number(form.additionalCharge) || 0,
-      discount: Number(form.discount) || 0,
-      status: 'Scheduled'
-    }).then(() => loadData()).catch(() => {});
-
-    setTimeout(() => {
-      setDuties(prev => [newDuty, ...prev]);
+    try {
+      const res: any = await createDuty(1, {...dutyPayload(form), status: 'Scheduled'});
       setAddOpen(false);
       setForm(emptyForm());
       setFormErrors({});
-      setSubmitting(false);
-      showToast(`✓ Duty ${nextId} created successfully`);
       setPage(1);
-    }, 350);
+      loadData();
+      showToast(`✓ Duty ${res?.dutyId || ''} created successfully`);
+    } catch (e: any) {
+      setAddErr(e?.message || 'Could not save the duty');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // ─── Edit submission ─────────────────────────────────────────────────────────
@@ -376,61 +355,38 @@ export default function DutiesPage() {
     setEditErrors({});
   };
 
-  const handleEditSubmit = () => {
+  const handleEditSubmit = async () => {
     if (!editTarget) return;
     const errs = validateForm(editForm);
     if (Object.keys(errs).length) { setEditErrors(errs); return; }
-
-    const client  = clients.find(c => c.id === editForm.clientId) || { name: 'Client' };
-    const vehicle = vehicles.find(v => v.id === editForm.vehicleId) || { registration: 'DHA-METRO' };
-    const driver  = drivers.find(d => d.id === editForm.driverId) || { name: 'Driver' };
-    const total   = computeTotal(editForm);
-
-    setDuties(prev => prev.map(d =>
-      d.id === editTarget.id ? {
-        ...d,
-        date: editForm.date,
-        clientId: editForm.clientId,
-        clientName: client.name,
-        vehicleId: editForm.vehicleId,
-        vehicleReg: vehicle.registration,
-        driverId: editForm.driverId,
-        driverName: driver.name,
-        pickupLocation: editForm.pickupLocation,
-        destination: editForm.destination,
-        startTime: editForm.startTime,
-        endTime: editForm.endTime || undefined,
-        dutyType: editForm.dutyType as DutyType,
-        customerContact: editForm.customerContact,
-        description: editForm.description || undefined,
-        agreedRent: Number(editForm.agreedRent),
-        fuelCost: Number(editForm.fuelCost) || 0,
-        overtimeCharge: Number(editForm.overtimeCharge) || 0,
-        driverAllowance: Number(editForm.driverAllowance) || 0,
-        additionalCharge: Number(editForm.additionalCharge) || 0,
-        discount: Number(editForm.discount) || 0,
-        totalAmount: total,
-      } : d
-    ));
-    setEditTarget(null);
-    showToast(`✓ Duty ${editTarget.id} updated`);
+    setEditErr('');
+    const raw = (editTarget as any).rawId;
+    try {
+      await updateDuty(1, raw ?? editTarget.id, dutyPayload(editForm as any));
+      setEditTarget(null);
+      loadData();
+      showToast(`✓ Duty ${editTarget.id} updated`);
+    } catch (e: any) {
+      setEditErr(e?.message || 'Could not save the changes');
+    }
   };
 
   // ─── Status actions ───────────────────────────────────────────────────────────
-  const executeConfirm = () => {
+  const executeConfirm = async () => {
     if (!confirmAction) return;
     const {type, duty} = confirmAction;
     const nextStatus: DutyStatus =
       type === 'start'    ? 'Running'   :
       type === 'complete' ? 'Completed' : 'Cancelled';
-
-    updateDutyStatus(1, duty.id, nextStatus).catch(() => {});
-
-    setDuties(prev => prev.map(d =>
-      d.id === duty.id ? {...d, status: nextStatus} : d
-    ));
-    setConfirmAction(null);
-    showToast(`✓ Duty ${duty.id} marked as ${nextStatus}`);
+    try {
+      await updateDutyStatus(1, (duty as any).rawId ?? duty.id, nextStatus);
+      setConfirmAction(null);
+      loadData();
+      showToast(`✓ Duty ${duty.id} marked as ${nextStatus}`);
+    } catch (e: any) {
+      setConfirmAction(null);
+      showToast(`✗ ${e?.message || 'Could not change the status'}`);
+    }
   };
 
   // ─── Print handler ────────────────────────────────────────────────────────────
@@ -936,6 +892,7 @@ export default function DutiesPage() {
             <DialogDescription>Fill in all required fields to schedule a new duty assignment.</DialogDescription>
           </DialogHeader>
           {renderForm(form, (u)=>setForm(prev=>({...prev,...u})), formErrors)}
+          {addErr && <div role="alert" style={{background:'#fef3f2',border:'1px solid #fecdca',color:'#b42318',borderRadius:8,padding:'8px 12px',fontSize:12.5,margin:'8px 0'}}>{addErr}</div>}
           <DialogFooter style={{marginTop:12}}>
             <Button variant="outline" onClick={()=>setAddOpen(false)} disabled={submitting}>Cancel</Button>
             <Button onClick={handleAddSubmit} disabled={submitting}>
@@ -955,6 +912,7 @@ export default function DutiesPage() {
             <DialogDescription>Update the details for this duty assignment.</DialogDescription>
           </DialogHeader>
           {editTarget && renderForm(editForm, (u)=>setEditForm(prev=>({...prev,...u})), editErrors)}
+          {editErr && <div role="alert" style={{background:'#fef3f2',border:'1px solid #fecdca',color:'#b42318',borderRadius:8,padding:'8px 12px',fontSize:12.5,margin:'8px 0'}}>{editErr}</div>}
           <DialogFooter style={{marginTop:12}}>
             <Button variant="outline" onClick={()=>setEditTarget(null)}>Cancel</Button>
             <Button onClick={handleEditSubmit}>Save Changes</Button>

@@ -4,6 +4,7 @@ import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {apiRequest, fetchGarages} from '@/lib/api';
 import {newIdemKey} from '@/lib/finance-api';
+import {printDoc} from '@/lib/print-doc';
 import {Field, FormDialog, HistoryTable, Input, MethodSelect, NativeSelect, Stat, errText, taka, todayISO, useIdemKey} from './common';
 
 const call = (method: string, path: string, body?: unknown, key?: string) =>
@@ -71,7 +72,20 @@ function GarageDialog({garage, onClose, onChanged}: {garage: any; onClose: () =>
       <Field label="Note"><Input value={note} onChange={e => setNote(e.target.value)} /></Field>
       {st && st.vehicleBreakdown.length > 0 && (<><h4 style={{fontSize: 12.5, margin: '6px 0 0'}}>Vehicle-wise</h4>
         <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>{st.vehicleBreakdown.map((v: any) => <Stat key={v.vehicle} label={`${v.vehicle} billed / paid`} value={`${taka(v.billed)} / ${taka(v.paid)}`} />)}</div></>)}
-      <h4 style={{fontSize: 12.5, margin: '6px 0 0'}}>History</h4>
+      <div style={{display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0 0'}}>
+        <h4 style={{fontSize: 12.5, margin: 0, flex: 1}}>History</h4>
+        <button type="button" className="btn-reset" style={{height: 28, fontSize: 11.5}} disabled={!st} onClick={() => {
+          if (!st) return;
+          const money = (v: string | number) => '৳ ' + Number(v).toLocaleString('en-US', {minimumFractionDigits: 2});
+          const ok = printDoc({
+            title: `Garage Payable Statement – ${garage.name}`,
+            columns: [{label: 'Date'}, {label: 'Type'}, {label: 'Vehicle'}, {label: 'Reference'}, {label: 'Description'}, {label: 'Amount (৳)', align: 'right'}],
+            rows: [...st.history].reverse().map((h: any) => [h.date, h.type + (h.reversed ? ' (reversed)' : ''), h.vehicle, h.reference, h.description, Number(h.delta).toLocaleString('en-US', {minimumFractionDigits: 2})]),
+            totals: [['Total billed', money(st.totalBilled)], ['Total paid', money(st.totalPaid)], ['Carried forward (old system)', money(st.carriedForward)], ['Outstanding', money(st.outstanding)]],
+          });
+          if (!ok) setErr('Allow pop-ups to print the statement');
+        }}>Print statement</button>
+      </div>
       {st && (st.history.length === 0 ? <div style={{fontSize: 12.5, color: '#64748b'}}>No transactions.</div> : (
         <div style={{overflowX: 'auto', maxHeight: 260}}><table style={{width: '100%', fontSize: 12, borderCollapse: 'collapse'}}>
           <thead><tr style={{background: '#f8fafc', textAlign: 'left'}}>{['Date', 'Type', 'Vehicle', 'Reference', 'Description', 'Amount', ''].map(h => <th key={h} style={{padding: '5px 8px'}}>{h}</th>)}</tr></thead>

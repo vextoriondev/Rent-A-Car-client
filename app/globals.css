@@ -537,3 +537,6 @@ body{background:#f0f4f9!important}
 /* tab panels never widen the page: wide content scrolls inside the panel */
 [data-slot=tabs]{min-width:0;max-width:100%}
 [data-slot=tabs-content]{min-width:0;max-width:100%;overflow-x:auto}
+
+/* a centred flex row that overflows loses its left edge (negative scroll offset is unreachable): keep tab bars start-aligned and scrollable */
+[data-slot=tabs-list]{justify-content:flex-start;max-width:100%;overflow-x:auto}

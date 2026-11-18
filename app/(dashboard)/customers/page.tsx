@@ -654,7 +654,7 @@ export default function CustomersPage(){
             </button>
           </Link>
 
-          <button onClick={()=>window.print()} style={{width:'100%',background:'#8b5cf6',color:'#fff',border:0,borderRadius:8,padding:'11px 16px',display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
+          <button onClick={()=>{(document.querySelector('[data-party-print]') as HTMLElement | null)?.click();}} style={{width:'100%',background:'#8b5cf6',color:'#fff',border:0,borderRadius:8,padding:'11px 16px',display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
             <Printer size={18}/> Print Client Ledger
           </button>
 

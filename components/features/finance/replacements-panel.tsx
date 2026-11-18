@@ -1,5 +1,5 @@
 "use client";
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {Plus, Trash2} from 'lucide-react';
 import {Card} from '@/components/ui/card';
 import {createReplacement, deleteReplacement, fetchReplacements} from '@/lib/finance-api';
@@ -19,11 +19,16 @@ export function ReplacementsPanel() {
   const [form, setForm] = useState(blank);
   const [toast, setToast] = useState('');
 
+  const latest = useRef(0);
   const load = useCallback(() => {
+    const ticket = ++latest.current;
     setLoading(true);
     const params: Record<string, string> = {};
     Object.entries(f).forEach(([k, v]) => { if (v) params[k] = v; });
-    fetchReplacements(params).then(r => { setRows(Array.isArray(r) ? r : []); setErr(''); }).catch(e => setErr(errText(e))).finally(() => setLoading(false));
+    fetchReplacements(params)
+      .then(r => { if (ticket === latest.current) { setRows(Array.isArray(r) ? r : []); setErr(''); } })
+      .catch(e => { if (ticket === latest.current) setErr(errText(e)); })
+      .finally(() => { if (ticket === latest.current) setLoading(false); });
   }, [f]);
   useEffect(load, [load]);
   useEffect(() => {

@@ -1,5 +1,5 @@
 "use client";
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {Plus, Trash2, Printer} from 'lucide-react';
 import {Card} from '@/components/ui/card';
 import {apiRequest, fetchOwners, fetchClients, fetchVehicles} from '@/lib/api';
@@ -21,9 +21,15 @@ export function TasinAgreements() {
   const [view, setView] = useState<any>(null);
   const [toast, setToast] = useState('');
 
+  const latest = useRef(0);
   const load = useCallback(() => {
+    const ticket = ++latest.current;   // an older, slower response must never overwrite the list of the tab now selected
     setLoading(true);
-    fetchTasinAgreements(tab === 'all' ? undefined : tab, q || undefined).then((r: any) => { setRows(Array.isArray(r) ? r : []); setErr(''); }).catch(e => setErr(errText(e))).finally(() => setLoading(false));
+    setRows([]);                       // never show another tab's rows while the new tab loads
+    fetchTasinAgreements(tab === 'all' ? undefined : tab, q || undefined)
+      .then((r: any) => { if (ticket === latest.current) { setRows(Array.isArray(r) ? r : []); setErr(''); } })
+      .catch(e => { if (ticket === latest.current) setErr(errText(e)); })
+      .finally(() => { if (ticket === latest.current) setLoading(false); });
   }, [tab, q]);
   useEffect(load, [load]);
 

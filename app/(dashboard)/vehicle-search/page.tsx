@@ -1,5 +1,5 @@
 "use client";
-import {useState, useMemo, useCallback, useEffect} from 'react';
+import {useState, useMemo, useCallback, useEffect, useRef} from 'react';
 import {
   Search, CarFront, User, Building2, FileText, Download, Printer,
   TrendingUp, TrendingDown, X, ChevronRight, Calendar, Phone, Mail,
@@ -378,16 +378,22 @@ export default function VehicleSearchPage() {
   const [vehiclesList, setVehiclesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const latestSearch = useRef(0);
+  const [searchError, setSearchError] = useState('');
+  // Only the most recent search may update the screen: an older, slower response must never overwrite a newer one.
   const loadVehicles = (q: string = '') => {
+    const ticket = ++latestSearch.current;
     setLoading(true);
     searchVehicles(1, q)
       .then((data: any) => {
+        if (ticket !== latestSearch.current) return;
         if (Array.isArray(data)) {
           setVehiclesList(data);
+          setSearchError('');
         }
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch((e: any) => { if (ticket === latestSearch.current) setSearchError(e?.message || 'Search failed'); })
+      .finally(() => { if (ticket === latestSearch.current) setLoading(false); });
   };
 
   useEffect(() => {
@@ -506,6 +512,7 @@ export default function VehicleSearchPage() {
         />
       )}
 
+      {searchError && <div role="alert" style={{background:'#fef3f2',border:'1px solid #fecdca',color:'#b42318',borderRadius:8,padding:'8px 12px',fontSize:12.5,margin:'8px 0'}}>{searchError}</div>}
       {/* Results Grid */}
       {filtered.length === 0 ? (
         <EmptyState

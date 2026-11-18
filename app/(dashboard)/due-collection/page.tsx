@@ -120,7 +120,7 @@ function PaymentModal({
 }: {
   target: ModalTarget;
   onClose: () => void;
-  onConfirm: (amount: number) => void;
+  onConfirm: (form: PaymentForm, amount: number) => Promise<string | null>;
 }) {
   const [form, setForm] = useState<PaymentForm>({
     date: today(),
@@ -138,6 +138,7 @@ function PaymentModal({
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   if (!target) return null;
 
@@ -159,17 +160,19 @@ function PaymentModal({
     target.kind === 'driver' ? target.row.name :
     target.row.name;
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    if (busy) return;
     const amt = parseFloat(form.amount);
     if (isNaN(amt) || amt <= 0) {setError('Enter a valid amount.'); return;}
     if (amt > maxAmount) {setError(`Amount cannot exceed remaining due of ৳${maxAmount.toLocaleString('en-US')}.`); return;}
     if (!form.date) {setError('Collection date is required.'); return;}
     setError('');
+    setBusy(true);
+    const err = await onConfirm(form, amt);   // success is shown only after the server accepted the payment
+    setBusy(false);
+    if (err) {setError(err); return;}
     setSuccess(true);
-    setTimeout(() => {
-      onConfirm(amt);
-      onClose();
-    }, 1200);
+    setTimeout(onClose, 900);
   }
 
   if (success) {
@@ -713,6 +716,7 @@ export default function DueCollectionPage() {
   const [newNote, setNewNote] = useState('');
   const [nextReminder, setNextReminder] = useState('');
   const [followUpStatus, setFollowUpStatus] = useState('pending');
+  const [followUpError, setFollowUpError] = useState('');
   const [submittingFollowUp, setSubmittingFollowUp] = useState(false);
 
   const loadDues = () => {
@@ -743,47 +747,32 @@ export default function DueCollectionPage() {
   const totalOverdue       = customerReceivable + ownerPayable + driverPayable + garagePayable;
 
   // ── Payment handlers ────────────────────────────────────────────────────────
-  function handlePayment(amount: number) {
-    if (!modal) return;
-    if (modal.kind === 'client') {
-      recordClientCollection(1, modal.row.id, { amount, payment_method: 'Cash', note: 'Collection' })
-        .then(() => loadDues()).catch(() => {});
-      setClients(prev => prev.map(c =>
-        c.id === modal.row.id
-          ? {...c, paid: c.paid + amount, remaining: c.remaining - amount,
-              status: (c.remaining - amount) === 0 ? 'paid' : c.status === 'overdue' ? 'overdue' : 'partial'}
-          : c
-      ));
-    } else if (modal.kind === 'owner') {
-      recordOwnerPayment(1, modal.row.id, { amount, payment_method: 'Cash', note: 'Owner payout' })
-        .then(() => loadDues()).catch(() => {});
-      setOwners(prev => prev.map(o =>
-        o.id === modal.row.id ? {...o, paid: o.paid + amount, remaining: o.remaining - amount} : o
-      ));
-    } else if (modal.kind === 'driver') {
-      recordDriverPayment(1, modal.row.id, { amount, payment_method: 'Cash', note: 'Driver payment' })
-        .then(() => loadDues()).catch(() => {});
-      setDrivers(prev => prev.map(d =>
-        d.id === modal.row.id ? {...d, totalPaid: d.totalPaid + amount, remaining: d.remaining - amount} : d
-      ));
-    } else if (modal.kind === 'garage') {
-      recordGaragePayment(1, modal.row.id, { amount, payment_method: 'Cash', note: 'Garage bill payment' })
-        .then(() => loadDues()).catch(() => {});
-      setGarages(prev => prev.map(g =>
-        g.id === modal.row.id ? {...g, paid: g.paid + amount, remaining: g.remaining - amount} : g
-      ));
+  async function handlePayment(form: PaymentForm, amount: number): Promise<string | null> {
+    if (!modal) return 'Nothing selected';
+    const body = {amount, payment_method: form.method, reference: form.reference, note: form.note, date: form.date};
+    try {
+      if (modal.kind === 'client') await recordClientCollection(1, modal.row.id, body);
+      else if (modal.kind === 'owner') await recordOwnerPayment(1, modal.row.id, body);
+      else if (modal.kind === 'driver') await recordDriverPayment(1, modal.row.id, body);
+      else await recordGaragePayment(1, modal.row.id, body);
+      await loadDues();   // balances always come from the server
+      return null;
+    } catch (e: any) {
+      return e?.message || 'The payment could not be recorded';
     }
   }
 
   // ── Follow-up Handlers ──────────────────────────────────────────────────────
   async function handleOpenFollowUp(row: any, kind: string) {
     setFollowUpTarget({ id: row.id, name: row.name, kind });
+    setFollowUpError(kind === 'garage' ? 'Follow-ups are recorded against clients, owners and drivers; garages are not supported.' : '');
     setNewNote('');
     setNextReminder('');
     setFollowUpStatus('pending');
     setFollowUpLoading(true);
     try {
-      const partyNumericId = parseInt(String(row.id).replace(/\D/g, '')) || 1;
+      if (kind === 'garage') { setFollowUpsList([]); return; }   // a garage id is not a party id: never show another party's follow-ups
+      const partyNumericId = parseInt(String(row.id), 10);
       const res = await fetchDueFollowUps(1, partyNumericId);
       setFollowUpsList(Array.isArray(res) ? res : []);
     } catch {
@@ -794,22 +783,26 @@ export default function DueCollectionPage() {
   }
 
   async function handleSaveFollowUp() {
-    if (!followUpTarget || !newNote.trim()) return;
+    if (!followUpTarget || !newNote.trim() || followUpTarget.kind === 'garage') return;
     setSubmittingFollowUp(true);
     try {
-      const partyNumericId = parseInt(String(followUpTarget.id).replace(/\D/g, '')) || 1;
+      const partyNumericId = parseInt(String(followUpTarget.id), 10);
       await createDueFollowUp(1, {
         party_id: partyNumericId,
+        party_type: ({client: 'Customer', owner: 'Owner', driver: 'Driver'} as Record<string, string>)[followUpTarget.kind] || 'Customer',
+        follow_up_date: new Date().toISOString().slice(0, 10),
+        contact_method: 'Phone Call',
         notes: newNote,
-        status: followUpStatus,
-        next_reminder_date: nextReminder || null,
+        status: followUpStatus === 'completed' ? 'Completed' : followUpStatus === 'overdue' ? 'Overdue' : 'Pending',
+        next_follow_up_date: nextReminder || null,
       });
       const res = await fetchDueFollowUps(1, partyNumericId);
       setFollowUpsList(Array.isArray(res) ? res : []);
       setNewNote('');
       setNextReminder('');
+      setFollowUpError('');
     } catch (err: any) {
-      console.error(err);
+      setFollowUpError(err?.message || 'The follow-up could not be saved');
     } finally {
       setSubmittingFollowUp(false);
     }
@@ -983,18 +976,18 @@ export default function DueCollectionPage() {
                   followUpsList.map((f: any, idx: number) => (
                     <div key={f.id || idx} style={{padding:8,borderRadius:6,background:'#fff',border:'1px solid #f1f5f9',fontSize:12}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
-                        <span style={{fontWeight:700,color:'#0f172a'}}>{f.followup_date || 'Recent'}</span>
+                        <span style={{fontWeight:700,color:'#0f172a'}}>{f.followUpDate || f.followup_date || 'Recent'}</span>
                         <span style={{
                           fontSize:10,fontWeight:700,padding:'1px 6px',borderRadius:4,
-                          background: f.status === 'resolved' ? '#e6f9f0' : f.status === 'escalated' ? '#fee4e2' : '#eff6ff',
-                          color: f.status === 'resolved' ? '#10b981' : f.status === 'escalated' ? '#ef4444' : '#1677ff',
+                          background: f.status === 'Completed' ? '#e6f9f0' : f.status === 'Overdue' ? '#fee4e2' : '#eff6ff',
+                          color: f.status === 'Completed' ? '#10b981' : f.status === 'Overdue' ? '#ef4444' : '#1677ff',
                         }}>
                           {f.status?.toUpperCase()}
                         </span>
                       </div>
                       <p style={{margin:0,color:'#475569',fontSize:11.5}}>{f.notes}</p>
-                      {f.next_reminder_date && (
-                        <small style={{color:'#f79009',display:'block',marginTop:2}}>Reminder: {f.next_reminder_date}</small>
+                      {(f.nextFollowUpDate || f.next_reminder_date) && (
+                        <small style={{color:'#f79009',display:'block',marginTop:2}}>Next follow-up: {f.nextFollowUpDate || f.next_reminder_date}</small>
                       )}
                     </div>
                   ))
@@ -1023,8 +1016,8 @@ export default function DueCollectionPage() {
                     <SelectTrigger><SelectValue/></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="resolved">Resolved</SelectItem>
-                      <SelectItem value="escalated">Escalated</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="overdue">Overdue</SelectItem>
                     </SelectContent>
                   </Select>
                 </label>
@@ -1035,6 +1028,7 @@ export default function DueCollectionPage() {
                 </label>
               </div>
 
+              {followUpError && <div role="alert" style={{background:'#fef3f2',border:'1px solid #fecdca',color:'#b42318',borderRadius:8,padding:'8px 12px',fontSize:12.5,marginBottom:8}}>{followUpError}</div>}
               <Button
                 size="sm"
                 onClick={handleSaveFollowUp}

@@ -1,5 +1,5 @@
 "use client";
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {Printer} from 'lucide-react';
 import {Card} from '@/components/ui/card';
 import {fetchDailyReport} from '@/lib/finance-api';
@@ -18,10 +18,15 @@ export function DailyReport() {
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const latest = useRef(0);
   const load = useCallback(() => {
     if (!day) return;
-    setLoading(true); setErr('');
-    fetchDailyReport(day).then(setR).catch(e => { setR(null); setErr(errText(e)); }).finally(() => setLoading(false));
+    const ticket = ++latest.current;   // a slow response for an earlier date must not replace the report of the selected date
+    setLoading(true); setErr(''); setR(null);
+    fetchDailyReport(day)
+      .then(x => { if (ticket === latest.current) setR(x); })
+      .catch(e => { if (ticket === latest.current) { setR(null); setErr(errText(e)); } })
+      .finally(() => { if (ticket === latest.current) setLoading(false); });
   }, [day]);
   useEffect(load, [load]);
 

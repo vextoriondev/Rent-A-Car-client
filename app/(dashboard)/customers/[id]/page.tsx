@@ -14,7 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { fetchClientProfile, createInvoice, recordInvoicePayment, recordClientCollection, fetchFinancialAccounts } from '@/lib/api';
+import { fetchClientProfile, createInvoice, recordInvoicePayment, recordClientCollection, fetchFinancialAccounts, fetchInvoice, fetchCompanyProfile } from '@/lib/api';
+import { printDoc } from '@/lib/print-doc';
 
 const fmt = (n: number) => '৳ ' + (Number(n) || 0).toLocaleString('en-US');
 
@@ -31,6 +32,8 @@ export default function CustomerProfilePage() {
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [viewInvoiceModalOpen, setViewInvoiceModalOpen] = useState(false);
+  const [company, setCompany] = useState<any>(null);
+  const [invoiceError, setInvoiceError] = useState('');
   const [collectModalOpen, setCollectModalOpen] = useState(false);
 
   // Form states
@@ -169,6 +172,50 @@ export default function CustomerProfilePage() {
       showToast('Error recording collection');
     }
   };
+
+  // The list row has no line items: load the full invoice (items + payments) and the company profile before showing/printing it.
+  async function openInvoice(inv: any) {
+    setInvoiceError('');
+    setSelectedInvoice(inv);
+    setViewInvoiceModalOpen(true);
+    try {
+      const [full, prof] = await Promise.all([fetchInvoice(1, inv.id), company ? Promise.resolve(company) : fetchCompanyProfile(1)]);
+      setSelectedInvoice({ ...inv, ...full });
+      setCompany(prof);
+    } catch (e: any) {
+      setInvoiceError(e?.message || 'Could not load the invoice details');
+    }
+  }
+  const money = (v: number | string) => '৳ ' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+  function printInvoice() {
+    const inv = selectedInvoice;
+    if (!inv) return;
+    const ok = printDoc({
+      business: company?.companyName || company?.name || 'TASIN ENTERPRISE',
+      title: `Invoice ${inv.invoiceNumber}`,
+      subtitle: [company?.address, company?.phone].filter(Boolean).join(' · '),
+      meta: [['Billed to', client.name], ['Phone', client.mobile || ''], ['Issue date', inv.issueDate], ['Due date', inv.dueDate], ['Status', inv.status]],
+      columns: [{ label: 'Description' }, { label: 'Qty', align: 'right' }, { label: 'Unit price (৳)', align: 'right' }, { label: 'Total (৳)', align: 'right' }],
+      rows: (inv.items || []).map((it: any) => [it.description, it.quantity, Number(it.unitPrice).toLocaleString('en-US', { minimumFractionDigits: 2 }), Number(it.totalPrice).toLocaleString('en-US', { minimumFractionDigits: 2 })]),
+      totals: [['Subtotal', money(inv.subtotal)], ['Discount', money(inv.discount)], ['Tax', money(inv.tax)], ['Total amount', money(inv.totalAmount)], ['Paid', money(inv.paidAmount)], ['Balance due', money(inv.remainingDue)]],
+      sections: [{ heading: 'Payments received', columns: [{ label: 'Date' }, { label: 'Payment ID' }, { label: 'Method' }, { label: 'Reference' }, { label: 'Amount (৳)', align: 'right' }],
+        rows: (inv.payments || []).map((p: any) => [p.date, p.paymentId, p.method, p.reference, Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })]) }],
+    });
+    if (!ok) setInvoiceError('Allow pop-ups to print the invoice');
+  }
+  function printReceipt(p: any) {
+    const inv = selectedInvoice;
+    const ok = printDoc({
+      business: company?.companyName || company?.name || 'TASIN ENTERPRISE',
+      title: `Payment Receipt ${p.paymentId}`,
+      subtitle: [company?.address, company?.phone].filter(Boolean).join(' · '),
+      meta: [['Received from', client.name], ['Against invoice', inv.invoiceNumber], ['Date', p.date], ['Method', p.method], ['Reference', p.reference || '—']],
+      columns: [{ label: 'Description' }, { label: 'Amount (৳)', align: 'right' }],
+      rows: [[`Payment towards invoice ${inv.invoiceNumber}${p.notes ? ' – ' + p.notes : ''}`, Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })]],
+      totals: [['Amount received', money(p.amount)], ['Invoice balance after all payments', money(inv.remainingDue)]],
+    });
+    if (!ok) setInvoiceError('Allow pop-ups to print the receipt');
+  }
 
   if (loading) {
     return (
@@ -309,7 +356,7 @@ export default function CustomerProfilePage() {
                                 Pay
                               </Button>
                             )}
-                            <Button size="sm" variant="ghost" onClick={() => { setSelectedInvoice(inv); setViewInvoiceModalOpen(true); }}>
+                            <Button size="sm" variant="ghost" title="View / print invoice" onClick={() => openInvoice(inv)}>
                               <Printer size={14} />
                             </Button>
                           </div>
@@ -597,14 +644,14 @@ export default function CustomerProfilePage() {
 
       {/* MODAL 4: Printable Invoice View */}
       <Dialog open={viewInvoiceModalOpen} onOpenChange={setViewInvoiceModalOpen}>
-        <DialogContent style={{ maxWidth: 640 }}>
+        <DialogContent style={{ maxWidth: 640, maxHeight: '92vh', overflowY: 'auto' }}>
           {selectedInvoice && (
             <div style={{ padding: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #e2e8f0', paddingBottom: 16 }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: 20, color: '#0f172a' }}>TASIN ENTERPRISE</h2>
-                  <p style={{ margin: '4px 0', fontSize: 12, color: '#64748b' }}>Rent a Car Management System</p>
-                  <p style={{ margin: 0, fontSize: 11, color: '#64748b' }}>Motijheel C/A, Dhaka-1000 | +880 1711-234567</p>
+                  <h2 style={{ margin: 0, fontSize: 20, color: '#0f172a' }}>{company?.companyName || company?.name || 'TASIN ENTERPRISE'}</h2>
+                  <p style={{ margin: '4px 0', fontSize: 12, color: '#64748b' }}>{company?.details || ''}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: '#64748b' }}>{[company?.address, company?.phone].filter(Boolean).join(' | ')}</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <h3 style={{ margin: 0, fontSize: 16, color: '#1677ff' }}>INVOICE</h3>
@@ -617,13 +664,13 @@ export default function CustomerProfilePage() {
               <div style={{ marginTop: 16, fontSize: 12.5 }}>
                 <p style={{ margin: '2px 0', color: '#64748b' }}>Billed To:</p>
                 <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{client.name}</p>
-                <p style={{ margin: '2px 0' }}>{client.address || 'Dhaka, Bangladesh'}</p>
+                <p style={{ margin: '2px 0' }}>{client.address || client.billingAddress || ''}</p>
                 <p style={{ margin: '2px 0' }}>Phone: {client.mobile}</p>
               </div>
 
-              <div style={{ marginTop: 20 }}>
+              <div style={{ marginTop: 20, maxHeight: '38vh', overflowY: 'auto' }}>
                 <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-                  <thead>
+                  <thead style={{ position: 'sticky', top: 0, background: '#f8fafc' }}>
                     <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', height: 32, textAlign: 'left' }}>
                       <th style={{ padding: '6px 8px' }}>Description</th>
                       <th style={{ padding: '6px 8px', textAlign: 'right' }}>Qty</th>
@@ -663,9 +710,21 @@ export default function CustomerProfilePage() {
                 </div>
               </div>
 
+              {invoiceError && <div role="alert" style={{ color: '#b42318', fontSize: 12.5, marginTop: 10 }}>{invoiceError}</div>}
+              {(selectedInvoice.payments || []).length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <h4 style={{ fontSize: 12.5, margin: '0 0 6px' }}>Payments received</h4>
+                  {(selectedInvoice.payments || []).map((p: any) => (
+                    <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>
+                      <span>{p.date} · {p.method}{p.reference ? ` · ${p.reference}` : ''} · <b>{fmt(p.amount)}</b></span>
+                      <Button size="sm" variant="outline" onClick={() => printReceipt(p)}>Print receipt</Button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
                 <Button variant="outline" onClick={() => setViewInvoiceModalOpen(false)}>Close</Button>
-                <Button onClick={() => window.print()}><Printer size={15} style={{ marginRight: 6 }} /> Print Invoice</Button>
+                <Button onClick={printInvoice} disabled={!(selectedInvoice.items || []).length && !selectedInvoice.totalAmount}><Printer size={15} style={{ marginRight: 6 }} /> Print Invoice</Button>
               </div>
             </div>
           )}

@@ -76,9 +76,7 @@ export default function NotificationsPage(){
         title: newReminder.title,
         description: newReminder.description,
         reminder_date: newReminder.reminder_date,
-        recurrence: newReminder.recurrence,
-        priority: newReminder.priority,
-        target_type: newReminder.target_type,
+        related_entity_type: ({general:'General',vehicle_paper:'Vehicle',client_due:'Client',driver:'Driver',garage:'Garage'} as Record<string,string>)[newReminder.target_type] || 'General',
       });
       loadData();
       setAddReminderOpen(false);
@@ -91,8 +89,8 @@ export default function NotificationsPage(){
         target_type: 'general',
       });
       showToast('Custom reminder scheduled successfully');
-    } catch {
-      showToast('Error scheduling reminder');
+    } catch (e: any) {
+      showToast(e?.message || 'Error scheduling reminder');
     } finally {
       setSavingReminder(false);
     }
@@ -120,9 +118,11 @@ export default function NotificationsPage(){
 
   const handleMarkAllRead = async () => {
     const unread = alerts.filter(a => !a.isRead);
-    await Promise.all(unread.map(a => markAlertRead(1, a.id).catch(() => {})));
-    setAlerts(prev => prev.map(a => ({ ...a, isRead: true })));
-    showToast('All notifications marked as read');
+    const outcome = await Promise.all(unread.map(a => markAlertRead(1, a.id).then(() => String(a.id)).catch(() => null)));
+    const done = new Set(outcome.filter(Boolean) as string[]);
+    setAlerts(prev => prev.map(a => (done.has(String(a.id)) ? { ...a, isRead: true } : a)));
+    const failedCount = unread.length - done.size;
+    showToast(failedCount ? `${failedCount} notification(s) could not be marked as read` : 'All notifications marked as read');
   };
 
   const filtered = useMemo(() => {
@@ -406,7 +406,7 @@ export default function NotificationsPage(){
                       </div>
                       <p style={{fontSize:12,color:'#475569',margin:'2px 0 0'}}>{r.description || 'No additional details'}</p>
                       <span style={{fontSize:11,color:'#94a3b8',marginTop:4,display:'inline-block'}}>
-                        Reminder Date: <b>{r.reminder_date}</b> • Category: {r.target_type || 'General'}
+                        Reminder Date: <b>{r.reminderDate || r.reminder_date}{r.reminderTime ? ` ${r.reminderTime}` : ''}</b> • Category: {r.relatedEntityType || r.target_type || 'General'}
                       </span>
                     </div>
                   </div>
@@ -470,33 +470,9 @@ export default function NotificationsPage(){
                 />
               </label>
 
-              <label style={{fontSize:12,fontWeight:600,display:'flex',flexDirection:'column',gap:4}}>
-                Priority
-                <Select value={newReminder.priority} onValueChange={v => setNewReminder(r => ({ ...r, priority: v }))}>
-                  <SelectTrigger><SelectValue/></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low Priority</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High / Critical</SelectItem>
-                  </SelectContent>
-                </Select>
-              </label>
             </div>
 
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-              <label style={{fontSize:12,fontWeight:600,display:'flex',flexDirection:'column',gap:4}}>
-                Recurrence
-                <Select value={newReminder.recurrence} onValueChange={v => setNewReminder(r => ({ ...r, recurrence: v }))}>
-                  <SelectTrigger><SelectValue/></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">One-time Alert</SelectItem>
-                    <SelectItem value="daily">Every Day</SelectItem>
-                    <SelectItem value="weekly">Every Week</SelectItem>
-                    <SelectItem value="monthly">Every Month</SelectItem>
-                    <SelectItem value="yearly">Every Year (Annual)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </label>
 
               <label style={{fontSize:12,fontWeight:600,display:'flex',flexDirection:'column',gap:4}}>
                 Category / Scope

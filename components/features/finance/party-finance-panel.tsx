@@ -1,7 +1,8 @@
 "use client";
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {Landmark, Printer, CalendarPlus, Banknote} from 'lucide-react';
 import {Card} from '@/components/ui/card';
+import {printDoc} from '@/lib/print-doc';
 import {postOwnerCharge, accrueRent, collectClientLedger, fetchClientFinance, fetchOwnerFinance, payOwnerLedger, previewRent, reverseRentAccrual} from '@/lib/finance-api';
 import {Field, FormDialog, HistoryTable, Input, MethodSelect, Stat, errText, taka, thisMonth, todayISO, useIdemKey} from './common';
 import {OpeningBalanceDialog} from './opening-balance';
@@ -15,19 +16,30 @@ export function PartyFinancePanel({kind, partyId, partyName, onChanged}: {kind: 
   const [dlg, setDlg] = useState<'' | 'pay' | 'opening' | 'rent' | 'charge'>('');
   const [toast, setToast] = useState('');
 
+  const latest = useRef(0);
   const load = useCallback(() => {
+    const ticket = ++latest.current;
     setErr('');
-    (isOwner ? fetchOwnerFinance : fetchClientFinance)(partyId, from || undefined, to || undefined).then(setS).catch(e => setErr(errText(e)));
+    (isOwner ? fetchOwnerFinance : fetchClientFinance)(partyId, from || undefined, to || undefined)
+      .then(x => { if (ticket === latest.current) setS(x); })
+      .catch(e => { if (ticket === latest.current) setErr(errText(e)); });
   }, [isOwner, partyId, from, to]);
   useEffect(() => { setS(null); load(); }, [load]);
   const done = (m: string) => { setToast(m); setTimeout(() => setToast(''), 3500); load(); onChanged?.(); };
 
   function print() {
     if (!s) return;
-    const w = window.open('', '_blank', 'width=900,height=700'); if (!w) return;
-    const rows = s.history.map((h: any) => `<tr><td>${h.date}</td><td>${String(h.account).replace(/_/g, ' ')}</td><td>${h.type}</td><td>${h.description || ''}</td><td>${h.reference || ''}</td><td style="text-align:right">${h.delta}</td></tr>`).join('');
-    w.document.write(`<html><head><title>Statement</title><style>body{font-family:Arial;font-size:12px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:4px 6px}@page{size:A4;margin:14mm}thead{display:table-header-group}tr{page-break-inside:avoid}tfoot{display:table-footer-group}</style></head><body><h2>${isOwner ? 'Owner' : 'Client'} statement – ${partyName}</h2><p>${from || 'Start'} to ${to || 'today'} · generated ${new Date().toLocaleString()}</p><table><thead><tr><th>Date</th><th>Account</th><th>Type</th><th>Description</th><th>Ref</th><th>Amount</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
-    w.document.close(); w.print();
+    const money = (v: string | number) => '৳ ' + Number(v).toLocaleString('en-US', {minimumFractionDigits: 2});
+    const totals: [string, string][] = isOwner
+      ? [['Opening balance', money(s.openingBalance)], ['Accrued rent', money(s.totalAccruedRent)], ['Payments', money(s.totalPayments)], ['Adjustments', money(s.totalAdjustments)], ['Outstanding balance', money(s.outstandingBalance)]]
+      : [['Opening receivable', money(s.openingReceivable)], ['Invoiced', money(s.totalInvoiced)], ['Collected', money(s.totalCollected)], ['Outstanding receivable', money(s.outstandingReceivable)]];
+    const ok = printDoc({
+      title: `${isOwner ? 'Owner' : 'Client'} Statement – ${partyName}`, subtitle: `${from || 'Start'} to ${to || 'today'}`,
+      columns: [{label: 'Date'}, {label: 'Account'}, {label: 'Type'}, {label: 'Vehicle'}, {label: 'Description'}, {label: 'Reference'}, {label: 'Amount (৳)', align: 'right'}],
+      rows: (s.history as any[]).map(h => [h.date, String(h.account).replace(/_/g, ' '), h.type, h.vehicle || '', h.description || '', h.reference || '', Number(h.delta).toLocaleString('en-US', {minimumFractionDigits: 2})]),
+      totals,
+    });
+    if (!ok) setErr('Allow pop-ups to print the statement');
   }
 
   return (
@@ -74,7 +86,7 @@ export function PartyFinancePanel({kind, partyId, partyName, onChanged}: {kind: 
           <h4 style={{fontSize: 13, margin: 0, flex: 1}}>Transaction history</h4>
           <label><span className="field-label">From</span><Input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
           <label><span className="field-label">To</span><Input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
-          <button className="btn-reset" onClick={print}><Printer size={14} /> Print</button>
+          <button className="btn-reset" data-party-print onClick={print}><Printer size={14} /> Print</button>
         </div>
         <HistoryTable rows={s.history} />
       </>)}

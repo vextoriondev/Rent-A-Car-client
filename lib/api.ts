@@ -325,6 +325,10 @@ export async function createDuty(orgId: number = 1, data: unknown) {
   return apiRequest(`/orgs/${orgId}/tasin-duties`, { method: 'POST', body: JSON.stringify(data) });
 }
 
+export async function updateDuty(orgId: number = 1, dutyId: number | string, data: unknown) {
+  return apiRequest(`/orgs/${orgId}/tasin-duties/${dutyId}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
 export async function updateDutyStatus(orgId: number = 1, dutyId: number | string, status: string) {
   return apiRequest(`/orgs/${orgId}/tasin-duties/${dutyId}/status`, { method: 'POST', body: JSON.stringify({ status }) });
 }
