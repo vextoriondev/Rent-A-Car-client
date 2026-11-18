@@ -1,5 +1,6 @@
 import {chromium} from 'playwright-core';
 import fs from 'fs';
+const SCALE = Number(process.env.E2E_SLOW || 1);   // set E2E_SLOW=4 on a remote database (each query costs a network round trip)
 const BASE = 'http://127.0.0.1:3100';
 const OUT = process.argv[2] || 'flows';
 fs.mkdirSync(OUT, {recursive: true});
@@ -7,7 +8,7 @@ const b = await chromium.launch({channel: 'msedge', headless: true});
 const ctx = await b.newContext({viewport: {width: 1440, height: 900}, acceptDownloads: true});
 await ctx.addInitScript(() => { window.print = () => {}; });   // headless: avoid the print dialog; print output is captured with page.pdf()
 const page = await ctx.newPage();
-page.setDefaultTimeout(10000);
+page.setDefaultTimeout(10000*SCALE);
 const consoleErrors = []; const failed = [];
 page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 200)); });
 page.on('pageerror', e => consoleErrors.push('PAGEERROR ' + String(e).slice(0, 200)));
@@ -35,7 +36,7 @@ const me = await api('GET', '/me'); const ORG = me.body.organizations[0].id;
 // ───────── C. Driver salary / advance / fuel-gas (UI)
 await step('drivers: list shows Monthly Salary column', async () => {
   await page.goto(BASE + '/drivers', {waitUntil: 'networkidle'});
-  await page.locator('th', {hasText: 'Monthly Salary'}).first().waitFor({timeout: 8000});
+  await page.locator('th', {hasText: 'Monthly Salary'}).first().waitFor({timeout: 8000*SCALE});
 });
 await step('drivers: add driver with salary + previous dues via UI', async () => {
   await page.getByRole('button', {name: /Add New Driver/i}).click();
@@ -47,16 +48,16 @@ await step('drivers: add driver with salary + previous dues via UI', async () =>
   await d.locator('label', {hasText: 'Previous advance due'}).locator('input').fill('10000');
   await d.locator('label', {hasText: 'Previous fuel/gas due'}).locator('input').fill('5000');
   await d.getByRole('button', {name: /Save Driver/i}).click();
-  await page.getByText(`PW Driver ${u}`).first().waitFor({timeout: 10000});
+  await page.getByText(`PW Driver ${u}`).first().waitFor({timeout: 10000*SCALE});
 });
 await step('drivers: salary shown as ৳ 20,000 in the list', async () => {
   const row = page.locator('tr', {hasText: `PW Driver ${u}`}).first();
-  await row.getByText('৳ 20,000').waitFor({timeout: 5000});
+  await row.getByText('৳ 20,000').waitFor({timeout: 5000*SCALE});
 });
 await step('drivers: select driver -> financial summary shows advance 10,000.00 / fuel-gas 5,000.00', async () => {
   await page.locator('tr', {hasText: `PW Driver ${u}`}).first().click();
   const panel = page.locator('#driver-finance');
-  await panel.getByText(`Financial summary – PW Driver ${u}`).waitFor({timeout: 8000});
+  await panel.getByText(`Financial summary – PW Driver ${u}`).waitFor({timeout: 8000*SCALE});
   await panel.getByText('৳ 10,000.00').first().waitFor();
   await panel.getByText('৳ 5,000.00').first().waitFor();
 });
@@ -76,7 +77,7 @@ await step('drivers: pay salary (advance 5,000 + fuel/gas 5,000 cash) -> confirm
   await d.getByRole('button', {name: /^Pay salary$/}).click();
   await d.getByText(/This cannot be repeated for the same month/).waitFor();
   await d.getByRole('button', {name: /Yes, confirm/}).click();
-  await page.locator('#driver-finance').getByText('Salary payment recorded').waitFor({timeout: 10000});
+  await page.locator('#driver-finance').getByText('Salary payment recorded').waitFor({timeout: 10000*SCALE});
 });
 await step('drivers: summary after payment -> advance due 5,000.00, fuel/gas 0.00, salary paid 15,000.00', async () => {
   const p = page.locator('#driver-finance');
@@ -91,7 +92,7 @@ await step('drivers: re-opening the salary dialog resets it and blocks an alread
   await page.locator('#driver-finance').getByRole('button', {name: /Pay salary/i}).click();
   const d = dlg();
   if ((await fld(d, 'Advance adjustment').inputValue()) !== '') throw new Error('stale advance value kept');
-  await d.getByText(/has already been settled for this driver/).waitFor({timeout: 5000});
+  await d.getByText(/has already been settled for this driver/).waitFor({timeout: 5000*SCALE});
   if (!(await d.getByRole('button', {name: /^Pay salary$/}).isDisabled())) throw new Error('submit should be disabled for a settled month');
   await page.keyboard.press('Escape');
 });
@@ -106,7 +107,7 @@ await step('drivers: statement print popup contains the transactions', async () 
 await step('drivers: reload keeps data (persistence)', async () => {
   await page.reload({waitUntil: 'networkidle'});
   await page.locator('tr', {hasText: `PW Driver ${u}`}).first().click();
-  await page.locator('#driver-finance').getByText('৳ 15,000.00').first().waitFor({timeout: 8000});
+  await page.locator('#driver-finance').getByText('৳ 15,000.00').first().waitFor({timeout: 8000*SCALE});
 });
 
 // ───────── Replacement drivers (UI)
@@ -125,7 +126,7 @@ await step('attendance: record replacement for a date range via UI + history/fil
   await fld(d, 'Vehicle').selectOption({label: `PW-${u}`});
   await fld(d, 'Reason').fill('Sick');
   await d.getByRole('button', {name: /Save 3 days/}).click();
-  await page.getByText('3 replacement record(s) saved').waitFor({timeout: 10000});
+  await page.getByText('3 replacement record(s) saved').waitFor({timeout: 10000*SCALE});
   const rows = await page.locator('tbody tr', {hasText: `PW Sub ${u}`}).count();
   if (rows !== 3) throw new Error('rows=' + rows);
 });
@@ -137,7 +138,7 @@ await step('attendance: duplicate date is rejected with a message', async () => 
   await fld(d, 'Replacement driver').selectOption({label: `PW Sub ${u}`});
   await fld(d, 'Vehicle').selectOption({label: `PW-${u}`});
   await d.getByRole('button', {name: /Save record/}).click();
-  await d.getByText(/already recorded|already has a replacement/).waitFor({timeout: 8000});
+  await d.getByText(/already recorded|already has a replacement/).waitFor({timeout: 8000*SCALE});
   await page.keyboard.press('Escape');
 });
 await step('attendance: same driver as original and replacement is blocked in the form', async () => {
@@ -158,19 +159,19 @@ await step('clients: create client with opening receivable 500,000 via UI', asyn
   await d.getByPlaceholder(/01711|017/).first().fill('01711555555');
   await fld(d, 'Opening amount').fill('500000');
   await d.getByRole('button', {name: /Save Client/}).click();
-  await page.getByText(`PW Client ${u}`).first().waitFor({timeout: 10000});
+  await page.getByText(`PW Client ${u}`).first().waitFor({timeout: 10000*SCALE});
 });
 await step('clients: summary shows outstanding receivable 500,000.00 and collect 100,000 -> 400,000.00', async () => {
   await page.locator('tr', {hasText: `PW Client ${u}`}).first().click();
   const panel = page.getByText(`Client financial summary – PW Client ${u}`).locator('..').locator('..');
-  await page.getByText(`Client financial summary – PW Client ${u}`).waitFor({timeout: 8000});
+  await page.getByText(`Client financial summary – PW Client ${u}`).waitFor({timeout: 8000*SCALE});
   await page.getByRole('button', {name: /Receive payment/}).click();
   const d = dlg();
   await fld(d, 'Amount').fill('100000');
   await d.getByRole('button', {name: /Record collection/}).click();
   await d.getByRole('button', {name: /Yes, confirm/}).click();
-  await page.getByText('Collection recorded').waitFor({timeout: 10000});
-  await page.getByText('৳ 400,000.00').first().waitFor({timeout: 8000});
+  await page.getByText('Collection recorded').waitFor({timeout: 10000*SCALE});
+  await page.getByText('৳ 400,000.00').first().waitFor({timeout: 8000*SCALE});
   void panel;
 });
 await step('clients: collecting more than the receivable is blocked in the dialog', async () => {
@@ -190,26 +191,26 @@ await step('owners: create owner with opening payable 200,000 via UI', async () 
   await d.getByPlaceholder('01711-XXXXXX').fill('01711666666');
   await fld(d, 'Opening amount').fill('200000');
   await d.getByRole('button', {name: /Save Owner/}).click();
-  await page.getByText(`PW Owner ${u}`).first().waitFor({timeout: 10000});
+  await page.getByText(`PW Owner ${u}`).first().waitFor({timeout: 10000*SCALE});
 });
 await step('owners: monthly rent accrual dialog shows breakdown, posts once, re-open shows already posted', async () => {
   const owner = (await api('GET', `/orgs/${ORG}/tasin-owners`)).body.find(o => o.name === `PW Owner ${u}`);
   await api('PUT', `/orgs/${ORG}/tasin-vehicles/${globalThis.vid}`, {registration: `PW-${u}`, brand: 'Toyota', model: 'Axio', monthly_rent: '60000', status: 'Available', owner_id: Number(owner.id)});
   await page.reload({waitUntil: 'networkidle'});
   await page.locator('tr', {hasText: `PW Owner ${u}`}).first().click();
-  await page.getByText(`Owner financial summary – PW Owner ${u}`).waitFor({timeout: 8000});
+  await page.getByText(`Owner financial summary – PW Owner ${u}`).waitFor({timeout: 8000*SCALE});
   await page.getByRole('button', {name: /Monthly rent accrual/}).click();
   const d = dlg();
   await fld(d, 'Billing month').fill('2026-11');
-  await d.getByText(`PW-${u}`).waitFor({timeout: 8000});
+  await d.getByText(`PW-${u}`).waitFor({timeout: 8000*SCALE});
   await d.getByText(/Full month rent/).waitFor();
   await d.getByRole('button', {name: /Post 1 accrual/}).click();
   await d.getByRole('button', {name: /Yes, confirm/}).click();
-  await page.getByText('Rent accrual updated').waitFor({timeout: 10000});
+  await page.getByText('Rent accrual updated').waitFor({timeout: 10000*SCALE});
   await page.getByRole('button', {name: /Monthly rent accrual/}).click();
   const d2 = dlg();
   await fld(d2, 'Billing month').fill('2026-11');
-  await d2.getByText(/Posted ৳ 60,000\.00/).waitFor({timeout: 8000});
+  await d2.getByText(/Posted ৳ 60,000\.00/).waitFor({timeout: 8000*SCALE});
   await page.keyboard.press('Escape');
 });
 await step('owners: pay 200,000 of 260,000 -> remaining 60,000.00', async () => {
@@ -218,8 +219,8 @@ await step('owners: pay 200,000 of 260,000 -> remaining 60,000.00', async () => 
   await fld(d, 'Amount').fill('200000');
   await d.getByRole('button', {name: /Record payment/}).click();
   await d.getByRole('button', {name: /Yes, confirm/}).click();
-  await page.getByText('Payment recorded').first().waitFor({timeout: 10000});
-  await page.getByText('৳ 60,000.00').first().waitFor({timeout: 8000});
+  await page.getByText('Payment recorded').first().waitFor({timeout: 10000*SCALE});
+  await page.getByText('৳ 60,000.00').first().waitFor({timeout: 8000*SCALE});
 });
 
 // ───────── F. Documents (UI)
@@ -234,7 +235,7 @@ await step('documents: add Fitness and Tax Token via UI, both visible with disti
     await page.getByRole('option', {name: type}).click();
     await d.locator('label', {hasText: 'Certificate number'}).locator('input').fill(num);
     await d.getByRole('button', {name: /Save Document/}).click();
-    await page.getByText('Document saved').waitFor({timeout: 8000});
+    await page.getByText('Document saved').waitFor({timeout: 8000*SCALE});
     await page.waitForTimeout(400);
   }
   await page.getByPlaceholder(/Search title/).fill(`PW-${u}`);
@@ -248,7 +249,7 @@ await step('documents: add Fitness and Tax Token via UI, both visible with disti
   await page.getByText('Document saved').waitFor();
   await page.goto(BASE + '/owners'); await page.goto(BASE + '/documents', {waitUntil: 'networkidle'});
   await page.getByPlaceholder(/Search title/).fill(`PW-${u}`);
-  await page.getByText(`Edited title ${u}`).waitFor({timeout: 8000});
+  await page.getByText(`Edited title ${u}`).waitFor({timeout: 8000*SCALE});
 });
 await step('vehicles: profile lists the same documents (Vehicle Profile sync)', async () => {
   const r = await api('GET', `/orgs/${ORG}/tasin-vehicles/${globalThis.vid}/papers`);
@@ -256,12 +257,12 @@ await step('vehicles: profile lists the same documents (Vehicle Profile sync)', 
   await page.goto(BASE + '/vehicles', {waitUntil: 'networkidle'});
   await page.getByPlaceholder(/Search/).first().fill(`PW-${u}`).catch(() => {});
   await page.getByText(`PW-${u}`).first().click();
-  await page.getByText(`Edited title ${u}`).waitFor({timeout: 8000});
+  await page.getByText(`Edited title ${u}`).waitFor({timeout: 8000*SCALE});
 });
 
 // ───────── Vehicle billing + payments (UI)
 await step('vehicle billing: Receive a Payment and Make a Payment via UI; history updates; invoice popup', async () => {
-  await page.getByText(/Billing & Payments –/).waitFor({timeout: 8000});
+  await page.getByText(/Billing & Payments –/).waitFor({timeout: 8000*SCALE});
   await page.getByRole('button', {name: /Receive a Payment/}).click();
   let d = dlg();
   await d.getByPlaceholder('Client / owner name').fill('PW Payer');
@@ -269,7 +270,7 @@ await step('vehicle billing: Receive a Payment and Make a Payment via UI; histor
   await fld(d, 'Unique reference').fill('PWR-' + u);
   await d.getByRole('button', {name: /Record received payment/}).click();
   await d.getByRole('button', {name: /Yes, confirm/}).click();
-  await page.getByText('Payment recorded').first().waitFor({timeout: 8000});
+  await page.getByText('Payment recorded').first().waitFor({timeout: 8000*SCALE});
   await page.getByRole('button', {name: /Make a Payment/}).click();
   d = dlg();
   await d.getByPlaceholder(/Owner, driver, garage/).fill('PW Garage');
@@ -277,7 +278,7 @@ await step('vehicle billing: Receive a Payment and Make a Payment via UI; histor
   await fld(d, 'Unique reference').fill('PWM-' + u);
   await d.getByRole('button', {name: /Record payment made/}).click();
   await d.getByRole('button', {name: /Yes, confirm/}).click();
-  await page.getByText(/Received from PW Payer/).waitFor({timeout: 8000});
+  await page.getByText(/Received from PW Payer/).waitFor({timeout: 8000*SCALE});
   await page.getByText(/Paid to PW Garage/).waitFor();
   // duplicate reference rejected
   await page.getByRole('button', {name: /Receive a Payment/}).click();
@@ -285,7 +286,7 @@ await step('vehicle billing: Receive a Payment and Make a Payment via UI; histor
   await fld(d, 'Amount').fill('10'); await fld(d, 'Unique reference').fill('PWR-' + u);
   await d.getByRole('button', {name: /Record received payment/}).click();
   await d.getByRole('button', {name: /Yes, confirm/}).click();
-  await d.getByText(/already been used/).waitFor({timeout: 8000});
+  await d.getByText(/already been used/).waitFor({timeout: 8000*SCALE});
   await page.keyboard.press('Escape');
 });
 await step('vehicle billing: invoice popup (print) renders company, vehicle and totals; saved as A4 PDF', async () => {
@@ -310,7 +311,7 @@ await step('accounts: custom transaction via UI then daily report shows it, tota
   await page.waitForTimeout(800);
   await page.goto(BASE + '/expenses/daily-report', {waitUntil: 'networkidle'});
   await page.locator('input[type=date]').first().fill('2026-11-12');
-  await page.getByText(`PW tea ${u}`).first().waitFor({timeout: 8000});
+  await page.getByText(`PW tea ${u}`).first().waitFor({timeout: 8000*SCALE});
   const txt = await page.locator('.daily-report-print').innerText();
   if (!/Total income/i.test(txt) || !/Net daily balance/i.test(txt) || !/Expense by category/.test(txt)) throw new Error('summary missing');
   await page.emulateMedia({media: 'print'});
@@ -325,9 +326,9 @@ await step('maintenance: create job with Custom purpose via API-backed form, gar
   const g = await api('POST', `/orgs/${ORG}/tasin-garages`, {name: `PW Garage ${u}`, mobile: '01', garage_type: 'General'});
   await api('POST', `/orgs/${ORG}/tasin-maintenance`, {vehicle_reg: `PW-${u}`, garage_name: `PW Garage ${u}`, date: '2026-11-10', problem_description: 'noise', service_type: 'Custom', custom_purpose: `Wiper ${u}`, labour_cost: '1000', parts_cost: '4000'});
   await page.goto(BASE + '/maintenance', {waitUntil: 'networkidle'});
-  await page.getByText(`Wiper ${u}`).first().waitFor({timeout: 8000});
+  await page.getByText(`Wiper ${u}`).first().waitFor({timeout: 8000*SCALE});
   const row = page.locator('#garage-payables tr', {hasText: `PW Garage ${u}`});
-  await row.getByText('৳ 5,000.00').first().waitFor({timeout: 8000});
+  await row.getByText('৳ 5,000.00').first().waitFor({timeout: 8000*SCALE});
   await row.getByRole('button', {name: /Statement & pay/}).click();
   const d = dlg();
   await d.getByText('Garage payable –').waitFor();
@@ -335,7 +336,7 @@ await step('maintenance: create job with Custom purpose via API-backed form, gar
   await fld(d, 'Vendor invoice').fill('GV-' + u);
   await d.getByRole('button', {name: /Record payment/}).click();
   await d.getByRole('button', {name: /Yes, confirm/}).click();
-  await d.getByText('Payment recorded').waitFor({timeout: 8000});
+  await d.getByText('Payment recorded').waitFor({timeout: 8000*SCALE});
   await d.getByText('৳ 3,000.00').first().waitFor();
   // excess blocked client-side
   await fld(d, 'Amount').fill('3000.01');
@@ -357,15 +358,15 @@ await step('agreements: Owner Agreement with custom terms via UI; tabs separate;
   await d.getByRole('button', {name: /Add term/}).click();
   await d.locator('textarea').nth(1).fill('Second term');
   await d.getByRole('button', {name: /Save draft/}).click();
-  await page.getByText('Agreement saved').waitFor({timeout: 8000});
+  await page.getByText('Agreement saved').waitFor({timeout: 8000*SCALE});
   await page.getByRole('button', {name: 'Owner Agreements'}).click();
-  await page.getByText(`PW owner deal ${u}`).waitFor({timeout: 8000});
+  await page.getByText(`PW owner deal ${u}`).waitFor({timeout: 8000*SCALE});
   await page.getByRole('button', {name: 'Client Agreements'}).click();
   await page.waitForTimeout(600);
   if (await page.getByText(`PW owner deal ${u}`).count()) throw new Error('owner agreement leaked into client tab');
   await page.reload({waitUntil: 'networkidle'});
   await page.getByRole('button', {name: 'Owner Agreements'}).click();
-  await page.getByText(`PW owner deal ${u}`).waitFor({timeout: 8000});
+  await page.getByText(`PW owner deal ${u}`).waitFor({timeout: 8000*SCALE});
 });
 
 // ───────── Settings: finance policy + proration reflected in rent dialog
@@ -373,7 +374,7 @@ await step('settings: change rent proration to calendar days (audited) and see i
   await page.goto(BASE + '/settings', {waitUntil: 'networkidle'});
   const sel = page.locator('#finance-policy select').first();
   await sel.selectOption('calendar_days');
-  await page.getByText(/Saved\. Already-posted/).waitFor({timeout: 8000});
+  await page.getByText(/Saved\. Already-posted/).waitFor({timeout: 8000*SCALE});
   const s = await api('GET', `/orgs/${ORG}/finance-settings`);
   if (s.body.rentProration !== 'calendar_days') throw new Error(JSON.stringify(s.body));
   await sel.selectOption('full_month');
