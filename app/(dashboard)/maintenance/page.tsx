@@ -40,6 +40,7 @@ import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/components/ui/select';
+import {AttachmentPanel} from '@/components/features/files/attachment-panel';
 import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogFooter,DialogDescription} from '@/components/ui/dialog';
 import {ResponsiveContainer,PieChart,Pie,Cell,Tooltip} from 'recharts';
 
@@ -1061,6 +1062,8 @@ export default function MaintenancePage(){
               </label>
             </div>
           )}
+
+          {editMnt && <AttachmentPanel key={editMnt.id} entity="maintenance" id={editMnt.id} title="Garage bills & photos" documentCategories={['bill','invoice','other']} photoCategories={['damage','other']} />}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditMntOpen(false)}>Cancel</Button>

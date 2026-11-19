@@ -4,6 +4,7 @@ import {Plus, Trash2, Printer} from 'lucide-react';
 import {Card} from '@/components/ui/card';
 import {apiRequest, fetchOwners, fetchClients, fetchVehicles} from '@/lib/api';
 import {createTasinAgreement, fetchTasinAgreements, updateTasinAgreement} from '@/lib/finance-api';
+import {AttachmentPanel} from '@/components/features/files/attachment-panel';
 import {Field, FormDialog, Input, NativeSelect, errText, taka, todayISO} from './common';
 
 type Tab = 'all' | 'client' | 'owner';
@@ -80,6 +81,7 @@ function ViewDialog({a, onClose}: {a: any; onClose: () => void}) {
       onSubmit={async () => { const w = window.open('', '_blank'); if (w) { w.document.write(`<pre style="font-family:Arial;font-size:13px;white-space:pre-wrap;padding:24px">${content.replace(/[&<>]/g, (c: string) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'} as Record<string, string>)[c])}</pre>`); w.document.close(); w.print(); } return null; }}>
       <pre style={{whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 12.5, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, maxHeight: 360, overflow: 'auto'}}>{content}</pre>
       <span style={{fontSize: 11.5, color: '#64748b'}}><Printer size={12} /> Printing uses the saved agreement text.</span>
+      <AttachmentPanel entity="agreement" id={a.id} title="Agreement Documents" showPhotos={false} documentCategories={['agreement_pdf','scan','stamp_paper','signed','legal','other']} />
     </FormDialog>
   );
 }
@@ -139,6 +141,7 @@ function AgreementDialog({existing, defaultType, onClose, onDone}: {existing?: a
           </div>))}
       </div>
       <label style={{display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5}}><input type="checkbox" checked={finalize} onChange={e => setFinalize(e.target.checked)} /> Finalize now (generates the agreement text; terms can no longer be edited)</label>
+      {existing ? <AttachmentPanel entity="agreement" id={existing.id} title="Agreement Documents" showPhotos={false} documentCategories={['agreement_pdf','scan','stamp_paper','signed','legal','other']} /> : <span style={{fontSize: 11.5, color: '#64748b'}}>Save the agreement first, then attach the signed PDF, scans and stamp-paper photos here.</span>}
     </FormDialog>
   );
 }

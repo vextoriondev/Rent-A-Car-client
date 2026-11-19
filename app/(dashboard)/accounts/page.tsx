@@ -26,6 +26,7 @@ import {
   Landmark,
   CircleDollarSign
 } from 'lucide-react';
+import {AttachmentPanel} from '@/components/features/files/attachment-panel';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
@@ -35,6 +36,7 @@ import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogFooter,DialogDescrip
 const fmt=(n:number)=>'৳ '+(Number(n)||0).toLocaleString('en-US');
 
 export default function AccountsPage(){
+  const [filesTxn,setFilesTxn]=useState<any>(null);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -318,12 +320,13 @@ export default function AccountsPage(){
                 <th style={{padding:'0 10px'}}>Description</th>
                 <th style={{padding:'0 10px'}}>Method</th>
                 <th style={{padding:'0 10px',textAlign:'right'}}>Amount</th>
+                <th style={{padding:'0 10px',textAlign:'center'}}>Files</th>
               </tr>
             </thead>
             <tbody>
               {filteredTxns.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{padding:'24px 10px',textAlign:'center',color:'#94a3b8'}}>No transaction records found</td>
+                  <td colSpan={9} style={{padding:'24px 10px',textAlign:'center',color:'#94a3b8'}}>No transaction records found</td>
                 </tr>
               ) : (
                 filteredTxns.map((t, i) => (
@@ -354,12 +357,22 @@ export default function AccountsPage(){
                     }}>
                       {t.type === 'Income' ? '+' : t.type === 'Expense' ? '-' : ''}{fmt(t.amount)}
                     </td>
+                    <td style={{padding:'0 10px',textAlign:'center'}}>
+                      <button type="button" className="action-btn action-btn-blue" title="Receipts & attachments" onClick={()=>setFilesTxn(t)}>📎</button>
+                    </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
+
+        <Dialog open={!!filesTxn} onOpenChange={o=>!o&&setFilesTxn(null)}>
+          <DialogContent style={{maxWidth:640}}>
+            <DialogHeader><DialogTitle>Attachments – {filesTxn?.transactionId}</DialogTitle><DialogDescription>Receipt, bill or voucher for this transaction.</DialogDescription></DialogHeader>
+            {filesTxn?.id && <AttachmentPanel key={filesTxn.id} entity="transaction" id={filesTxn.id} title="Receipts & bills" documentCategories={['receipt','bill','voucher','other']} photoCategories={['other']} />}
+          </DialogContent>
+        </Dialog>
       </Card>
 
       {/* ─── Add Account Modal ─── */}

@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { fetchClientProfile, createInvoice, recordInvoicePayment, recordClientCollection, fetchFinancialAccounts, fetchInvoice, fetchCompanyProfile } from '@/lib/api';
 import { printDoc } from '@/lib/print-doc';
+import { AttachmentPanel } from '@/components/features/files/attachment-panel';
 
 const fmt = (n: number) => '৳ ' + (Number(n) || 0).toLocaleString('en-US');
 
@@ -740,6 +741,7 @@ export default function CustomerProfilePage() {
           {toast}
         </div>
       )}
+      <AttachmentPanel key={client.id} entity="client" id={client.id} title="Documents & Photos" canMakeMain documentCategories={['trade_license','nid','other']} photoCategories={['other']} />
     </div>
   );
 }

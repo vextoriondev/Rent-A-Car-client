@@ -59,7 +59,7 @@ export function AttachmentPanel({entity, id, title = 'Documents & Photos', docum
   return (
     <section aria-label={title} style={{border: '1px solid #e2e8f0', borderRadius: 12, background: '#fff', padding: 16}}>
       <h3 style={{margin: '0 0 10px', fontSize: 15, fontWeight: 700, color: '#0f172a'}}>{title}</h3>
-      {loadErr && <div role="alert" style={{color: '#b42318', fontSize: 13, marginBottom: 8}}>{loadErr} <Button size="sm" variant="ghost" onClick={reload}>Retry</Button></div>}
+      {loadErr && <div role="alert" style={{color: '#b42318', fontSize: 13, marginBottom: 8}}>{loadErr} <Button type="button" size="sm" variant="ghost" onClick={reload}>Retry</Button></div>}
       {msg && <div role="status" style={{fontSize: 12.5, color: '#334155', marginBottom: 8}}>{msg}</div>}
 
       {showPhotos && (
@@ -77,9 +77,9 @@ export function AttachmentPanel({entity, id, title = 'Documents & Photos', docum
                   <figcaption style={{padding: '5px 6px', fontSize: 11, color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}} title={p.fileName}>{p.category ? label(p.category) + ' · ' : ''}{p.fileName}</figcaption>
                   {!readOnly && (
                     <div style={{display: 'flex', gap: 2, padding: '0 4px 5px'}}>
-                      {p.status === 'failed' && <Button size="sm" variant="ghost" title="Retry processing" disabled={busyId === p.id} onClick={() => act(p, () => retryFile(p.id), 'Reprocessed')}><RotateCw size={13} /></Button>}
-                      {canMakeMain && p.kind === 'photo' && p.status === 'completed' && <Button size="sm" variant="ghost" title="Set as main picture" disabled={busyId === p.id} onClick={() => act(p, () => makeMainPhoto(p.id), 'Main picture updated')}><Star size={13} /></Button>}
-                      <Button size="sm" variant="ghost" title="Delete" disabled={busyId === p.id} onClick={() => setConfirm(p)}><Trash2 size={13} /></Button>
+                      {p.status === 'failed' && <Button type="button" size="sm" variant="ghost" title="Retry processing" disabled={busyId === p.id} onClick={() => act(p, () => retryFile(p.id), 'Reprocessed')}><RotateCw size={13} /></Button>}
+                      {canMakeMain && p.kind === 'photo' && p.status === 'completed' && <Button type="button" size="sm" variant="ghost" title="Set as main picture" disabled={busyId === p.id} onClick={() => act(p, () => makeMainPhoto(p.id), 'Main picture updated')}><Star size={13} /></Button>}
+                      <Button type="button" size="sm" variant="ghost" title="Delete" disabled={busyId === p.id} onClick={() => setConfirm(p)}><Trash2 size={13} /></Button>
                     </div>
                   )}
                 </figure>
@@ -113,11 +113,11 @@ export function AttachmentPanel({entity, id, title = 'Documents & Photos', docum
                       <td>{d.status === 'completed' ? <span style={{color: '#16a34a'}}>Completed</span> : d.status === 'failed' ? <span style={{color: '#b42318'}} title={d.error}>Failed</span> : 'Processing'}</td>
                       <td style={{textAlign: 'right', whiteSpace: 'nowrap'}}>
                         {d.isImage
-                          ? <Button size="sm" variant="ghost" title="Preview" onClick={() => setLightbox(d)}><Eye size={14} /></Button>
-                          : d.extension === 'pdf' ? <Button size="sm" variant="ghost" title="Preview" onClick={() => window.open(fileUrl(d.urls.view), '_blank', 'noopener')}><Eye size={14} /></Button> : null}
-                        <Button size="sm" variant="ghost" title="Download" onClick={() => window.open(fileUrl(d.urls.download), '_self')}><Download size={14} /></Button>
-                        {!readOnly && d.status === 'failed' && <Button size="sm" variant="ghost" title="Retry processing" onClick={() => act(d, () => retryFile(d.id), 'Reprocessed')}><RotateCw size={14} /></Button>}
-                        {!readOnly && <Button size="sm" variant="ghost" title="Delete" disabled={busyId === d.id} onClick={() => setConfirm(d)}><Trash2 size={14} /></Button>}
+                          ? <Button type="button" size="sm" variant="ghost" title="Preview" onClick={() => setLightbox(d)}><Eye size={14} /></Button>
+                          : d.extension === 'pdf' ? <Button type="button" size="sm" variant="ghost" title="Preview" onClick={() => window.open(fileUrl(d.urls.view), '_blank', 'noopener')}><Eye size={14} /></Button> : null}
+                        <Button type="button" size="sm" variant="ghost" title="Download" onClick={() => window.open(fileUrl(d.urls.download), '_self')}><Download size={14} /></Button>
+                        {!readOnly && d.status === 'failed' && <Button type="button" size="sm" variant="ghost" title="Retry processing" onClick={() => act(d, () => retryFile(d.id), 'Reprocessed')}><RotateCw size={14} /></Button>}
+                        {!readOnly && <Button type="button" size="sm" variant="ghost" title="Delete" disabled={busyId === d.id} onClick={() => setConfirm(d)}><Trash2 size={14} /></Button>}
                         {!readOnly && <DescEdit item={d} onSaved={reload} categories={documentCategories} />}
                       </td>
                     </tr>
@@ -138,7 +138,7 @@ export function AttachmentPanel({entity, id, title = 'Documents & Photos', docum
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={fileUrl(lightbox.urls.view)} alt={lightbox.description || lightbox.fileName} style={{maxWidth: '100%', maxHeight: '70vh', display: 'block', margin: '0 auto'}} />
               <p style={{fontSize: 12, color: '#64748b', marginTop: 8}}>{lightbox.width && lightbox.height ? `${lightbox.width}×${lightbox.height} · ` : ''}uploaded {fmtBytes(lightbox.sizeOriginal)} → stored {fmtBytes(lightbox.sizeStored)}{lightbox.description ? ' · ' + lightbox.description : ''}</p>
-              <Button size="sm" variant="outline" onClick={() => window.open(fileUrl(lightbox.urls.download), '_self')}><Download size={14} style={{marginRight: 6}} />Download original</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => window.open(fileUrl(lightbox.urls.download), '_self')}><Download size={14} style={{marginRight: 6}} />Download original</Button>
             </div>
           )}
         </DialogContent>
@@ -149,8 +149,8 @@ export function AttachmentPanel({entity, id, title = 'Documents & Photos', docum
           <DialogHeader><DialogTitle>Delete this file?</DialogTitle></DialogHeader>
           <p style={{fontSize: 13, color: '#475569'}}><b>{confirm?.fileName}</b> will be removed permanently. Other files on this record are not affected.</p>
           <div style={{display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12}}>
-            <Button variant="outline" onClick={() => setConfirm(null)}>Cancel</Button>
-            <Button style={{background: '#dc2626', color: '#fff'}} onClick={() => { const c = confirm!; setConfirm(null); act(c, () => deleteFile(c.id), 'File deleted'); }}>Delete</Button>
+            <Button type="button" variant="outline" onClick={() => setConfirm(null)}>Cancel</Button>
+            <Button type="button" style={{background: '#dc2626', color: '#fff'}} onClick={() => { const c = confirm!; setConfirm(null); act(c, () => deleteFile(c.id), 'File deleted'); }}>Delete</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -165,7 +165,7 @@ function DescEdit({item, onSaved, categories}: {item: AttachmentItem; onSaved: (
   const [err, setErr] = useState('');
   return (
     <>
-      <Button size="sm" variant="ghost" title="Edit category / description" onClick={() => setOpen(true)}>✎</Button>
+      <Button type="button" size="sm" variant="ghost" title="Edit category / description" onClick={() => setOpen(true)}>✎</Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent style={{maxWidth: 420}}>
           <DialogHeader><DialogTitle>Edit file details</DialogTitle></DialogHeader>
@@ -177,8 +177,8 @@ function DescEdit({item, onSaved, categories}: {item: AttachmentItem; onSaved: (
           </label>
           {err && <div role="alert" style={{color: '#b42318', fontSize: 12, marginTop: 6}}>{err}</div>}
           <div style={{display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12}}>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={async () => { try { await updateFile(item.id, {description: desc, category: cat}); setOpen(false); onSaved(); } catch (e: any) { setErr(e?.message || 'Could not save'); } }}>Save</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="button" onClick={async () => { try { await updateFile(item.id, {description: desc, category: cat}); setOpen(false); onSaved(); } catch (e: any) { setErr(e?.message || 'Could not save'); } }}>Save</Button>
           </div>
         </DialogContent>
       </Dialog>
