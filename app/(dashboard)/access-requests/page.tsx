@@ -57,77 +57,6 @@ interface SummaryData {
   rejected: number;
 }
 
-const DEMO_REQUESTS = [
-  {
-    id: 101,
-    user_id: 3,
-    username: 'kamrul_ops',
-    user_name: 'Md. Kamrul Hasan',
-    user_email: 'kamrul@tasinenterprise.com.bd',
-    designation: 'Senior Fleet Executive',
-    department: 'Fleet Operations',
-    employee_id: 'TE-2024-009',
-    role: 'staff',
-    module: 'duties',
-    can_view: true,
-    can_create: true,
-    can_edit: true,
-    can_delete: false,
-    can_export: true,
-    can_approve: false,
-    reason: 'Need trip dispatch and duty entry authorization for upcoming corporate fleet assignments.',
-    status: 'Pending',
-    created_at: '2026-11-14T15:30:00Z',
-  },
-  {
-    id: 102,
-    user_id: 4,
-    username: 'selim_maint',
-    user_name: 'Selim Reza',
-    user_email: 'selim@tasinenterprise.com.bd',
-    designation: 'Garage Supervisor',
-    department: 'Maintenance',
-    employee_id: 'TE-2024-012',
-    role: 'staff',
-    module: 'maintenance',
-    can_view: true,
-    can_create: true,
-    can_edit: true,
-    can_delete: false,
-    can_export: true,
-    can_approve: false,
-    reason: 'Require access to record spare parts consumption and workshop job cards.',
-    status: 'Approved',
-    created_at: '2026-11-13T11:20:00Z',
-    reviewed_at: '2026-11-13T14:00:00Z',
-    reviewed_by: 'Super Admin',
-  },
-  {
-    id: 103,
-    user_id: 5,
-    username: 'rashed_acc',
-    user_name: 'Rashedul Islam',
-    user_email: 'rashed@tasinenterprise.com.bd',
-    designation: 'Junior Accounts Officer',
-    department: 'Finance',
-    employee_id: 'TE-2024-015',
-    role: 'staff',
-    module: 'settings',
-    can_view: true,
-    can_create: false,
-    can_edit: false,
-    can_delete: false,
-    can_export: false,
-    can_approve: false,
-    reason: 'Requesting permission to view monthly system audit logs for ledger verification.',
-    status: 'Rejected',
-    created_at: '2026-11-12T09:15:00Z',
-    reviewed_at: '2026-11-12T10:45:00Z',
-    reviewed_by: 'Super Admin',
-    rejection_reason: 'Settings and RBAC logs are restricted to Managing Director and Main Admin.',
-  }
-];
-
 const normalizeRequest = (r: any): AccessRequestItem => {
   const modKey = (r.requestedModule || r.requested_module || r.module || '').toLowerCase().trim();
   return {
@@ -190,6 +119,7 @@ export default function AccessRequestsPage() {
   const [requests, setRequests] = useState<AccessRequestItem[]>([]);
   const [summary, setSummary] = useState<SummaryData>({ total: 0, pending: 0, approved: 0, rejected: 0 });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [moduleFilter, setModuleFilter] = useState('ALL');
@@ -243,6 +173,7 @@ export default function AccessRequestsPage() {
 
   const loadData = async () => {
     setLoading(true);
+      setLoadError('');
     try {
       const [reqList, sum] = await Promise.all([
         fetchAccessRequests(1).catch(() => null),
@@ -252,9 +183,7 @@ export default function AccessRequestsPage() {
       let items: AccessRequestItem[] = [];
       if (Array.isArray(reqList) && reqList.length > 0) {
         items = reqList.map(normalizeRequest);
-      } else {
-        items = DEMO_REQUESTS.map(normalizeRequest);
-      }
+      }   // no requests yet: show none (never sample rows)
       setRequests(items);
 
       if (sum && typeof sum.total === 'number') {
@@ -269,9 +198,9 @@ export default function AccessRequestsPage() {
       }
     } catch (err: any) {
       console.error(err);
-      const fallback = DEMO_REQUESTS.map(normalizeRequest);
-      setRequests(fallback);
-      setSummary({ total: fallback.length, pending: 1, approved: 1, rejected: 1 });
+      setRequests([]);
+      setSummary({ total: 0, pending: 0, approved: 0, rejected: 0 });
+      setLoadError(err?.message || 'Access requests could not be loaded');
     } finally {
       setLoading(false);
     }
@@ -396,6 +325,7 @@ export default function AccessRequestsPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {loadError && <div role="alert" style={{background:'#fef3f2',border:'1px solid #fecdca',color:'#b42318',borderRadius:8,padding:'10px 14px',fontSize:13}}>{loadError}</div>}
       {/* Toast Notification */}
       {toast && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-xl flex items-center gap-2 animate-in fade-in ${

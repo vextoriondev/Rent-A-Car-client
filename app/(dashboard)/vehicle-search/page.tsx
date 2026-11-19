@@ -201,7 +201,7 @@ function VehicleDetail({
                   <div><span>Registration</span><b>{v.registration}</b></div>
                   <div><span>Brand & Model</span><b>{v.brand} {v.model}</b></div>
                   <div><span>Category</span><b>{v.category || 'Sedan'}</b></div>
-                  <div><span>Year</span><b>{v.year || 2021}</b></div>
+                  <div><span>Year</span><b>{v.year || '—'}</b></div>
                   <div><span>Color</span><b>{v.color || 'White'}</b></div>
                   <div><span>Owner Name</span><b>{v.owner}</b></div>
                   <div><span>Assigned Driver</span><b>{v.driver || 'Unassigned'}</b></div>

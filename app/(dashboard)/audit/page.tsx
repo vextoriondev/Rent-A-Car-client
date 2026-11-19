@@ -1,5 +1,6 @@
 "use client";
-import {useState,useMemo} from 'react';
+import {useState,useMemo,useEffect} from 'react';
+import {apiRequest} from '@/lib/api';
 import {History,Search,Filter,Eye,CheckCircle2,X,ChevronLeft,ChevronRight} from 'lucide-react';
 import {Card} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
@@ -13,8 +14,8 @@ export interface AuditRecord {
   timestamp: string;
   actor: string;
   role: string;
-  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'PAYMENT' | 'STATUS_CHANGE';
-  entityType: 'Vehicle' | 'Driver' | 'Owner' | 'Client' | 'Duty' | 'Expense' | 'Maintenance' | 'User';
+  action: string;
+  entityType: string;
   entityId: string;
   summary: string;
   details: {
@@ -26,77 +27,31 @@ export interface AuditRecord {
   };
 }
 
-const DEMO_AUDIT_LOGS: AuditRecord[] = [
-  {
-    id: 'AUD-8819',
-    timestamp: '2026-11-10 11:42:15',
-    actor: 'Al-Amin Tasin',
-    role: 'Super Admin',
-    action: 'CREATE',
-    entityType: 'Duty',
-    entityId: 'DTY-004',
-    summary: 'Created scheduled duty for Eastern Trading Co. (VEH-004)',
-    details: { after: 'Agreed Rent: ৳5,000, Vehicle: DHA-METRO-GA-25-1190, Driver: Sabbir Ahmed', ipAddress: '103.205.71.12', device: 'Chrome / Windows 11' }
-  },
-  {
-    id: 'AUD-8818',
-    timestamp: '2026-11-10 10:30:00',
-    actor: 'Md. Kamrul Hasan',
-    role: 'Accountant',
-    action: 'PAYMENT',
-    entityType: 'Owner',
-    entityId: 'OWN-001',
-    summary: 'Recorded payment of ৳40,000 to Farhana Rahman',
-    details: { before: 'Total Paid: ৳50,000', after: 'Total Paid: ৳90,000, Method: Bank Transfer', ipAddress: '103.205.71.15', device: 'Firefox / Windows 10' }
-  },
-  {
-    id: 'AUD-8817',
-    timestamp: '2026-11-10 09:18:22',
-    actor: 'Sajid Mahmud',
-    role: 'Operations Manager',
-    action: 'STATUS_CHANGE',
-    entityType: 'Vehicle',
-    entityId: 'VEH-006',
-    summary: 'Changed vehicle status to In Garage for repair',
-    details: { field: 'status', before: 'Available', after: 'In Garage (Engine coolant leak)', ipAddress: '103.205.71.18', device: 'Mobile Safari / iOS' }
-  },
-  {
-    id: 'AUD-8816',
-    timestamp: '2026-11-09 16:45:10',
-    actor: 'Md. Kamrul Hasan',
-    role: 'Accountant',
-    action: 'CREATE',
-    entityType: 'Expense',
-    entityId: 'EXP-001',
-    summary: 'Logged ৳2,500 fuel expense for VEH-002',
-    details: { after: 'Category: Fuel, Payee: Padma Filling Station, Cash Account', ipAddress: '103.205.71.15', device: 'Firefox / Windows 10' }
-  },
-  {
-    id: 'AUD-8815',
-    timestamp: '2026-11-09 14:10:05',
-    actor: 'Al-Amin Tasin',
-    role: 'Super Admin',
-    action: 'UPDATE',
-    entityType: 'Driver',
-    entityId: 'DRV-003',
-    summary: 'Updated Jamal Uddin monthly salary to ৳25,000',
-    details: { field: 'monthlySalary', before: '৳22,000', after: '৳25,000', ipAddress: '103.205.71.12', device: 'Chrome / Windows 11' }
-  },
-  {
-    id: 'AUD-8814',
-    timestamp: '2026-11-08 11:05:40',
-    actor: 'Sajid Mahmud',
-    role: 'Operations Manager',
-    action: 'STATUS_CHANGE',
-    entityType: 'Duty',
-    entityId: 'DTY-003',
-    summary: 'Marked trip duty DTY-003 as Completed',
-    details: { field: 'status', before: 'Running', after: 'Completed', ipAddress: '103.205.71.18', device: 'Chrome / Windows 11' }
-  },
-];
+const show=(v:unknown)=>v==null||v===''?'':typeof v==='string'?v:JSON.stringify(v);
+/** Maps a server audit event (rentals/api/_shared.audit_dict) to the row this screen shows. Nothing is invented. */
+function toRecord(e:any):AuditRecord{
+  return {id:String(e.id),timestamp:e.at?new Date(e.at).toLocaleString():'',actor:e.actor_name||(e.actor_id?`User #${e.actor_id}`:'System'),role:'',
+    action:String(e.action||''),entityType:String(e.target_type||''),entityId:String(e.target_id||''),
+    summary:[e.action,e.target_type&&`${e.target_type} ${e.target_id||''}`.trim(),e.reason].filter(Boolean).join(' · '),
+    details:{before:show(e.before),after:show(e.after),ipAddress:e.ip||''}};
+}
 
 export default function AuditPage(){
-  const [logs]=useState<AuditRecord[]>(DEMO_AUDIT_LOGS);
+  const [logs,setLogs]=useState<AuditRecord[]>([]);
+  const [next,setNext]=useState<number|null>(null);
+  const [total,setTotal]=useState(0);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState('');
+  async function load(offset:number){
+    setLoading(true);setError('');
+    try{
+      const r:any=await apiRequest(`/orgs/1/audit-events?limit=50&offset=${offset}`);
+      const items=(r.items||[]).map(toRecord);
+      setLogs(prev=>offset?[...prev,...items]:items);setNext(r.next??null);setTotal(r.count??items.length);
+    }catch(e:any){setError(e?.message||'The audit log could not be loaded');}
+    finally{setLoading(false);}
+  }
+  useEffect(()=>{load(0)},[]);
   const [q,setQ]=useState('');
   const [actionF,setActionF]=useState('All');
   const [entityF,setEntityF]=useState('All');
@@ -113,15 +68,12 @@ export default function AuditPage(){
     return qMatch&&aMatch&&eMatch;
   }),[logs,q,actionF,entityF]);
 
-  const actionBadge=(a:AuditRecord['action'])=>{
-    switch(a){
-      case 'CREATE': return 'badge-good';
-      case 'UPDATE': return 'badge-blue';
-      case 'DELETE': return 'badge-bad';
-      case 'PAYMENT': return 'badge-good';
-      case 'STATUS_CHANGE': return 'badge-warn';
-      default: return 'badge-neutral';
-    }
+  const actionBadge=(a:string)=>{
+    const x=a.toLowerCase();
+    if(/delete|reverse|void|reject|cancel/.test(x)) return 'badge-bad';
+    if(/create|payment|pay|approve|issue/.test(x)) return 'badge-good';
+    if(/update|edit|change/.test(x)) return 'badge-blue';
+    return 'badge-neutral';
   };
 
   return <>
@@ -145,11 +97,7 @@ export default function AuditPage(){
         <SelectTrigger style={{minWidth:140}}><SelectValue placeholder="Action Type"/></SelectTrigger>
         <SelectContent>
           <SelectItem value="All">All Actions</SelectItem>
-          <SelectItem value="CREATE">Create</SelectItem>
-          <SelectItem value="UPDATE">Update</SelectItem>
-          <SelectItem value="PAYMENT">Payment</SelectItem>
-          <SelectItem value="STATUS_CHANGE">Status Change</SelectItem>
-          <SelectItem value="DELETE">Delete</SelectItem>
+          {Array.from(new Set(logs.map(l=>l.action))).sort().map(a=><SelectItem key={a} value={a}>{a}</SelectItem>)}
         </SelectContent>
       </Select>
 
@@ -157,13 +105,7 @@ export default function AuditPage(){
         <SelectTrigger style={{minWidth:150}}><SelectValue placeholder="Entity Type"/></SelectTrigger>
         <SelectContent>
           <SelectItem value="All">All Entities</SelectItem>
-          <SelectItem value="Vehicle">Vehicle</SelectItem>
-          <SelectItem value="Driver">Driver</SelectItem>
-          <SelectItem value="Owner">Owner</SelectItem>
-          <SelectItem value="Client">Client</SelectItem>
-          <SelectItem value="Duty">Duty</SelectItem>
-          <SelectItem value="Expense">Expense</SelectItem>
-          <SelectItem value="Maintenance">Maintenance</SelectItem>
+          {Array.from(new Set(logs.map(l=>l.entityType).filter(Boolean))).sort().map(a=><SelectItem key={a} value={a}>{a}</SelectItem>)}
         </SelectContent>
       </Select>
     </div>
@@ -182,7 +124,9 @@ export default function AuditPage(){
             <span>Detail</span>
           </div>
 
-          {filtered.length===0&&<div style={{padding:'40px 0'}}><EmptyState title="No audit events matched" description="Try broadening your search query"/></div>}
+          {error&&<div role="alert" style={{padding:'12px 16px',color:'#b42318',fontSize:13}}>{error}</div>}
+          {!error&&loading&&logs.length===0&&<div style={{padding:'24px',color:'#6a7c83',fontSize:13}}>Loading audit events…</div>}
+          {!loading&&!error&&filtered.length===0&&<div style={{padding:'40px 0'}}><EmptyState title="No audit events matched" description="Try broadening your search query"/></div>}
 
           {filtered.map(l=>(
             <div key={l.id} style={{gridTemplateColumns:'100px 140px 1.2fr 110px 100px 1.8fr 70px'}}>
@@ -205,6 +149,7 @@ export default function AuditPage(){
           ))}
         </div>
       </div>
+      {next!==null&&<div style={{padding:12,textAlign:'center'}}><Button variant="outline" disabled={loading} onClick={()=>load(next)}>{loading?'Loading…':`Load more (${logs.length} of ${total})`}</Button></div>}
     </Card>
 
     {/* Detail Dialog */}
@@ -222,11 +167,11 @@ export default function AuditPage(){
                 ['Log ID',viewLog.id],
                 ['Timestamp',viewLog.timestamp],
                 ['Actor',viewLog.actor],
-                ['Assigned Role',viewLog.role],
+                
                 ['Action Type',viewLog.action],
                 ['Entity Affected',`${viewLog.entityType} (${viewLog.entityId})`],
-                ['Client IP',viewLog.details.ipAddress||'127.0.0.1'],
-                ['Device / Browser',viewLog.details.device||'Web Browser'],
+                ['Client IP',viewLog.details.ipAddress||'—'],
+                
               ].map(([k,v])=><div key={k}><span>{k}</span><b>{v}</b></div>)}
             </div>
 

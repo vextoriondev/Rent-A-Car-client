@@ -209,7 +209,7 @@ export default function ReportsPage() {
         clients.map(c => `"${c.name}","${c.contactPerson || ''}",${c.mobile},${c.totalReceivable},${c.totalCollected},${c.due}`).join("\n");
     } else if (activeTab === 'drivers') {
       content = "Name,Mobile,License,Salary,Paid,Due\n" +
-        drivers.map(d => `"${d.name}",${d.mobile || d.phone},${d.licenseNo || ''},${d.monthlySalary || 18000},${d.totalPaid || 0},${d.remainingDue || 0}`).join("\n");
+        drivers.map(d => `"${d.name}",${d.mobile || d.phone},${d.licenseNo || ''},${d.monthlySalary || 0},${d.totalPaid || 0},${d.remainingDue || 0}`).join("\n");
     } else if (activeTab === 'maintenance') {
       content = "VehicleReg,Garage,ServiceType,Date,Cost,Status\n" +
         maintenance.map(m => `${m.vehicleReg},"${m.garageName}",${m.serviceType},${m.date},${m.totalCost},${m.status}`).join("\n");
@@ -785,7 +785,7 @@ export default function ReportsPage() {
                       <td style={{padding:'0 8px',fontWeight:700}}>{d.name}</td>
                       <td style={{padding:'0 8px'}}>{d.mobile || d.phone}</td>
                       <td style={{padding:'0 8px'}}>{d.licenseNo || '—'}</td>
-                      <td style={{padding:'0 8px',fontWeight:700}}>{fmt(d.monthlySalary || 18000)}</td>
+                      <td style={{padding:'0 8px',fontWeight:700}}>{fmt(d.monthlySalary || 0)}</td>
                       <td style={{padding:'0 8px',color:'#16a34a',fontWeight:700}}>{fmt(d.totalPaid || 0)}</td>
                       <td style={{padding:'0 8px',textAlign:'right',color: (d.remainingDue || 0) > 0 ? '#ef4444' : '#16a34a',fontWeight:800}}>{fmt(d.remainingDue || 0)}</td>
                     </tr>

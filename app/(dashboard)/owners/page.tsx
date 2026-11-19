@@ -565,7 +565,7 @@ export default function OwnersPage(){
               <div style={{display:'grid',gridTemplateColumns:'100px 1fr auto',fontSize:12,color:'#334155',alignItems:'center'}}>
                 <span style={{color:'#64748b',fontSize:11}}>01 Nov 2026</span>
                 <span>Monthly Rent</span>
-                <strong style={{color:'#0f172a',fontWeight:700}}>{fmt(activeOwner?.totalRent ?? 50000)}</strong>
+                <strong style={{color:'#0f172a',fontWeight:700}}>{fmt(activeOwner?.totalRent ?? 0)}</strong>
               </div>
             </div>
           </Card>
@@ -685,7 +685,7 @@ export default function OwnersPage(){
                 <SelectTrigger><SelectValue/></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Cash">Cash (Main Cash Box)</SelectItem>
-                  <SelectItem value="Bank Transfer">Bank Transfer (Dhaka Bank Ltd)</SelectItem>
+                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
                   <SelectItem value="bKash / Nagad">Mobile Banking</SelectItem>
                 </SelectContent>
               </Select>

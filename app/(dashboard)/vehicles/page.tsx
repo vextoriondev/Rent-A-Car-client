@@ -85,12 +85,12 @@ export default function VehiclesPage(){
             regNo: v.registration || v.regNo || 'DHA-METRO-GA-12-3456',
             model: v.model || 'Axio',
             brand: v.brand || 'Toyota',
-            year: Number(v.year) || 2022,
-            owner: v.owner || 'TASIN Enterprise',
+            year: Number(v.year) || 0,
+            owner: v.owner || '',
             driver: v.driver || 'Unassigned',
             status: (['On Duty','Available','In Garage','Inactive'].includes(v.status) ? v.status : 'Available') as VehicleRecord['status'],
-            monthlyRent: Number(v.monthlyRent) || 50000,
-            joiningDate: v.registrationDate || '15 Jan 2022',
+            monthlyRent: Number(v.monthlyRent) || 0,
+            joiningDate: v.registrationDate || '',
             mobilCount: Number(v.mobilCount) || 0,
             lastMobilDate: v.lastMobilDate || '',
           }));
@@ -125,9 +125,9 @@ export default function VehiclesPage(){
         registration: editVeh.regNo.trim(),
         model: editVeh.model,
         brand: editVeh.brand,
-        year: Number(editVeh.year) || 2022,
+        year: Number(editVeh.year) || 0,
         status: editVeh.status,
-        monthly_rent: Number(editVeh.monthlyRent) || 50000
+        monthly_rent: Number(editVeh.monthlyRent) || 0
       });
       loadData();
       setEditOpen(false);
@@ -201,16 +201,16 @@ export default function VehiclesPage(){
       reg_no: newVeh.regNo.trim(),
       model: newVeh.model,
       brand: newVeh.brand,
-      year: Number(newVeh.year)||2022,
+      year: Number(newVeh.year)||0,
       category: 'Sedan',
       status: newVeh.status,
-      monthly_rent: Number(newVeh.monthlyRent)||50000,
+      monthly_rent: Number(newVeh.monthlyRent)||0,
     };
     try {
       await createVehicle(1, payload);
       loadData();
       setAddOpen(false);
-      setNewVeh({regNo:'',model:'Axio',brand:'Toyota',year:2022,owner:'TASIN Enterprise',driver:'Unassigned',status:'Available',monthlyRent:50000});
+      setNewVeh({regNo:'',model:'Axio',brand:'Toyota',year:0,owner:'',driver:'Unassigned',status:'Available',monthlyRent:0});
       showToast(`Vehicle ${payload.registration} saved to database`);
     } catch {
       showToast('Error saving vehicle to database');
@@ -529,7 +529,7 @@ export default function VehiclesPage(){
                 <span style={{color:'#64748b'}}>Vehicle No</span><span>:</span><b style={{color:'#0f172a'}}>{activeVeh.regNo}</b>
                 <span style={{color:'#64748b'}}>Model</span><span>:</span><span style={{color:'#0f172a'}}>{activeVeh.model}</span>
                 <span style={{color:'#64748b'}}>Brand</span><span>:</span><span style={{color:'#0f172a'}}>{activeVeh.brand}</span>
-                <span style={{color:'#64748b'}}>Year</span><span>:</span><span style={{color:'#0f172a'}}>{activeVeh.year}</span>
+                <span style={{color:'#64748b'}}>Year</span><span>:</span><span style={{color:'#0f172a'}}>{activeVeh.year||'—'}</span>
                 <span style={{color:'#64748b'}}>Owner</span><span>:</span><span style={{color:'#0f172a'}}>{activeVeh.owner}</span>
                 <span style={{color:'#64748b'}}>Driver</span><span>:</span><span style={{color:'#0f172a'}}>{activeVeh.driver}</span>
                 <span style={{color:'#64748b'}}>Monthly Rent</span><span>:</span><b style={{color:'#0f172a'}}>{fmt(activeVeh.monthlyRent)}</b>
@@ -557,7 +557,7 @@ export default function VehiclesPage(){
 
             <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #f1f5f9',paddingBottom:5}}>
               <span style={{color:'#64748b'}}>Owner Monthly Rent</span>
-              <strong style={{color:'#0f172a'}}>{fmt(statement?.financials?.ownerRent ?? activeVeh?.monthlyRent ?? 50000)}</strong>
+              <strong style={{color:'#0f172a'}}>{fmt(statement?.financials?.ownerRent ?? activeVeh?.monthlyRent ?? 0)}</strong>
             </div>
 
             <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #f1f5f9',paddingBottom:5}}>
