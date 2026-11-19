@@ -43,6 +43,7 @@ interface OwnerRecord {
   address: string;
   bank: string;
   email: string;
+  raw?: any;   // the record exactly as the server sent it, so saving an edit never overwrites fields this screen does not show
 }
 
 export default function OwnersPage(){
@@ -76,16 +77,17 @@ export default function OwnersPage(){
           const mapped: OwnerRecord[] = data.map((o: any) => ({
             id: String(o.id),
             name: o.name,
-            phone: o.mobile || o.phone || '01711-000000',
-            cars: o.totalVehicles || (o.vehicles?.length ?? 1),
-            totalRent: Number(o.totalRent) || 55000,
+            phone: o.mobile || o.phone || '',
+            cars: o.totalVehicles ?? (o.vehicles?.length ?? 0),
+            totalRent: Number(o.totalRent) || 0,
             paid: Number(o.totalPaid) || 0,
             due: Number(o.due) || 0,
-            status: (o.due > 0 ? 'Due' : 'Active') as OwnerRecord['status'],
-            nid: o.nid || '1234567890123',
-            address: o.presentAddress || 'Dhaka, Bangladesh',
-            bank: o.bankName ? `${o.bankName} (${o.accountNumber || ''})` : 'Dhaka Bank Ltd.',
-            email: o.email || `${o.name.toLowerCase().replace(/[^a-z]/g,'')}@gmail.com`,
+            status: (o.status === 'Inactive' ? 'Inactive' : (o.due > 0 ? 'Due' : 'Active')) as OwnerRecord['status'],   // the saved status wins; Due is only a balance hint
+            nid: o.nid || '',
+            address: o.presentAddress || '',
+            bank: o.bankName || '',
+            email: o.email || '',
+            raw: o,
           }));
           setOwners(mapped);
           if (mapped.length > 0) {
@@ -120,8 +122,8 @@ export default function OwnersPage(){
 
   // Real-time aggregates calculated directly from database records
   const totalOwnersCount = owners.length;
-  const activeOwnersCount = owners.filter(o => o.status === 'Active' || o.due === 0).length;
-  const totalCarsCount = owners.reduce((acc, o) => acc + (o.cars || 1), 0);
+  const activeOwnersCount = owners.filter(o => o.status !== 'Inactive').length;
+  const totalCarsCount = owners.reduce((acc, o) => acc + (o.cars || 0), 0);
   const totalDueSum = owners.reduce((acc, o) => acc + (o.due || 0), 0);
   const totalPaidSum = owners.reduce((acc, o) => acc + (o.paid || 0), 0);
 
@@ -158,14 +160,17 @@ export default function OwnersPage(){
   async function handleUpdateOwner(){
     if(!editOwner || !editOwner.name.trim() || !editOwner.phone.trim()) return;
     try {
+      const r = editOwner.raw || {};
       await updateOwner(1, editOwner.id, {
+        alt_mobile: r.altMobile || '', permanent_address: r.permanentAddress || '', account_name: r.accountName || '', account_number: r.accountNumber || '',
+        branch_name: r.branchName || '', account_type: r.accountType || 'Savings', joining_date: r.joiningDate || null,
         name: editOwner.name.trim(),
         phone: editOwner.phone.trim(),
         nid: editOwner.nid || '',
         present_address: editOwner.address || '',
         email: editOwner.email || '',
         bank_name: editOwner.bank || '',
-        status: editOwner.status || 'Active'
+        status: editOwner.status === 'Inactive' ? 'Inactive' : 'Active'
       });
       loadData();
       setEditOpen(false);
@@ -636,7 +641,7 @@ export default function OwnersPage(){
 
                 <label>
                   <span className="field-label">Status</span>
-                  <Select value={editOwner.status || 'Active'} onValueChange={v=>setEditOwner((f: any)=>({...f,status:v}))}>
+                  <Select value={editOwner.status === 'Inactive' ? 'Inactive' : 'Active'} onValueChange={v=>setEditOwner((f: any)=>({...f,status:v}))}>
                     <SelectTrigger><SelectValue/></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Active">Active</SelectItem>
