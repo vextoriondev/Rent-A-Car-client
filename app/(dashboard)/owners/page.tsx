@@ -4,6 +4,9 @@ import Link from 'next/link';
 import {PartyFinancePanel} from '@/components/features/finance/party-finance-panel';
 import {OpeningBalanceFields,blankOpening,openingPayload,type OpeningValue} from '@/components/features/finance/opening-balance';
 import {errText} from '@/components/features/finance/common';
+import {AttachmentPanel} from '@/components/features/files/attachment-panel';
+import {Avatar,ProfilePhoto} from '@/components/features/files/profile-photo';
+import {uploadPendingPhoto} from '@/lib/files';
 import {fetchOwners,createOwner,updateOwner,deleteOwner,recordOwnerPayment} from '@/lib/api';
 import {
   Users,
@@ -43,6 +46,8 @@ interface OwnerRecord {
   address: string;
   bank: string;
   email: string;
+  photoUrl?: string;
+  thumbUrl?: string;
   raw?: any;   // the record exactly as the server sent it, so saving an edit never overwrites fields this screen does not show
 }
 
@@ -87,6 +92,8 @@ export default function OwnersPage(){
             address: o.presentAddress || '',
             bank: o.bankName || '',
             email: o.email || '',
+            photoUrl: o.photoUrl || '',
+            thumbUrl: o.thumbUrl || '',
             raw: o,
           }));
           setOwners(mapped);
@@ -134,6 +141,8 @@ export default function OwnersPage(){
     setPage(1);
   }
 
+  const [newPhoto,setNewPhoto]=useState<File|null>(null);
+
   async function handleAddOwner(){
     if(!newOwner.name.trim()||!newOwner.phone.trim())return;
     const payload = {
@@ -146,12 +155,14 @@ export default function OwnersPage(){
       ...openingPayload(opening),
     };
     try {
-      await createOwner(1, payload);
+      const created: any = await createOwner(1, payload);
+      const photoErr = await uploadPendingPhoto('owner', created?.id, newPhoto);
+      setNewPhoto(null);
       loadData();
       setAddOpen(false);
       setNewOwner({name:'',phone:'',cars:1,rent:55000,nid:'',address:'',bank:'',email:''});
       setOpening(blankOpening('payable'));
-      showToast(`Owner ${payload.name} saved to database`);
+      showToast(photoErr ? `Owner ${payload.name} saved, but the picture failed: ${photoErr}` : `Owner ${payload.name} saved to database`);
     } catch (e) {
       showToast(errText(e));
     }
@@ -368,7 +379,7 @@ export default function OwnersPage(){
                       }}
                     >
                       <td style={{padding:'0 16px',color:'#64748b'}}>{startIdx + idx}</td>
-                      <td style={{padding:'0 16px',fontWeight:700,color:'#0f172a'}}>{o.name}</td>
+                      <td style={{padding:'0 16px',fontWeight:700,color:'#0f172a'}}><span style={{display:'inline-flex',alignItems:'center',gap:10}}><Avatar name={o.name} url={o.thumbUrl} size={30}/>{o.name}</span></td>
                       <td style={{padding:'0 16px',color:'#475569'}}>{o.phone}</td>
                       <td style={{padding:'0 16px'}}>
                         <span style={{background:'#eff6ff',color:'#1677ff',padding:'3px 10px',borderRadius:6,fontSize:11.5,fontWeight:700}}>
@@ -484,20 +495,7 @@ export default function OwnersPage(){
             <div className="detail-card-layout" style={{padding:16}}>
               {/* Owner photo + badge */}
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
-                <div style={{
-                  width:90,
-                  height:100,
-                  borderRadius:8,
-                  background:'linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%)',
-                  display:'grid',
-                  placeItems:'center',
-                  color:'#1e293b',
-                  fontWeight:800,
-                  fontSize:24,
-                  border:'2px solid #e2e8f0'
-                }}>
-                  👤
-                </div>
+                <ProfilePhoto entity="owner" id={activeOwner.id} name={activeOwner.name} url={activeOwner.photoUrl} size={84} label="Photo" onChanged={()=>loadData()}/>
                 <span style={{background:activeOwner.status==='Active'?'#16a34a':'#f97316',color:'#fff',padding:'2px 14px',borderRadius:999,fontSize:11,fontWeight:700}}>
                   ● {activeOwner.status}
                 </span>
@@ -600,6 +598,11 @@ export default function OwnersPage(){
       </div>
 
       {activeOwner && (
+        <AttachmentPanel key={activeOwner.id} entity="owner" id={activeOwner.id} title="Documents & Photos" canMakeMain
+          documentCategories={['nid','ownership','financial','other']} photoCategories={['other']} onChange={()=>{}}/>
+      )}
+
+      {activeOwner && (
         <PartyFinancePanel kind="owner" partyId={activeOwner.id} partyName={activeOwner.name} onChanged={loadData}/>
       )}
 
@@ -613,6 +616,7 @@ export default function OwnersPage(){
 
           {editOwner && (
             <div className="entry-form">
+              <div style={{marginBottom:12}}><ProfilePhoto entity="owner" id={editOwner.id} name={editOwner.name} url={editOwner.photoUrl} label="Photo" onChanged={()=>loadData()}/></div>
               <div className="form-grid">
                 <label>
                   <span className="field-label">Owner Name *</span>
@@ -718,6 +722,7 @@ export default function OwnersPage(){
           </DialogHeader>
 
           <div className="entry-form">
+            <div style={{marginBottom:12}}><ProfilePhoto entity="owner" id={null} name={newOwner.name} pending={newPhoto} onPick={setNewPhoto} label="Photo"/></div>
             <div className="form-grid">
               <label>
                 <span className="field-label">Owner Name *</span>

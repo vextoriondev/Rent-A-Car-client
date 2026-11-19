@@ -31,7 +31,7 @@ export class ApiError extends Error {
   }
 }
 
-function csrf() {
+export function csrf() {
   if (typeof document === 'undefined') return '';
   return document.cookie.split('; ').find(x => x.startsWith('csrftoken='))?.split('=')[1] || '';
 }
@@ -47,7 +47,7 @@ export function getCurrentUsername(): string {
 
 let orgIdPromise: Promise<number> | null = null;
 /** Screens were written against organization 1; the real id is the signed-in user's organization (from /me). Falls back to 1. */
-function currentOrgId(): Promise<number> {
+export function currentOrgId(): Promise<number> {
   if (!orgIdPromise) {
     orgIdPromise = fetch('/backend/me', {credentials: 'same-origin'})
       .then(r => (r.ok ? r.json() : null))

@@ -1,6 +1,9 @@
 "use client";
 import {useState,useMemo,useEffect} from 'react';
 import Link from 'next/link';
+import {AttachmentPanel} from '@/components/features/files/attachment-panel';
+import {Avatar,ProfilePhoto} from '@/components/features/files/profile-photo';
+import {uploadPendingPhoto} from '@/lib/files';
 import {DriverFinancePanel} from '@/components/features/finance/driver-finance-panel';
 import {ReplacementsPanel} from '@/components/features/finance/replacements-panel';
 import {fetchDuties,fetchDrivers,createDriver,updateDriver,deleteDriver,fetchDriverAttendance,recordDriverAttendance} from '@/lib/api';
@@ -51,6 +54,8 @@ interface DriverRecord {
   onTime: string;
   workingDays: number;
   earnings: number;
+  photoUrl?: string;
+  thumbUrl?: string;
 }
 
 export default function DriversPage(){
@@ -72,8 +77,8 @@ export default function DriversPage(){
     phone:'',
     licenseNo:'',
     licenseType:'Professional',
-    experience:'5 Years',
-    address:'Dhaka',
+    experience:'',
+    address:'',
     salary:'',
     advance:'',
     prevSalary:'',
@@ -156,6 +161,8 @@ export default function DriversPage(){
             onTime: '',
             workingDays: 0,
             earnings: Number(d.totalPaid) || 0,
+            photoUrl: d.photoUrl || '',
+            thumbUrl: d.thumbUrl || '',
           }));
           setDrivers(mapped);
           if (mapped.length > 0) {
@@ -204,6 +211,8 @@ export default function DriversPage(){
     setPage(1);
   }
 
+  const [newPhoto,setNewPhoto]=useState<File|null>(null);
+
   async function handleAddDriver(){
     if(!newDriver.name.trim()||!newDriver.phone.trim())return;
     const payload = {
@@ -218,11 +227,13 @@ export default function DriversPage(){
       previous_fuel_gas_due: newDriver.prevFuelGas || '0',
     };
     try {
-      await createDriver(1, payload);
+      const created: any = await createDriver(1, payload);
+      const photoErr = await uploadPendingPhoto('driver', created?.id, newPhoto);
+      setNewPhoto(null);
       loadData();
       setAddOpen(false);
-      setNewDriver({name:'',phone:'',licenseNo:'',licenseType:'Professional',experience:'5 Years',address:'Dhaka',salary:'',advance:'',prevSalary:'',prevFuelGas:'',joiningDate:new Date().toISOString().slice(0,10)});
-      showToast(`Driver ${payload.name} saved to database`);
+      setNewDriver({name:'',phone:'',licenseNo:'',licenseType:'Professional',experience:'',address:'',salary:'',advance:'',prevSalary:'',prevFuelGas:'',joiningDate:new Date().toISOString().slice(0,10)});
+      showToast(photoErr ? `Driver ${payload.name} saved, but the picture failed: ${photoErr}` : `Driver ${payload.name} saved to database`);
     } catch {
       showToast('Error saving driver to database');
     }
@@ -234,9 +245,9 @@ export default function DriversPage(){
       await updateDriver(1, editDriver.id, {
         name: editDriver.name.trim(),
         phone: editDriver.phone.trim(),
-        license_no: editDriver.licenseNo || '',
+        license_no: editDriver.licenseNo === '—' ? '' : (editDriver.licenseNo || ''),
         license_type: editDriver.licenseType || 'Professional',
-        present_address: editDriver.address || 'Dhaka',
+        present_address: editDriver.address === '—' ? '' : (editDriver.address || ''),
         status: editDriver.status || 'Active'
       });
       loadData();
@@ -543,7 +554,7 @@ export default function DriversPage(){
                       }}
                     >
                       <td style={{padding:'0 16px',color:'#64748b'}}>{startIdx + idx}</td>
-                      <td style={{padding:'0 16px',fontWeight:700,color:'#0f172a'}}>{d.name}</td>
+                      <td style={{padding:'0 16px',fontWeight:700,color:'#0f172a'}}><span style={{display:'inline-flex',alignItems:'center',gap:10}}><Avatar name={d.name} url={d.thumbUrl} size={30}/>{d.name}</span></td>
                       <td style={{padding:'0 16px',color:'#475569'}}>{d.phone}</td>
                       <td style={{padding:'0 16px',color:'#475569'}}>{d.licenseNo}</td>
                       <td style={{padding:'0 16px',color:'#475569'}}>{d.licenseType}</td>
@@ -659,20 +670,7 @@ export default function DriversPage(){
             <div className="detail-card-layout" style={{padding:16}}>
               {/* Driver photo + badge */}
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
-                <div style={{
-                  width:90,
-                  height:100,
-                  borderRadius:8,
-                  background:'linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%)',
-                  display:'grid',
-                  placeItems:'center',
-                  color:'#1e293b',
-                  fontWeight:800,
-                  fontSize:24,
-                  border:'2px solid #e2e8f0'
-                }}>
-                  👨‍✈️
-                </div>
+                <ProfilePhoto entity="driver" id={activeDriver.id} name={activeDriver.name} url={activeDriver.photoUrl} size={84} label="Photo" onChanged={()=>loadData()}/>
                 <span style={{
                   background:activeDriver.status==='Active'?'#16a34a':activeDriver.status==='On Leave'?'#f59e0b':'#ef4444',
                   color:'#fff',
@@ -757,6 +755,10 @@ export default function DriversPage(){
       </div>
 
       {activeDriver && (
+        <AttachmentPanel key={activeDriver.id} entity="driver" id={activeDriver.id} title="Documents & Photos" canMakeMain documentCategories={['nid','license','passport','other']} photoCategories={['other']} />
+      )}
+
+      {activeDriver && (
         <DriverFinancePanel driverId={activeDriver.id} driverName={activeDriver.name} request={panelRequest} onRequestHandled={()=>setPanelRequest(null)} onChanged={loadData}/>
       )}
       </>
@@ -772,6 +774,7 @@ export default function DriversPage(){
 
           {editDriver && (
             <div className="entry-form">
+              <div style={{marginBottom:12}}><ProfilePhoto entity="driver" id={editDriver.id} name={editDriver.name} url={editDriver.photoUrl} label="Photo" onChanged={()=>loadData()}/></div>
               <div className="form-grid">
                 <label>
                   <span className="field-label">Driver Name *</span>
@@ -836,6 +839,7 @@ export default function DriversPage(){
           </DialogHeader>
 
           <div className="entry-form">
+            <div style={{marginBottom:12}}><ProfilePhoto entity="driver" id={null} name={newDriver.name} pending={newPhoto} onPick={setNewPhoto} label="Photo"/></div>
             <div className="form-grid">
               <label>
                 <span className="field-label">Driver Name *</span>

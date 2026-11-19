@@ -2,7 +2,10 @@
 import {useState,useMemo,useEffect} from 'react';
 import Link from 'next/link';
 import {VehiclePaymentsCard} from '@/components/features/finance/vehicle-payments';
-import {fetchVehicles,createVehicle,updateVehicle,deleteVehicle,fetchVehicleStatement} from '@/lib/api';
+import {AttachmentPanel} from '@/components/features/files/attachment-panel';
+import {Avatar,ProfilePhoto} from '@/components/features/files/profile-photo';
+import {uploadPendingPhoto} from '@/lib/files';
+import {fetchOwners,fetchDrivers,fetchVehicles,createVehicle,updateVehicle,deleteVehicle,fetchVehicleStatement} from '@/lib/api';
 import {
   CarFront,
   CheckCircle2,
@@ -46,6 +49,10 @@ interface VehicleRecord {
   joiningDate: string;
   mobilCount?: number;
   lastMobilDate?: string;
+  photoUrl?: string;
+  thumbUrl?: string;
+  ownerId?: string;
+  driverId?: string;
 }
 
 export default function VehiclesPage(){
@@ -64,14 +71,23 @@ export default function VehiclesPage(){
   const [editVeh,setEditVeh]=useState<any>(null);
   const [newVeh,setNewVeh]=useState({
     regNo:'',
-    model:'Axio',
-    brand:'Toyota',
-    year:2022,
-    owner:'TASIN Enterprise',
+    model:'',
+    brand:'',
+    year:0,
+    owner:'',
+    ownerId:'',
+    driverId:'',
     driver:'Unassigned',
     status:'Available' as VehicleRecord['status'],
-    monthlyRent:50000
+    monthlyRent:0
   });
+  const [ownerList,setOwnerList]=useState<{id:string;name:string}[]>([]);
+  const [driverList,setDriverList]=useState<{id:string;name:string}[]>([]);
+  const [addError,setAddError]=useState('');
+  useEffect(()=>{
+    fetchOwners(1).then((r:any)=>Array.isArray(r)&&setOwnerList(r.filter((o:any)=>o.status!=='Inactive').map((o:any)=>({id:String(o.id),name:o.name})))).catch(()=>{});
+    fetchDrivers(1).then((r:any)=>Array.isArray(r)&&setDriverList(r.filter((d:any)=>d.status!=='Inactive').map((d:any)=>({id:String(d.id),name:d.name})))).catch(()=>{});
+  },[]);
   const [toast,setToast]=useState('');
   const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(''),3000)};
 
@@ -82,9 +98,9 @@ export default function VehiclesPage(){
         if(Array.isArray(data)){
           const mapped: VehicleRecord[] = data.map((v: any) => ({
             id: String(v.id),
-            regNo: v.registration || v.regNo || 'DHA-METRO-GA-12-3456',
-            model: v.model || 'Axio',
-            brand: v.brand || 'Toyota',
+            regNo: v.registration || v.regNo || '',
+            model: v.model || '',
+            brand: v.brand || '',
             year: Number(v.year) || 0,
             owner: v.owner || '',
             driver: v.driver || 'Unassigned',
@@ -93,6 +109,10 @@ export default function VehiclesPage(){
             joiningDate: v.registrationDate || '',
             mobilCount: Number(v.mobilCount) || 0,
             lastMobilDate: v.lastMobilDate || '',
+            photoUrl: v.photoUrl || '',
+            thumbUrl: v.thumbUrl || '',
+            ownerId: v.ownerId ? String(v.ownerId) : '',
+            driverId: v.driverId ? String(v.driverId) : '',
           }));
           setVehicles(mapped);
           if (mapped.length > 0) {
@@ -127,7 +147,9 @@ export default function VehiclesPage(){
         brand: editVeh.brand,
         year: Number(editVeh.year) || 0,
         status: editVeh.status,
-        monthly_rent: Number(editVeh.monthlyRent) || 0
+        monthly_rent: Number(editVeh.monthlyRent) || 0,
+        owner_id: editVeh.ownerId ? Number(editVeh.ownerId) : undefined,
+        driver_id: editVeh.driverId ? Number(editVeh.driverId) : undefined
       });
       loadData();
       setEditOpen(false);
@@ -194,9 +216,15 @@ export default function VehiclesPage(){
     setPage(1);
   }
 
+  const [newPhoto,setNewPhoto]=useState<File|null>(null);
+
   async function handleAddVehicle(){
     if(!newVeh.regNo.trim())return;
+    if(!newVeh.ownerId){setAddError('Choose the vehicle owner');return;}
+    setAddError('');
     const payload = {
+      owner_id: Number(newVeh.ownerId),
+      driver_id: newVeh.driverId ? Number(newVeh.driverId) : undefined,
       registration: newVeh.regNo.trim(),
       reg_no: newVeh.regNo.trim(),
       model: newVeh.model,
@@ -207,13 +235,16 @@ export default function VehiclesPage(){
       monthly_rent: Number(newVeh.monthlyRent)||0,
     };
     try {
-      await createVehicle(1, payload);
+      const created: any = await createVehicle(1, payload);
+      const photoErr = await uploadPendingPhoto('vehicle', created?.id, newPhoto);
+      setNewPhoto(null);
       loadData();
       setAddOpen(false);
-      setNewVeh({regNo:'',model:'Axio',brand:'Toyota',year:0,owner:'',driver:'Unassigned',status:'Available',monthlyRent:0});
-      showToast(`Vehicle ${payload.registration} saved to database`);
-    } catch {
-      showToast('Error saving vehicle to database');
+      setNewVeh({regNo:'',model:'',brand:'',year:0,owner:'',ownerId:'',driverId:'',driver:'Unassigned',status:'Available',monthlyRent:0});
+      showToast(photoErr ? `Vehicle ${payload.registration} saved, but the photo failed: ${photoErr}` : `Vehicle ${payload.registration} saved to database`);
+    } catch (e:any) {
+      setAddError(e?.message||'Error saving vehicle to database');
+      showToast(e?.message||'Error saving vehicle to database');
     }
   }
 
@@ -400,7 +431,7 @@ export default function VehiclesPage(){
                       }}
                     >
                       <td style={{padding:'0 16px',color:'#64748b'}}>{startIdx + idx}</td>
-                      <td style={{padding:'0 16px',fontWeight:700,color:'#1677ff'}}>{v.regNo}</td>
+                      <td style={{padding:'0 16px',fontWeight:700,color:'#1677ff'}}><span style={{display:'inline-flex',alignItems:'center',gap:10}}><Avatar name={v.regNo} url={v.thumbUrl} size={30} square/>{v.regNo}</span></td>
                       <td style={{padding:'0 16px',color:'#334155'}}>{v.model}</td>
                       <td style={{padding:'0 16px',color:'#475569'}}>{v.owner}</td>
                       <td style={{padding:'0 16px',color:'#475569'}}>{v.driver}</td>
@@ -505,20 +536,7 @@ export default function VehiclesPage(){
             <div className="detail-card-layout" style={{padding:16}}>
               {/* Vehicle image + badge */}
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
-                <div style={{
-                  width:130,
-                  height:85,
-                  borderRadius:8,
-                  background:'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
-                  display:'grid',
-                  placeItems:'center',
-                  color:'#1e293b',
-                  fontWeight:800,
-                  fontSize:32,
-                  border:'2px solid #e2e8f0'
-                }}>
-                  🚗
-                </div>
+                <ProfilePhoto entity="vehicle" id={activeVeh.id} name={activeVeh.regNo} url={activeVeh.photoUrl} size={104} square label="Main photo" onChanged={()=>loadData()}/>
                 <span style={{background:'#16a34a',color:'#fff',padding:'2px 14px',borderRadius:999,fontSize:11,fontWeight:700}}>
                   ● {activeVeh.status}
                 </span>
@@ -684,6 +702,9 @@ export default function VehiclesPage(){
           </div>
         </Card>
 
+        {activeVeh && <AttachmentPanel key={activeVeh.id} entity="vehicle" id={activeVeh.id} title="Photos & Documents" canMakeMain
+          photoCategories={['front','rear','side','interior','damage','other']} documentCategories={['registration','insurance','fitness','tax_token','inspection','route_permit','other']}/>}
+
         {/* Billing & Payments (real data) */}
         {activeVeh && <VehiclePaymentsCard vehicleId={String(activeVeh.id)} registration={activeVeh.regNo}/>}
       </div>
@@ -697,6 +718,8 @@ export default function VehiclesPage(){
           </DialogHeader>
 
           <div className="entry-form">
+            <div style={{marginBottom:12}}><ProfilePhoto entity="vehicle" id={null} name={newVeh.regNo} square pending={newPhoto} onPick={setNewPhoto} label="Main photo"/></div>
+            {addError&&<div role="alert" style={{color:'#b42318',fontSize:12.5,marginBottom:8}}>{addError}</div>}
             <div className="form-grid">
               <label>
                 <span className="field-label">Registration No. *</span>
@@ -721,6 +744,28 @@ export default function VehiclesPage(){
               <label>
                 <span className="field-label">Monthly Rent (BDT)</span>
                 <Input type="number" value={newVeh.monthlyRent} onChange={e=>setNewVeh(f=>({...f,monthlyRent:Number(e.target.value)}))}/>
+              </label>
+
+              <label>
+                <span className="field-label">Owner *</span>
+                <Select value={newVeh.ownerId||''} onValueChange={v=>setNewVeh(f=>({...f,ownerId:v==='none'?'':v}))}>
+                  <SelectTrigger><SelectValue placeholder="Select owner"/></SelectTrigger>
+                  <SelectContent>
+                    
+                    {ownerList.map(o=><SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </label>
+
+              <label>
+                <span className="field-label">Driver (optional)</span>
+                <Select value={newVeh.driverId||'none'} onValueChange={v=>setNewVeh(f=>({...f,driverId:v==='none'?'':v}))}>
+                  <SelectTrigger><SelectValue placeholder="Unassigned"/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned</SelectItem>
+                    {driverList.map(o=><SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </label>
 
               <label>
@@ -755,6 +800,7 @@ export default function VehiclesPage(){
 
           {editVeh && (
             <div className="entry-form">
+              <div style={{marginBottom:12}}><ProfilePhoto entity="vehicle" id={editVeh.id} name={editVeh.regNo} url={editVeh.photoUrl} square label="Main photo" onChanged={()=>loadData()}/></div>
               <div className="form-grid">
                 <label>
                   <span className="field-label">Registration No. *</span>
@@ -780,6 +826,28 @@ export default function VehiclesPage(){
                   <span className="field-label">Monthly Rent (BDT)</span>
                   <Input type="number" value={editVeh.monthlyRent} onChange={e=>setEditVeh((f: any)=>({...f,monthlyRent:Number(e.target.value)}))}/>
                 </label>
+
+              <label>
+                <span className="field-label">Owner *</span>
+                <Select value={editVeh.ownerId||''} onValueChange={v=>setEditVeh((f: any)=>({...f,ownerId:v==='none'?'':v}))}>
+                  <SelectTrigger><SelectValue placeholder="Select owner"/></SelectTrigger>
+                  <SelectContent>
+                    
+                    {ownerList.map(o=><SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </label>
+
+              <label>
+                <span className="field-label">Driver (optional)</span>
+                <Select value={editVeh.driverId||'none'} onValueChange={v=>setEditVeh((f: any)=>({...f,driverId:v==='none'?'':v}))}>
+                  <SelectTrigger><SelectValue placeholder="Unassigned"/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned</SelectItem>
+                    {driverList.map(o=><SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </label>
 
                 <label>
                   <span className="field-label">Status</span>
