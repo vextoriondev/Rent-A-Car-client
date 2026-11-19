@@ -40,15 +40,17 @@ export default function DashboardPage(){
   const [analyticsPeriod,setAnalyticsPeriod]=useState<'Daily'|'Weekly'|'Monthly'|'Yearly'>('Monthly');
   const [kpis, setKpis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(()=>{
     let mounted = true;
     setLoading(true);
+    setLoadError('');
     fetchDashboardKpis(1, analyticsPeriod)
       .then(data => {
         if (mounted && data) setKpis(data);
       })
-      .catch(() => {})
+      .catch((e: any) => { if (mounted) setLoadError(e?.message || 'The dashboard data could not be loaded. The server may need a database update.'); })
       .finally(() => {
         if (mounted) setLoading(false);
       });
@@ -121,6 +123,7 @@ export default function DashboardPage(){
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      {loadError && <div role="alert" style={{background:'#fef3f2',border:'1px solid #fecdca',color:'#b42318',borderRadius:8,padding:'10px 14px',fontSize:13}}>Dashboard data could not be loaded: {loadError}. The numbers below are not real zeros.</div>}
       {/* ─── Top Row: 6 KPI Cards ─── */}
       <div className="kpi-grid-6">
         {/* 1. Total Vehicles */}
