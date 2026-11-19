@@ -97,7 +97,7 @@ await step('drivers: re-opening the salary dialog resets it and blocks an alread
   await page.keyboard.press('Escape');
 });
 await step('drivers: statement print popup contains the transactions', async () => {
-  const [pop] = await Promise.all([page.waitForEvent('popup'), page.locator('#driver-finance').getByRole('button', {name: /Print statement/}).click()]);
+  const [pop] = await Promise.all([page.waitForEvent('popup'), page.locator('#driver-finance').getByRole('button', {name: /^\s*Print\s*$/}).click()]);
   await pop.waitForLoadState();
   const text = await pop.innerText('body');
   if (!/Driver Financial Statement/.test(text) || !/driver advance/i.test(text)) throw new Error(text.slice(0, 200));
@@ -113,7 +113,8 @@ await step('drivers: reload keeps data (persistence)', async () => {
 // ───────── Replacement drivers (UI)
 await step('attendance: record replacement for a date range via UI + history/filters', async () => {
   const d2 = await api('POST', `/orgs/${ORG}/tasin-drivers`, {name: `PW Sub ${u}`, phone: '01', monthly_salary: '10000'});
-  const veh = await api('POST', `/orgs/${ORG}/tasin-vehicles`, {registration: `PW-${u}`, brand: 'Toyota', model: 'Axio', monthly_rent: '30000', status: 'Available'});
+  const ow0 = await api('POST', `/orgs/${ORG}/tasin-owners`, {name: `PW Seed Owner ${u}`, phone: '01'});   // a vehicle must belong to a real owner (no silent default)
+  const veh = await api('POST', `/orgs/${ORG}/tasin-vehicles`, {registration: `PW-${u}`, owner_id: Number(ow0.body.id), brand: 'Toyota', model: 'Axio', monthly_rent: '30000', status: 'Available'});
   globalThis.vid = veh.body.id; globalThis.sub = d2.body.id;
   await page.goto(BASE + '/drivers', {waitUntil: 'networkidle'});
   await page.getByRole('button', {name: /Replacement Drivers/}).click();

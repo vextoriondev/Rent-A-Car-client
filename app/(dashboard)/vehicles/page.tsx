@@ -536,7 +536,7 @@ export default function VehiclesPage(){
             <div className="detail-card-layout" style={{padding:16}}>
               {/* Vehicle image + badge */}
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
-                <ProfilePhoto entity="vehicle" id={activeVeh.id} name={activeVeh.regNo} url={activeVeh.photoUrl} size={104} square label="Main photo" onChanged={()=>loadData()}/>
+                <ProfilePhoto entity="vehicle" id={activeVeh.id} name={activeVeh.regNo} url={activeVeh.photoUrl} size={72} compact square label="Main photo" onChanged={()=>loadData()}/>
                 <span style={{background:'#16a34a',color:'#fff',padding:'2px 14px',borderRadius:999,fontSize:11,fontWeight:700}}>
                   ● {activeVeh.status}
                 </span>

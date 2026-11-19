@@ -670,7 +670,7 @@ export default function DriversPage(){
             <div className="detail-card-layout" style={{padding:16}}>
               {/* Driver photo + badge */}
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
-                <ProfilePhoto entity="driver" id={activeDriver.id} name={activeDriver.name} url={activeDriver.photoUrl} size={84} label="Photo" onChanged={()=>loadData()}/>
+                <ProfilePhoto entity="driver" id={activeDriver.id} name={activeDriver.name} url={activeDriver.photoUrl} size={72} compact label="Photo" onChanged={()=>loadData()}/>
                 <span style={{
                   background:activeDriver.status==='Active'?'#16a34a':activeDriver.status==='On Leave'?'#f59e0b':'#ef4444',
                   color:'#fff',

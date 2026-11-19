@@ -495,7 +495,7 @@ export default function OwnersPage(){
             <div className="detail-card-layout" style={{padding:16}}>
               {/* Owner photo + badge */}
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
-                <ProfilePhoto entity="owner" id={activeOwner.id} name={activeOwner.name} url={activeOwner.photoUrl} size={84} label="Photo" onChanged={()=>loadData()}/>
+                <ProfilePhoto entity="owner" id={activeOwner.id} name={activeOwner.name} url={activeOwner.photoUrl} size={72} compact label="Photo" onChanged={()=>loadData()}/>
                 <span style={{background:activeOwner.status==='Active'?'#16a34a':'#f97316',color:'#fff',padding:'2px 14px',borderRadius:999,fontSize:11,fontWeight:700}}>
                   ● {activeOwner.status}
                 </span>

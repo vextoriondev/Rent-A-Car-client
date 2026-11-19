@@ -8,3 +8,6 @@ Run against a LOCAL stack on a disposable database copy, never production:
 
 Browsers are not downloaded: scripts use the installed Microsoft Edge (`channel: 'msedge'`).
 `DJANGO_CSRF_TRUSTED_ORIGINS` must contain the frontend origin or every browser POST is rejected with 403 (also in production).
+
+## File & media workflows
+`node e2e/uploads.mjs out` (17 workflows: driver/owner/vehicle/agreement/maintenance/transaction uploads, optimization, validation, privacy). Needs `E2E_ASSETS` (folder of sample files: photos with GPS/rotation EXIF, a scan, PDF, DOCX, an invalid file) and `E2E_MEDIA` (the backend's `PRIVATE_MEDIA_ROOT`, to check that replaced/deleted files leave nothing behind). Run it against a disposable local stack only.

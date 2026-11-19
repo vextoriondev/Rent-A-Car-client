@@ -27,13 +27,14 @@ type Props = {
   square?: boolean;
   editable?: boolean;
   label?: string;
+  compact?: boolean;                     // narrow detail cards: picture on top, one small button, no helper text
   onChanged?: (item: AttachmentItem | null) => void;
   pending?: File | null;                 // create mode: the chosen file lives in the parent form
   onPick?: (f: File | null) => void;
 };
 
 /** Profile / main picture control with a default avatar, preview, change and remove. Works both for saved records and inside a create form. */
-export function ProfilePhoto({entity, id, name, url, size = 96, square = false, editable = true, label = 'Photo', onChanged, pending, onPick}: Props) {
+export function ProfilePhoto({entity, id, name, url, size = 96, square = false, editable = true, label = 'Photo', compact = false, onChanged, pending, onPick}: Props) {
   const input = useRef<HTMLInputElement>(null);
   const [limits, setLimits] = useState<FileLimits | null>(null);
   const [busy, setBusy] = useState(false);
@@ -90,7 +91,7 @@ export function ProfilePhoto({entity, id, name, url, size = 96, square = false, 
   const shown = preview || (current ? fileUrl(current) : '');
   const hasPicture = !!shown;
   return (
-    <div style={{display: 'flex', alignItems: 'center', gap: 14}}>
+    <div style={{display: 'flex', alignItems: 'center', gap: compact ? 6 : 14, flexDirection: compact ? 'column' : 'row'}}>
       <div style={{position: 'relative', width: size, height: size, flex: 'none'}}>
         {shown
           // eslint-disable-next-line @next/next/no-img-element
@@ -99,11 +100,11 @@ export function ProfilePhoto({entity, id, name, url, size = 96, square = false, 
         {busy && <span style={{position: 'absolute', inset: 0, borderRadius: square ? 12 : '50%', background: 'rgba(255,255,255,.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', fontSize: 11, color: '#334155'}}><Loader2 size={18} className="animate-spin" />{pct ? pct + '%' : ''}</span>}
       </div>
       {editable && (
-        <div style={{display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start'}}>
+        <div style={{display: 'flex', flexDirection: compact ? 'row' : 'column', gap: compact ? 4 : 6, alignItems: compact ? 'center' : 'flex-start', flexWrap: 'wrap', justifyContent: 'center'}}>
           <input ref={input} type="file" accept={IMAGE_ACCEPT} hidden aria-label={`Choose ${label.toLowerCase()}`} onChange={e => choose(e.target.files?.[0])} />
-          <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => input.current?.click()}><Camera size={14} style={{marginRight: 6}} />{hasPicture ? `Change ${label.toLowerCase()}` : `Add ${label.toLowerCase()}`}</Button>
-          {hasPicture && <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={remove}><Trash2 size={13} style={{marginRight: 6}} />Remove</Button>}
-          <span style={{fontSize: 11, color: '#64748b'}}>JPEG, PNG or WebP · optimized automatically</span>
+          <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => input.current?.click()}><Camera size={14} style={{marginRight: 6}} />{compact ? (hasPicture ? 'Change' : 'Add') : hasPicture ? `Change ${label.toLowerCase()}` : `Add ${label.toLowerCase()}`}</Button>
+          {hasPicture && <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={remove} title="Remove photo"><Trash2 size={13} style={{marginRight: compact ? 0 : 6}} />{compact ? '' : 'Remove'}</Button>}
+          {!compact && <span style={{fontSize: 11, color: '#64748b'}}>JPEG, PNG or WebP · optimized automatically</span>}
           {err && <span role="alert" style={{fontSize: 12, color: '#b42318'}}>{err}</span>}
         </div>
       )}
