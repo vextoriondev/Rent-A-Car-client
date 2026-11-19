@@ -194,7 +194,7 @@ export default function CustomersPage(){
     const payload = {
       name: formClient.name.trim(),
       phone: formClient.phone.trim(),
-      contact_person: formClient.contactPerson.trim() || 'Contact Officer',
+      contact_person: formClient.contactPerson.trim(),
       client_type: formClient.type,
       address: formClient.address.trim(),
       email: formClient.email.trim(),
@@ -218,7 +218,7 @@ export default function CustomersPage(){
     const payload = {
       name: formClient.name.trim(),
       phone: formClient.phone.trim(),
-      contact_person: formClient.contactPerson.trim() || 'Contact Officer',
+      contact_person: formClient.contactPerson.trim(),
       client_type: formClient.type,
       address: formClient.address.trim(),
       email: formClient.email.trim(),
@@ -255,7 +255,7 @@ export default function CustomersPage(){
       await recordClientCollection(1, activeClient.id, {
         amount: amt,
         payment_method: colData.method,
-        reference: colData.reference || 'Direct Collection',
+        reference: colData.reference || '',
         note: colData.note || `Collection for ${activeClient.name}`
       });
       loadData();

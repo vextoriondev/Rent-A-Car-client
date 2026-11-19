@@ -127,15 +127,6 @@ export default function MaintenancePage(){
       if (Array.isArray(partsRes)) setPartsList(partsRes);
       if (Array.isArray(vehRes)) {
         setVehiclesList(vehRes);
-        if (vehRes.length > 0 && !newMnt.vehicle_reg) {
-          setNewMnt(m => ({ ...m, vehicle_reg: vehRes[0].registration || vehRes[0].regNo }));
-        }
-        if (vehRes.length > 0 && !consumePayload.vehicle_id) {
-          setConsumePayload(c => ({ ...c, vehicle_id: String(vehRes[0].id) }));
-        }
-      }
-      if (Array.isArray(grgRes) && grgRes.length > 0 && !newMnt.garage_name) {
-        setNewMnt(m => ({ ...m, garage_name: grgRes[0].name }));
       }
     } catch {
       // ignore
@@ -322,26 +313,10 @@ export default function MaintenancePage(){
     }
   }
 
-  async function handleQuickOilChange(regNo: string) {
-    try {
-      const garage = garagesList[0]?.name || 'Standard Workshop';
-      await createMaintenance(1, {
-        vehicle_reg: regNo,
-        garage_name: garage,
-        date: new Date().toISOString().slice(0, 10),
-        problem_description: 'Periodic Mobil Engine Oil & Filter Change',
-        service_type: 'Oil Change',
-        parts_details: 'Mobil 1 / Engine Oil 4L + Filter',
-        labour_cost: 500,
-        parts_cost: 3200,
-        expected_delivery: new Date().toISOString().slice(0, 10),
-        status: 'Completed'
-      });
-      loadData();
-      showToast(`✓ Oil Change recorded for ${regNo}`);
-    } catch {
-      showToast('Error recording oil change');
-    }
+  // Opens the normal form for this vehicle: costs and garage are the user's to enter. Nothing is created (or posted to a garage account) from guesses.
+  function handleQuickOilChange(regNo: string) {
+    setNewMnt(m => ({ ...m, vehicle_reg: regNo, service_type: 'Oil Change', problem_description: 'Periodic engine oil & filter change', labour_cost: 0, parts_cost: 0, parts_details: '', status: 'Pending' }));
+    setAddMntOpen(true);
   }
 
   const upcomingJobs = maintenanceList.filter(m => m.status === 'Pending' || m.status === 'In Progress');
