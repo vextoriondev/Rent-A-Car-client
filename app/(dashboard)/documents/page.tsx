@@ -127,7 +127,7 @@ export default function DocumentsPage() {
     )}
 
     <div className="toolbar search-filter-responsive" style={{marginBottom: 16, flexWrap: 'wrap', gap: 10}}>
-      <div className="global-search" style={{flex: '1 1 220px', maxWidth: 320}}><Search size={15} />
+      <div className="toolbar-search" style={{flex: '1 1 220px', maxWidth: 320}}><Search size={15} />
         <Input placeholder="Search title, vehicle, certificate no…" value={q} onChange={e => setQ(e.target.value)} /></div>
       <Select value={typeF} onValueChange={setTypeF}>
         <SelectTrigger style={{minWidth: 180}}><SelectValue placeholder="Document type" /></SelectTrigger>

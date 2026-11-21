@@ -87,7 +87,7 @@ export function DocumentCenter({onChanged}: {onChanged?: () => void}) {
   return (
     <div>
       <div className="toolbar search-filter-responsive" style={{marginBottom: 16, flexWrap: 'wrap', gap: 10}}>
-        <div className="global-search" style={{flex: '1 1 220px', maxWidth: 320}}><Search size={15} />
+        <div className="toolbar-search" style={{flex: '1 1 220px', maxWidth: 320}}><Search size={15} />
           <Input aria-label="Search files" placeholder="Search file, owner, driver, vehicle…" value={q} onChange={e => setQ(e.target.value)} /></div>
         <Select value={entity} onValueChange={setEntity}>
           <SelectTrigger aria-label="Record type" style={{minWidth: 150}}><SelectValue /></SelectTrigger>

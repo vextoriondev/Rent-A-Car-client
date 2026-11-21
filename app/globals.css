@@ -354,71 +354,71 @@ body{background:#f0f4f9!important}
 /* ─── Responsive Multi-Column Split Layouts ─── */
 .split-grid-dashboard-row2 {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 @media (min-width: 1024px) {
   .split-grid-dashboard-row2 {
-    grid-template-columns: 1.1fr 1.6fr 0.8fr;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.6fr) minmax(0, 0.8fr);
   }
 }
 
 .split-grid-bottom-3 {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 @media (min-width: 768px) {
   .split-grid-bottom-3 {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 @media (min-width: 1100px) {
   .split-grid-bottom-3 {
-    grid-template-columns: 1.4fr 1.3fr 1.3fr;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.3fr) minmax(0, 1.3fr);
   }
 }
 
 .split-grid-owners-3 {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 @media (min-width: 768px) {
   .split-grid-owners-3 {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 @media (min-width: 1100px) {
   .split-grid-owners-3 {
-    grid-template-columns: 1.3fr 1.6fr 0.9fr;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.6fr) minmax(0, 0.9fr);
   }
 }
 
 .split-grid-analytics-2 {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 @media (min-width: 1024px) {
   .split-grid-analytics-2 {
-    grid-template-columns: 1.9fr 1.1fr;
+    grid-template-columns: minmax(0, 1.9fr) minmax(0, 1.1fr);
   }
 }
 
 .split-grid-today-3 {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 @media (min-width: 768px) {
   .split-grid-today-3 {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 @media (min-width: 1100px) {
   .split-grid-today-3 {
-    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
@@ -540,3 +540,8 @@ body{background:#f0f4f9!important}
 
 /* a centred flex row that overflows loses its left edge (negative scroll offset is unreachable): keep tab bars start-aligned and scrollable */
 [data-slot=tabs-list]{justify-content:flex-start;max-width:100%;overflow-x:auto}
+
+/* page-level search box: unlike .global-search (the top bar one, hidden on phones) this stays visible and fills the row on small screens */
+.toolbar-search{height:37px;width:290px;max-width:100%;border:1px solid #e2e9ea;border-radius:8px;display:flex;align-items:center;padding:0 10px;gap:7px;color:#8a9ca4;background:#fff}
+.toolbar-search input{border:0;background:transparent;outline:none;box-shadow:none;padding:0;height:100%;font-size:12px;width:100%;min-width:0}
+@media(max-width:800px){.toolbar-search{width:100%!important;flex:1 1 100%!important;max-width:none!important}}

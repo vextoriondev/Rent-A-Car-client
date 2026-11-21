@@ -84,7 +84,7 @@ export default function AuditPage(){
 
     {/* Toolbar */}
     <div className="toolbar" style={{marginBottom:16,flexWrap:'wrap',gap:10}}>
-      <div className="global-search" style={{width:270}}>
+      <div className="toolbar-search" style={{width:270}}>
         <Search size={15}/>
         <Input
           placeholder="Search user, action, summary, entity…"

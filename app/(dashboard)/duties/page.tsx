@@ -25,7 +25,7 @@ import {SectionHeading} from '@/components/shared/section-heading';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatMoney = (n: number) => '৳' + n.toLocaleString('en-US');
 
-const TODAY = '2026-11-10';
+const TODAY = new Date().toLocaleDateString('en-CA');      // today (YYYY-MM-DD, the browser's local date); was a fixed demo date
 
 const STATUS_BADGE: Record<DutyStatus, string> = {
   Running:   'badge badge-blue',
@@ -633,7 +633,7 @@ export default function DutiesPage() {
         <div className="intro-actions">
           <div className="period-chip">
             <CalendarDays size={14}/>
-            <span>{TODAY}</span>
+            <span suppressHydrationWarning>{TODAY}</span>
           </div>
           <Button className="primary-action" onClick={()=>{setForm(emptyForm());setFormErrors({});setAddOpen(true);}}>
             <Plus size={15}/> Add Duty

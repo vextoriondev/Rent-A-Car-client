@@ -62,8 +62,8 @@ export default function ExpensesPage(){
             title: e.title,
             amount: Number(e.amount) || 0,
             paymentMethod: e.paymentMethod as PaymentMethod,
-            account: 'Main Cash Account',
-            paidTo: e.paidTo || 'Supplier',
+            account: '',                  // the server does not store a source account for expenses: show only what is recorded (payment method)
+            paidTo: e.paidTo || '',
             reference: e.reference || '',
             note: e.note || '',
             vehicleReg: e.vehicleReg || '',
@@ -117,7 +117,7 @@ export default function ExpensesPage(){
 
   const kpi={
     total:expenses.reduce((s,e)=>s+e.amount,0),
-    today:expenses.filter(e=>e.date==='2026-11-10').reduce((s,e)=>s+e.amount,0),
+    today:expenses.filter(e=>e.date===new Date().toLocaleDateString('en-CA')).reduce((s,e)=>s+e.amount,0),
     fuel:expenses.filter(e=>e.category==='Fuel').reduce((s,e)=>s+e.amount,0),
     maintenance:expenses.filter(e=>e.category==='Maintenance'||e.category==='Vehicle Repair').reduce((s,e)=>s+e.amount,0),
     office:expenses.filter(e=>e.category==='Office Rent'||e.category==='Staff Salary'||e.category==='Utilities').reduce((s,e)=>s+e.amount,0),
@@ -265,7 +265,7 @@ export default function ExpensesPage(){
 
     {/* Toolbar */}
     <div className="toolbar" style={{marginBottom:16,flexWrap:'wrap',gap:10}}>
-      <div className="global-search" style={{width:260}}>
+      <div className="toolbar-search" style={{width:260}}>
         <Search size={15}/>
         <Input
           placeholder="Search title, payee, vehicle, ref…"
@@ -336,10 +336,9 @@ export default function ExpensesPage(){
                   <span style={{color:'#94a3b8',fontStyle:'italic'}}>General Office</span>
                 )}
               </span>
-              <span style={{fontSize:11}}>{e.paidTo}</span>
+              <span style={{fontSize:11}}>{e.paidTo || '—'}</span>
               <span style={{fontSize:11}}>
-                <span style={{display:'block',color:'#1e3947'}}>{e.account}</span>
-                <span style={{fontSize:10,color:'#6a7c83'}}>{e.paymentMethod}</span>
+                <span style={{display:'block',color:'#1e3947'}}>{e.paymentMethod}</span>
               </span>
               <span className="nums" style={{fontSize:12,fontWeight:700,color:'#b04b46'}}>{fmt(e.amount)}</span>
               <span className="row-actions">
@@ -472,7 +471,6 @@ export default function ExpensesPage(){
                 ['Category',viewExp.category],
                 ['Amount',fmt(viewExp.amount)],
                 ['Payment Method',viewExp.paymentMethod],
-                ['Disbursing Account',viewExp.account],
                 ['Paid To',viewExp.paidTo],
                 ['Reference',viewExp.reference||'None'],
                 ['Related Vehicle',viewExp.vehicleReg||'General Office Expense'],

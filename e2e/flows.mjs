@@ -227,6 +227,7 @@ await step('owners: pay 200,000 of 260,000 -> remaining 60,000.00', async () => 
 // ───────── F. Documents (UI)
 await step('documents: add Fitness and Tax Token via UI, both visible with distinct types; edit persists after reload', async () => {
   await page.goto(BASE + '/documents', {waitUntil: 'networkidle'});
+  await page.getByRole('tab', {name: /Vehicle Papers/}).click();      // the page opens on the Uploaded Files tab; vehicle papers with expiry dates are on the second tab
   for (const [type, num] of [['Fitness Certificate', 'FIT-' + u], ['Tax Token', 'TAX-' + u]]) {
     await page.getByRole('button', {name: /Add Document/}).click();
     const d = dlg();
@@ -249,6 +250,7 @@ await step('documents: add Fitness and Tax Token via UI, both visible with disti
   await dlg().getByRole('button', {name: /Save Document/}).click();
   await page.getByText('Document saved').waitFor();
   await page.goto(BASE + '/owners'); await page.goto(BASE + '/documents', {waitUntil: 'networkidle'});
+  await page.getByRole('tab', {name: /Vehicle Papers/}).click();
   await page.getByPlaceholder(/Search title/).fill(`PW-${u}`);
   await page.getByText(`Edited title ${u}`).waitFor({timeout: 8000*SCALE});
 });
