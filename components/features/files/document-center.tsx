@@ -18,6 +18,7 @@ const CATS: Record<string, string[]> = {
   owner: ['nid', 'ownership', 'financial', 'other'], driver: ['nid', 'license', 'passport', 'other'], client: ['trade_license', 'nid', 'other'],
   vehicle: ['registration', 'insurance', 'fitness', 'tax_token', 'inspection', 'route_permit', 'other'],
 };
+const CUSTOM = '__custom__';
 const ALL_CATS = Array.from(new Set(Object.values(CATS).flat()));
 const label = (v: string) => (v === 'nid' ? 'NID' : v.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()));
 const entityLabel = (t: string) => ({owner: 'Owner', driver: 'Driver', vehicle: 'Vehicle', client: 'Client', agreement: 'Agreement', maintenance: 'Maintenance', transaction: 'Transaction'} as Record<string, string>)[t] || t;
@@ -172,7 +173,9 @@ export function DocumentCenter({onChanged}: {onChanged?: () => void}) {
 
 function EditDialog({f, onClose, onSaved}: {f: CentralFile; onClose: () => void; onSaved: () => void}) {
   const cats = CATS[f.entityType] || ['other'];
-  const [cat, setCat] = useState(f.category || 'other');
+  const known = cats.includes(f.category) || !f.category;
+  const [cat, setCat] = useState(known ? f.category || 'other' : CUSTOM);
+  const [custom, setCustom] = useState(known ? '' : f.category);
   const [desc, setDesc] = useState(f.description);
   const [err, setErr] = useState('');
   return (
@@ -180,12 +183,13 @@ function EditDialog({f, onClose, onSaved}: {f: CentralFile; onClose: () => void;
       <DialogContent style={{maxWidth: 420}}>
         <DialogHeader><DialogTitle>Edit document details</DialogTitle><DialogDescription>{f.fileName} · {entityLabel(f.entityType)}: {f.entityName}</DialogDescription></DialogHeader>
         <label style={{display: 'block', fontSize: 12, marginBottom: 8}}>Document type
-          <Select value={cat} onValueChange={setCat}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{cats.map(c => <SelectItem key={c} value={c}>{label(c)}</SelectItem>)}</SelectContent></Select></label>
+          <Select value={cat} onValueChange={setCat}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{cats.map(c => <SelectItem key={c} value={c}>{label(c)}</SelectItem>)}<SelectItem value={CUSTOM}>Other (type your own)…</SelectItem></SelectContent></Select>
+          {cat === CUSTOM && <Input aria-label="Custom document type" style={{marginTop: 6}} maxLength={39} value={custom} onChange={e => setCustom(e.target.value)} placeholder="e.g. Bank guarantee" />}</label>
         <label style={{display: 'block', fontSize: 12}}>Description<Input value={desc} maxLength={500} onChange={e => setDesc(e.target.value)} /></label>
         {err && <div role="alert" style={{color: '#b42318', fontSize: 12, marginTop: 6}}>{err}</div>}
         <div style={{display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12}}>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={async () => { try { await updateFile(f.id, {category: cat, description: desc}); onSaved(); } catch (e: any) { setErr(e?.message || 'Could not save'); } }}>Save</Button>
+          <Button onClick={async () => { if (cat === CUSTOM && !custom.trim()) return setErr('Type the document type'); try { await updateFile(f.id, {category: cat === CUSTOM ? custom.trim() : cat, description: desc}); onSaved(); } catch (e: any) { setErr(e?.message || 'Could not save'); } }}>Save</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -200,6 +204,7 @@ function UploadDialog({onClose, onDone}: {onClose: () => void; onDone: (n: numbe
   const [records, setRecords] = useState<Rec[] | null>(null);
   const [recordId, setRecordId] = useState('');
   const [cat, setCat] = useState('other');
+  const [custom, setCustom] = useState('');
   const [desc, setDesc] = useState('');
   const [staged, setStaged] = useState<Staged[]>([]);
   const [limits, setLimits] = useState<FileLimits | null>(null);
@@ -231,11 +236,12 @@ function UploadDialog({onClose, onDone}: {onClose: () => void; onDone: (n: numbe
   async function send() {
     if (!recordId) return setErr(`Choose the ${entityLabel(entity).toLowerCase()} this document belongs to`);
     if (!valid.length) return setErr('Add at least one valid file');
+    if (cat === CUSTOM && !custom.trim()) return setErr('Type the document type');
     setBusy(true); setErr(''); setPct(0);
     if (!key.current) key.current = crypto.randomUUID();
     try {
       const files = await Promise.all(valid.map(s => shrinkPhoto(s.file)));
-      const r = await uploadFiles(entity, recordId, files, {kind: 'document', category: cat, description: desc, key: key.current, onProgress: setPct});
+      const r = await uploadFiles(entity, recordId, files, {kind: 'document', category: cat === CUSTOM ? custom.trim() : cat, description: desc, key: key.current, onProgress: setPct});
       if (r.errors.length) {
         setErr('Some files were not uploaded: ' + r.errors.map(e => `${e.fileName}: ${e.message}`).join('; '));
         setStaged([]);
@@ -258,7 +264,8 @@ function UploadDialog({onClose, onDone}: {onClose: () => void; onDone: (n: numbe
                 <SelectContent>{(records || []).map(r => <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>)}</SelectContent></Select></label>
             <label><span className="field-label">Document type *</span>
               <Select value={cat} onValueChange={setCat}><SelectTrigger aria-label="Document type"><SelectValue /></SelectTrigger>
-                <SelectContent>{CATS[entity].map(c => <SelectItem key={c} value={c}>{label(c)}</SelectItem>)}</SelectContent></Select></label>
+                <SelectContent>{CATS[entity].map(c => <SelectItem key={c} value={c}>{label(c)}</SelectItem>)}<SelectItem value={CUSTOM}>Other (type your own)…</SelectItem></SelectContent></Select>
+              {cat === CUSTOM && <Input aria-label="Custom document type" style={{marginTop: 6}} maxLength={39} value={custom} onChange={e => setCustom(e.target.value)} placeholder="Type the document type, e.g. Bank guarantee" />}</label>
             <label><span className="field-label">Description (optional)</span><Input value={desc} maxLength={500} onChange={e => setDesc(e.target.value)} placeholder="e.g. expires 2027" /></label>
           </div>
           <div onDragOver={e => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={e => { e.preventDefault(); setOver(false); add(e.dataTransfer.files); }}
