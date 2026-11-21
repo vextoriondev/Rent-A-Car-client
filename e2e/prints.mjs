@@ -1,6 +1,6 @@
 import {chromium} from 'playwright-core';
 import fs from 'fs';
-const BASE = 'http://127.0.0.1:3101';
+const BASE = process.env.BASE || 'http://127.0.0.1:3100';
 const OUT = process.env.OUT || 'prints1';
 fs.mkdirSync(OUT + '/pdfs', {recursive: true});
 const b = await chromium.launch({channel: 'msedge', headless: true});

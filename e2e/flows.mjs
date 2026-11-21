@@ -128,6 +128,7 @@ await step('attendance: record replacement for a date range via UI + history/fil
   await fld(d, 'Reason').fill('Sick');
   await d.getByRole('button', {name: /Save 3 days/}).click();
   await page.getByText('3 replacement record(s) saved').waitFor({timeout: 10000*SCALE});
+  await page.locator('tbody tr', {hasText: `PW Sub ${u}`}).first().waitFor({timeout: 10000*SCALE});
   const rows = await page.locator('tbody tr', {hasText: `PW Sub ${u}`}).count();
   if (rows !== 3) throw new Error('rows=' + rows);
 });
