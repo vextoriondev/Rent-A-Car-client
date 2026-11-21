@@ -100,6 +100,36 @@ export async function uploadFiles(entity: EntityType, id: number | string, files
   });
 }
 
+export type CentralFile = AttachmentItem & {entityType: EntityType; entityId: number; entityName: string; entityDetail: string};
+/** Central Documents screen: files of every record the caller may view, filtered on the server. */
+export function fetchCentralFiles(f: {entity?: string; entityId?: string | number; category?: string; q?: string; kind?: string; limit?: number; offset?: number} = {}): Promise<{items: CentralFile[]; total: number}> {
+  const p = new URLSearchParams();
+  if (f.entity) p.set('entity', f.entity);
+  if (f.entityId) p.set('entity_id', String(f.entityId));
+  if (f.category) p.set('category', f.category);
+  if (f.q) p.set('q', f.q);
+  p.set('kind', f.kind || 'document');
+  p.set('limit', String(f.limit || 100));
+  if (f.offset) p.set('offset', String(f.offset));
+  return apiRequest(`/orgs/1/files?${p.toString()}`);
+}
+
+/** Replace a document: the new file takes over the old one's record, category and description. */
+export async function replaceFile(fileId: string, file: File): Promise<AttachmentItem> {
+  const orgId = await currentOrgId();
+  try { await fetch('/backend/csrf', {credentials: 'same-origin'}); } catch { /* the cookie may already exist */ }
+  const form = new FormData();
+  form.append('file', file, file.name);
+  const headers: Record<string, string> = {};
+  const token = csrf();
+  if (token) headers['X-CSRFToken'] = decodeURIComponent(token);
+  const r = await fetch(`/backend/orgs/${orgId}/files/${fileId}/replace`, {method: 'POST', body: form, credentials: 'same-origin', headers});
+  let body: any = null;
+  try { body = await r.json(); } catch { /* not JSON */ }
+  if (!r.ok) throw new ApiError(body?.detail || (r.status === 413 ? 'The file is too large' : `Replace failed (${r.status})`), r.status, body?.code);
+  return body;
+}
+
 /** After creating a record in a form: upload the profile picture the user picked while filling it in.
  *  Returns an error message (the record itself was saved), or '' on success / when no file was chosen. */
 export async function uploadPendingPhoto(entity: EntityType, id: number | string, file: File | null | undefined): Promise<string> {

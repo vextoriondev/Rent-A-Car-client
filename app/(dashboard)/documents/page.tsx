@@ -10,6 +10,8 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/c
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription} from '@/components/ui/dialog';
 import {EmptyState} from '@/components/shared/empty-state';
 import {errText} from '@/components/features/finance/common';
+import {DocumentCenter} from '@/components/features/files/document-center';
+import {ACCEPT, checkFile, uploadFiles} from '@/lib/files';
 
 /** Global Documents: reads and writes the same vehicle-paper records the Vehicle Profile uses (one source of truth). */
 const TYPES: {value: string; label: string}[] = [
@@ -38,6 +40,9 @@ export default function DocumentsPage() {
   const [saving, setSaving] = useState(false);
   const [viewDoc, setViewDoc] = useState<Doc | null>(null);
   const [toast, setToast] = useState('');
+  const [tab, setTab] = useState<'files' | 'papers'>('files');
+  const [scan, setScan] = useState<File | null>(null);
+  const [filesKey, setFilesKey] = useState(0);
   const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(''), 3500); };
 
   const load = useCallback(() => {
@@ -57,10 +62,10 @@ export default function DocumentsPage() {
 
   const kpi = {total: docs.length, valid: docs.filter(d => d.status === 'Valid').length, soon: docs.filter(d => d.status === 'Expiring Soon').length, expired: docs.filter(d => d.status === 'Expired').length};
 
-  function openAdd() { setForm({...blank(), vehicleId: vehicles[0] ? String(vehicles[0].id) : ''}); setErrors({}); setDlg({mode: 'add'}); }
+  function openAdd() { setScan(null); setForm({...blank(), vehicleId: vehicles[0] ? String(vehicles[0].id) : ''}); setErrors({}); setDlg({mode: 'add'}); }
   function openEdit(d: Doc) {
     setForm({vehicleId: String(d.vehicleId), paperType: d.paperType, title: d.title, paperNumber: d.paperNumber, issueDate: d.issueDate, expiryDate: d.expiryDate, documentUrl: d.documentUrl});
-    setErrors({}); setDlg({mode: 'edit', id: d.id});
+    setScan(null); setErrors({}); setDlg({mode: 'edit', id: d.id});
   }
 
   async function save() {
@@ -68,13 +73,19 @@ export default function DocumentsPage() {
     if (!form.vehicleId) e.vehicleId = 'Choose a vehicle';
     if (!form.paperNumber.trim()) e.paperNumber = 'Certificate number is required';
     if (form.issueDate && form.expiryDate && form.expiryDate < form.issueDate) e.expiryDate = 'Expiry cannot be before the issue date';
+    if (scan) { const bad = checkFile(scan, null); if (bad) e.scan = bad; }
     setErrors(e);
     if (Object.keys(e).length) return;
     setSaving(true);
     const body = {paper_type: form.paperType, title: form.title.trim(), paper_number: form.paperNumber.trim(), issue_date: form.issueDate || null, expiry_date: form.expiryDate || null, document_url: form.documentUrl.trim()};
     try {
       if (dlg?.mode === 'edit') await updateDocument(dlg.id!, body); else await addVehicleDocument(form.vehicleId, body);
-      setDlg(null); showToast('Document saved'); load();
+      let fileNote = '';
+      if (scan) {      // the scan is stored centrally and linked to this vehicle; it shows up under Uploaded Files and in the vehicle's own Photos & Documents
+        try { await uploadFiles('vehicle', form.vehicleId, [scan], {kind: 'document', category: form.paperType === 'custom' ? 'other' : form.paperType, description: form.title.trim() || form.paperNumber.trim()}); }
+        catch (up: any) { fileNote = ` The paper was saved, but the file was not uploaded: ${errText(up)}`; }
+      }
+      setDlg(null); showToast('Document saved.' + fileNote); load(); setFilesKey(k => k + 1);
     } catch (err) { setErrors({form: errText(err)}); } finally { setSaving(false); }
   }
 
@@ -83,7 +94,19 @@ export default function DocumentsPage() {
     try { await deleteDocument(d.id); showToast('Document deleted'); load(); } catch (err) { showToast(errText(err)); }
   }
 
+  const tabs = (
+    <div role="tablist" aria-label="Document views" style={{display: 'flex', gap: 6, marginBottom: 16, borderBottom: '1px solid #e2e8f0'}}>
+      {([['files', 'Uploaded Files'], ['papers', 'Vehicle Papers & Expiry']] as const).map(([k, l]) => (
+        <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} style={{padding: '9px 14px', border: 0, background: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13.5,
+          color: tab === k ? '#1e3947' : '#64748b', borderBottom: tab === k ? '2px solid #1e3947' : '2px solid transparent', marginBottom: -1}}>{l}</button>
+      ))}
+    </div>
+  );
+
+  if (tab === 'files') return <>{tabs}<DocumentCenter key={filesKey} />{toast && <div className="toast" role="status"><CheckCircle2 size={18} />{toast}<button onClick={() => setToast('')} aria-label="Dismiss"><X size={16} /></button></div>}</>;
+
   return <>
+    {tabs}
     <div className="kpi-grid-4" style={{marginBottom: 16}}>
       {[
         {label: 'Total Documents', value: kpi.total, color: 'blue', icon: FileText},
@@ -176,6 +199,10 @@ export default function DocumentsPage() {
             <label><span className="field-label">Expiry date</span><Input type="date" value={form.expiryDate} onChange={e => setForm(f => ({...f, expiryDate: e.target.value}))} />{errors.expiryDate && <span className="field-error">{errors.expiryDate}</span>}</label>
             <label><span className="field-label">Scan / file link (optional)</span><Input placeholder="https://…" value={form.documentUrl} onChange={e => setForm(f => ({...f, documentUrl: e.target.value}))} /></label>
           </div>
+          <label><span className="field-label">Attach file (PDF, Word or scanned image)</span>
+            <Input type="file" accept={ACCEPT} aria-label="Attach file" onChange={e => setScan(e.target.files?.[0] || null)} />
+            {errors.scan && <span className="field-error">{errors.scan}</span>}
+            <span style={{fontSize: 11, color: '#64748b'}}>Saved to this vehicle; also listed under Uploaded Files and the vehicle&apos;s Photos &amp; Documents.</span></label>
           {errors.form && <div role="alert" style={{color: '#b42318', fontSize: 12.5}}>{errors.form}</div>}
         </div>
         <DialogFooter>
